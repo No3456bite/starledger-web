@@ -3796,6 +3796,47 @@ button.home-month-stat:active{background:var(--pale);border-radius:12px}
 .selecting #searchResults .row.selected + .row.selected::before,
 .selecting #searchResults .row.selected + .row.selected::after{display:none!important}
 </style>
+<style id="rc-selection-summary-one-line">
+/* Keep summary and selection controls on the same baseline without changing row height. */
+#searchResults .compact-inline-summary{
+ display:grid!important;
+ grid-template-columns:minmax(0,1fr) max-content!important;
+ align-items:center!important;
+ column-gap:10px!important;
+ min-width:0!important;
+ height:20px!important;
+ min-height:20px!important;
+ line-height:20px!important;
+ overflow:visible!important;
+ white-space:nowrap!important;
+}
+#searchResults .compact-inline-summary>span:first-child{
+ min-width:0!important;
+ overflow:hidden!important;
+ text-overflow:ellipsis!important;
+ white-space:nowrap!important;
+}
+#searchResults .selection-top-actions{
+ display:flex!important;
+ align-items:center!important;
+ gap:12px!important;
+ height:20px!important;
+ line-height:20px!important;
+ visibility:hidden;
+ pointer-events:none;
+}
+body.selecting #searchResults .selection-top-actions{
+ visibility:visible;
+ pointer-events:auto;
+}
+#searchResults .selection-top-actions button{
+ height:20px!important;
+ line-height:20px!important;
+ padding:0!important;
+ margin:0!important;
+ white-space:nowrap!important;
+}
+</style>
 </head><body><div class="shell"><aside class="side" data-ui-level="1"><button type="button" id="sideToggle" class="side-toggle" aria-label="收起左侧栏">‹</button><div class="brand"><span class="brand-long">我的<b>账本</b></span><span class="brand-short">账</span></div><nav id="nav"></nav><small>星账本 · Web v0.5.0 · OCR v1</small></aside><main data-ui-level="2"><div id="pageViewport"><div id="content"><div id="safeFrame" aria-hidden="true"></div><div id="controlsFrame" aria-hidden="true"></div><div id="headerFrame"><header class="top"><div><div class="eyebrow" id="status">账本数据</div><h1 id="title">我的账本</h1></div><div class="topactions"><button class="button ledger-switch" id="ledgerSwitch" hidden aria-label="切换主账本"></button><button class="button iconbutton" id="settingsBtn" aria-label="设置">⚙</button><button class="button" id="refreshBill" hidden>↻ 重新载入</button><button class="button primary" id="addBtn">＋ 记一笔</button></div></header></div><div id="pageBody"></div></div></div><div id="floatingControls"></div></main></div><div class="mobilebar" id="mobileNav"></div><button type="button" class="back-to-top" id="backToTop" hidden aria-label="回到顶部">↑ 顶部</button><div id="overlay"></div><input hidden type="file" id="folderFile" accept=".csv,.json,text/csv,application/json" webkitdirectory directory multiple><input hidden type="file" id="deltaFile" accept=".csv,text/csv"><input hidden type="file" id="configFile" accept=".json,application/json"><script src="./recognizer.js?v=ocr1"></script><script>
 // Pure Web build. The legacy Scriptable bridge is archived in GitHub.
 const BOOT=/*__BOOT__*/null;
