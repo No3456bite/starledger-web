@@ -3732,6 +3732,39 @@ button.home-month-stat:active{background:var(--pale);border-radius:12px}
 .selecting #searchResults .row.selected:first-child:last-child,
 .selecting #searchResults .row:not(.selected)+.row.selected:has(+ .row:not(.selected)){border-radius:14px!important}
 </style>
+<style id="rc-selection-hotfix">
+/* Hotfix: the generic .button rules were still allowing the destructive action to wrap. */
+.selecting #selectionBar{
+ display:grid!important;
+ grid-template-columns:repeat(3,max-content)!important;
+ grid-template-rows:1fr!important;
+ align-items:stretch!important;
+ width:max-content!important;
+ max-width:calc(100vw - 24px)!important;
+ padding:5px!important;
+ gap:0!important;
+ overflow:hidden!important;
+ flex-wrap:nowrap!important;
+}
+.selecting #selectionBar>.button{
+ display:flex!important;
+ align-items:center!important;
+ justify-content:center!important;
+ width:auto!important;
+ min-width:84px!important;
+ height:52px!important;
+ padding:0 18px!important;
+ margin:0!important;
+ white-space:nowrap!important;
+ border-radius:0!important;
+ box-sizing:border-box!important;
+}
+.selecting #selectionBar>.button:first-child{border-radius:12px 0 0 12px!important}
+.selecting #selectionBar>.button:last-child{border-radius:0 12px 12px 0!important}
+@media(max-width:390px){
+ .selecting #selectionBar>.button{min-width:76px!important;padding-inline:13px!important}
+}
+</style>
 </head><body><div class="shell"><aside class="side" data-ui-level="1"><button type="button" id="sideToggle" class="side-toggle" aria-label="收起左侧栏">‹</button><div class="brand"><span class="brand-long">我的<b>账本</b></span><span class="brand-short">账</span></div><nav id="nav"></nav><small>星账本 · Web v0.5.0 · OCR v1</small></aside><main data-ui-level="2"><div id="pageViewport"><div id="content"><div id="safeFrame" aria-hidden="true"></div><div id="controlsFrame" aria-hidden="true"></div><div id="headerFrame"><header class="top"><div><div class="eyebrow" id="status">账本数据</div><h1 id="title">我的账本</h1></div><div class="topactions"><button class="button ledger-switch" id="ledgerSwitch" hidden aria-label="切换主账本"></button><button class="button iconbutton" id="settingsBtn" aria-label="设置">⚙</button><button class="button" id="refreshBill" hidden>↻ 重新载入</button><button class="button primary" id="addBtn">＋ 记一笔</button></div></header></div><div id="pageBody"></div></div></div><div id="floatingControls"></div></main></div><div class="mobilebar" id="mobileNav"></div><button type="button" class="back-to-top" id="backToTop" hidden aria-label="回到顶部">↑ 顶部</button><div id="overlay"></div><input hidden type="file" id="folderFile" accept=".csv,.json,text/csv,application/json" webkitdirectory directory multiple><input hidden type="file" id="deltaFile" accept=".csv,text/csv"><input hidden type="file" id="configFile" accept=".json,application/json"><script src="./recognizer.js?v=ocr1"></script><script>
 // Pure Web build. The legacy Scriptable bridge is archived in GitHub.
 const BOOT=/*__BOOT__*/null;
