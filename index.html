@@ -3676,6 +3676,16 @@ function applySharedPrefs(config){
  return remote!==before||Object.keys(patch).some(k=>k!=='_starConfigUpdatedAt');
 }
 
+const WORKSPACE_KEY='workspace-v1';
+const ledgerCsvKey=name=>'ledger:'+String(name||'')+':csv';
+const ledgerPrefsKey=name=>'ledger:'+String(name||'')+':prefs';
+function normalizeWorkspace(value){
+ let names=[...new Set((Array.isArray(value?.names)?value.names:[]).map(x=>String(x||'').trim()).filter(Boolean))];
+ let active=String(value?.active||'').trim();
+ if(active&&!names.includes(active))names.unshift(active);
+ return {names,active:active||names[0]||'',folderName:String(value?.folderName||''),mode:String(value?.mode||'local'),readWrite:!!value?.readWrite,updatedAt:Number(value?.updatedAt||0)};
+}
+let workspace=normalizeWorkspace(null);
 let prefs={...DEFAULT_PREFS,...(BOOT?.settings||{}),...(BOOT?.mainName?{mainName:BOOT.mainName}:{})},folderHandle=null,entryKind='支出',entryCategory='',busy=false,ocrReviewText='',pendingPrefill=BOOT?.prefillText||'';
 const systemScheme=matchMedia('(prefers-color-scheme: dark)');
 function applyTheme(){let mode=prefs.appearance==='system'?(systemScheme.matches?'dark':'light'):prefs.appearance;document.documentElement.dataset.mode=mode;document.documentElement.dataset.theme='neutral';document.documentElement.style.colorScheme=mode;document.documentElement.style.backgroundColor=mode==='dark'?'#000000':'#f7f7f5';let meta=document.querySelector('meta[name="theme-color"]');if(meta)meta.content=mode==='dark'?'#000000':'#f7f7f5'}
@@ -3683,7 +3693,28 @@ if(systemScheme.addEventListener)systemScheme.addEventListener('change',()=>{if(
 applyTheme();
 // Web v0.2: IndexedDB is the canonical ledger store; localStorage is an emergency fallback.
 function db(){return new Promise((resolve,reject)=>{let req=indexedDB.open('star-ledger-local-1',1);req.onupgradeneeded=()=>req.result.createObjectStore('state');req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)})}
-async function putBundle(entries){if(native)return;let failure;try{let d=await db();await new Promise((res,rej)=>{let tx=d.transaction('state','readwrite'),store=tx.objectStore('state');for(let [key,value] of Object.entries(entries))store.put(value,key);tx.oncomplete=res;tx.onerror=()=>rej(tx.error||Error('存储失败'));tx.onabort=()=>rej(tx.error||Error('存储被中断'))});d.close();return}catch(e){failure=e}try{let current=JSON.parse(localStorage.getItem('star_ledger_bundle')||'{}'),next={...current,...entries},serialized=JSON.stringify(next);localStorage.setItem('star_ledger_bundle',serialized);if(localStorage.getItem('star_ledger_bundle')!==serialized)throw Error('写入后校验失败');return}catch(e){throw Error('设备存储不可用，账单没有保存。请用正常浏览器窗口打开并检查可用空间：'+(failure?.message||e.message))}}
+async function putBundle(entries){
+ if(native)return;
+ let payload={...entries},target=String(entries?.prefs?.mainName||prefs?.mainName||workspace.active||'').trim();
+ if(target){
+  workspace=normalizeWorkspace({...workspace,names:[...workspace.names,target],active:target,updatedAt:Date.now()});
+  if(Object.prototype.hasOwnProperty.call(entries,'csv'))payload[ledgerCsvKey(target)]=entries.csv;
+  if(Object.prototype.hasOwnProperty.call(entries,'prefs'))payload[ledgerPrefsKey(target)]=entries.prefs;
+  payload[WORKSPACE_KEY]=workspace;
+ }
+ let failure;
+ try{
+  let d=await db();
+  await new Promise((res,rej)=>{let tx=d.transaction('state','readwrite'),store=tx.objectStore('state');for(let [key,value] of Object.entries(payload))store.put(value,key);tx.oncomplete=res;tx.onerror=()=>rej(tx.error||Error('存储失败'));tx.onabort=()=>rej(tx.error||Error('存储被中断'))});
+  d.close();return
+ }catch(e){failure=e}
+ try{
+  let current=JSON.parse(localStorage.getItem('star_ledger_bundle')||'{}'),next={...current,...payload},serialized=JSON.stringify(next);
+  localStorage.setItem('star_ledger_bundle',serialized);
+  if(localStorage.getItem('star_ledger_bundle')!==serialized)throw Error('写入后校验失败');
+  return
+ }catch(e){throw Error('设备存储不可用，账单没有保存。请用正常浏览器窗口打开并检查可用空间：'+(failure?.message||e.message))}
+}
 async function put(key,value){return putBundle({[key]:value})}
 async function get(key){try{let d=await db(),v=await new Promise((res,rej)=>{let tx=d.transaction('state','readonly'),q=tx.objectStore('state').get(key);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)});d.close();if(v!==undefined)return v}catch(e){}try{return JSON.parse(localStorage.getItem('star_ledger_bundle')||'{}')[key]??null}catch(e){return null}}
 async function ensurePersistentStorage(){
@@ -3696,16 +3727,50 @@ async function ensurePersistentStorage(){
 function initLocal(){return (async()=>{
  if(native)return;
  await ensurePersistentStorage();
- let saved=await get('prefs');
- if(saved)prefs={...prefs,...saved};
- // Web v0.2: IndexedDB is the canonical store. File-system and Scriptable
- // integrations remain only in the archived legacy build.
+ workspace=normalizeWorkspace(await get(WORKSPACE_KEY));
+ let legacyPrefs=await get('prefs'),legacyCsv=await get('csv');
+ if(!workspace.names.length&&legacyPrefs?.mainName){
+  workspace=normalizeWorkspace({names:[legacyPrefs.mainName],active:legacyPrefs.mainName,mode:'local',updatedAt:Date.now()});
+  await putBundle({[WORKSPACE_KEY]:workspace,[ledgerPrefsKey(legacyPrefs.mainName)]:legacyPrefs,[ledgerCsvKey(legacyPrefs.mainName)]:legacyCsv||csvWrite([])});
+ }
+ let active=workspace.active||legacyPrefs?.mainName||'';
+ if(active){
+  let saved=await get(ledgerPrefsKey(active))||legacyPrefs;
+  let csv=await get(ledgerCsvKey(active))||legacyCsv;
+  prefs={...DEFAULT_PREFS,...(saved||{}),mainName:active};
+  if(csv){try{takeCsv(csv)}catch(e){toast('本机账本无法读取');render()}}else render();
+ }else{
+  if(legacyPrefs)prefs={...prefs,...legacyPrefs};
+  render()
+ }
  folderHandle=null;
+ try{
+  let savedFolder=await getFolder();
+  if(savedFolder&&await permission(savedFolder,'read')){
+   folderHandle=savedFolder;
+   workspace=normalizeWorkspace({...workspace,folderName:savedFolder.name,mode:'linked',readWrite:await permission(savedFolder,'readwrite')});
+  }
+ }catch(e){}
  applyTheme();
- let csv=await get('csv');
- if(csv){try{takeCsv(csv)}catch(e){toast('本机账本无法读取');render()}}else render();
  openPendingPrefill();
 })()}
+
+async function switchWorkspaceLedger(name,{silent=false}={}){
+ name=String(name||'').trim();
+ if(!name||!workspace.names.includes(name))throw Error('找不到这个主账本');
+ let savedPrefs=await get(ledgerPrefsKey(name)),csv=await get(ledgerCsvKey(name));
+ prefs={...DEFAULT_PREFS,...(savedPrefs||{}),mainName:name};
+ workspace=normalizeWorkspace({...workspace,active:name,updatedAt:Date.now()});
+ await putBundle({prefs,csv:csv||csvWrite([]),[WORKSPACE_KEY]:workspace});
+ book='全部账本';query='';kind='全部类型';account='全部账户';category='全部分类';subcategory='全部小类';currencyFilter='全部币种';day='';page=0;
+ applyTheme();takeCsv(csv||csvWrite([]));
+ window.dispatchEvent(new CustomEvent('star-ledger-main-changed',{detail:{name}}));
+ if(!silent)toast('已切换主账本：'+name)
+}
+function workspacePicker(){
+ if(workspace.names.length<2)return;
+ $('#overlay').innerHTML=`<div class="modalback"><div class="modal"><div class="sectionhead"><h2>切换主账本</h2><button type="button" id="closeBtn">完成</button></div><div class="manage-list">${workspace.names.map(name=>`<button type="button" class="button ${name===prefs.mainName?'primary':''}" data-workspace-ledger="${esc(name)}"><span>${esc(name)}</span>${name===prefs.mainName?'<small>当前</small>':''}</button>`).join('')}</div></div></div>`
+}
 async function clearLocalLedger(){
  if(native)throw Error('当前为原生桥接模式，不能从网页清空');
  try{
