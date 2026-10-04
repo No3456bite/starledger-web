@@ -6629,12 +6629,18 @@ requestAnimationFrame(()=>{try{render()}catch(e){console.warn('rc12 initial rend
   }
 
   function viewportBox(){
-    const vv=window.visualViewport,scrollY=window.scrollY||document.documentElement.scrollTop||0;
+    const vv=window.visualViewport,scrollY=window.scrollY||document.documentElement.scrollTop||0,
+          visualHeight=Math.max(1,vv?.height||window.innerHeight||document.documentElement.clientHeight),
+          layoutHeight=Math.max(visualHeight,window.innerHeight||0,document.documentElement.clientHeight||0),
+          // Safari's bottom browser chrome sits outside visualViewport. Give
+          // the actual page snapshot enough paint area to continue behind it.
+          bottomOverscan=Math.max(180,Math.min(320,(layoutHeight-visualHeight)+180));
     return {
       top:scrollY+(vv?.offsetTop||0),
       left:(window.scrollX||0)+(vv?.offsetLeft||0),
       width:Math.max(1,vv?.width||window.innerWidth||document.documentElement.clientWidth),
-      height:Math.max(1,vv?.height||window.innerHeight||document.documentElement.clientHeight)
+      height:visualHeight,
+      paintHeight:visualHeight+bottomOverscan
     };
   }
 
@@ -6665,7 +6671,7 @@ requestAnimationFrame(()=>{try{render()}catch(e){console.warn('rc12 initial rend
     holder.style.top=box.top+'px';
     holder.style.left=box.left+'px';
     holder.style.width=box.width+'px';
-    holder.style.height=box.height+'px';
+    holder.style.height=box.paintHeight+'px';
 
     const current=document.createElement('div');
     current.className='browser-pager-pane browser-pager-current';
