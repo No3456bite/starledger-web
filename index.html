@@ -4913,7 +4913,7 @@ function render(){
 
  renderSelection();
  rc20AnimatePage();
- requestAnimationFrame(()=>{updateBackToTop();window.__rc51SyncFloating?.();if(compactViewport())window.__rc62AfterRender?.()});
+ requestAnimationFrame(()=>{updateBackToTop();window.__rc51SyncFloating?.();if(compactViewport()){window.__rc62AfterRender?.();window.__browserPagerAfterRender?.()}});
 }
 
 function updateBackToTop(){let button=$('#backToTop'),page=$('#content');if(!button||!page)return;let browser=browserTabScrollMode(),scroll=browser?getPageScroll():page.scrollTop,height=browser?Math.max(document.body.scrollHeight,document.documentElement.scrollHeight):page.scrollHeight,viewport=browser?window.innerHeight:page.clientHeight;button.hidden=height<=viewport+300||scroll<720||!!$('.entryback,.modalback')}
@@ -6473,11 +6473,12 @@ requestAnimationFrame(()=>{try{render()}catch(e){console.warn('rc12 initial rend
   const root=document.documentElement;
   if(!root.classList.contains('browser-tab'))return;
 
-  const viewport=document.querySelector('#pageViewport');
   const live=document.querySelector('#content');
-  if(!viewport||!live)return;
+  const floating=document.querySelector('#floatingControls');
+  if(!live)return;
 
-  let g=null,busy=false,neighbor=null,settleTimer=0,suppressUntil=0;
+  let gesture=null,busy=false,stage=null,targetFilter=null,settleTimer=0,suppressUntil=0,cacheToken=0;
+  const pageCache=new Map();
 
   const blocked=t=>!!t.closest(
     'input,select,textarea,[contenteditable="true"],.mobilebar,.modalback,.entryback,'+
@@ -6493,20 +6494,20 @@ requestAnimationFrame(()=>{try{render()}catch(e){console.warn('rc12 initial rend
     searchRangeStart=v.searchRangeStart;searchRangeEnd=v.searchRangeEnd;
   };
 
-  const pageBodyHTMLFor=target=>{
-    const prefix=
-      (volatileDeletion
-        ?'<div class="backup-alert">当前仅显示已导出的删除结果。手机原 CSV 未改变；请保存导出的 CSV，并重新导入后再继续记账。</div>'
-        :'')+
-      (prefs.mainName&&exportStatus()?exportStatus():'');
-    if(!prefs.mainName){
-      return prefix+'<div class="card importarea"><h2>打开星账本</h2><p>选择一个 StarLedger 工作区文件夹。网页会同时读取其中的账单 CSV、配置和关联数据；其他文件会被忽略。</p><button class="button primary" id="importFolder">选择 StarLedger 工作区文件夹</button> <button class="button" id="newBook">新建主账本</button></div>';
-    }
-    const fn={home:homeV2,stats:statsPage,books:bookPage,accounts:accountPage,search:searchPage}[target];
-    return prefix+(fn?fn():'');
-  };
+  function hasFilters(target){
+    return !!(prefs.mainName&&(target==='home'||target==='stats'));
+  }
+  function filterHTMLFor(target){
+    if(!hasFilters(target))return'';
+    const saved=saveGlobals();
+    try{
+      section=target;
+      rc6ApplyPageDefaults(target);
+      return commonFilters(target==='home'||statsMode==='month')+activeFilterNotice();
+    }finally{restoreGlobals(saved)}
+  }
 
-  function buildTargetHTML(target){
+  function pageHTMLFor(target){
     const saved=saveGlobals();
     try{
       section=target;
@@ -6526,7 +6527,17 @@ requestAnimationFrame(()=>{try{render()}catch(e){console.warn('rc12 initial rend
       const body=clone.querySelector('#pageBody');
       if(body){
         body.classList.remove('settings-page');
-        body.innerHTML=pageBodyHTMLFor(target);
+        const prefix=
+          (volatileDeletion
+            ?'<div class="backup-alert">当前仅显示已导出的删除结果。手机原 CSV 未改变；请保存导出的 CSV，并重新导入后再继续记账。</div>'
+            :'')+
+          (prefs.mainName&&exportStatus()?exportStatus():'');
+        if(!prefs.mainName){
+          body.innerHTML=prefix+'<div class="card importarea"><h2>打开星账本</h2><p>选择一个 StarLedger 工作区文件夹。网页会同时读取其中的账单 CSV、配置和关联数据；其他文件会被忽略。</p><button class="button primary" id="importFolder">选择 StarLedger 工作区文件夹</button> <button class="button" id="newBook">新建主账本</button></div>';
+        }else{
+          const fn={home:homeV2,stats:statsPage,books:bookPage,accounts:accountPage,search:searchPage}[target];
+          body.innerHTML=prefix+(fn?fn():'');
+        }
       }
 
       const slot=clone.querySelector('#controlsFrame');
@@ -6542,9 +6553,39 @@ requestAnimationFrame(()=>{try{render()}catch(e){console.warn('rc12 initial rend
     }
   }
 
+  function buildCache(){
+    const token=++cacheToken;
+    const run=()=>{
+      if(token!==cacheToken||busy)return;
+      const next=new Map();
+      for(const target of PRIMARY_PAGE_ORDER){
+        next.set(target,{
+          html:pageHTMLFor(target),
+          filterHTML:filterHTMLFor(target),
+          hasFilter:hasFilters(target)
+        });
+      }
+      if(token!==cacheToken)return;
+      pageCache.clear();
+      for(const [k,v] of next)pageCache.set(k,v);
+    };
+    if('requestIdleCallback' in window)requestIdleCallback(run,{timeout:220});
+    else setTimeout(run,45);
+  }
+  window.__browserPagerAfterRender=buildCache;
+  window.__browserPagerInvalidate=()=>{++cacheToken;pageCache.clear();buildCache()};
+
+  function dataFor(target){
+    let data=pageCache.get(target);
+    if(!data){
+      data={html:pageHTMLFor(target),filterHTML:filterHTMLFor(target),hasFilter:hasFilters(target)};
+      pageCache.set(target,data);
+    }
+    return data;
+  }
+
   function viewportBox(){
-    const vv=window.visualViewport;
-    const scrollY=window.scrollY||document.documentElement.scrollTop||0;
+    const vv=window.visualViewport,scrollY=window.scrollY||document.documentElement.scrollTop||0;
     return {
       top:scrollY+(vv?.offsetTop||0),
       left:(window.scrollX||0)+(vv?.offsetLeft||0),
@@ -6553,48 +6594,59 @@ requestAnimationFrame(()=>{try{render()}catch(e){console.warn('rc12 initial rend
     };
   }
 
-  function removeNeighbor(){
-    if(neighbor?.isConnected)neighbor.remove();
-    neighbor=null;
+  function currentSnapshot(){
+    return rc55SceneHTML(live.innerHTML,getPageScroll(),{visible:false,html:'',top:0});
   }
 
-  function makeNeighbor(target,dir){
-    removeNeighbor();
-    const box=viewportBox(),node=document.createElement('div');
-    node.className='browser-swipe-neighbor';
-    node.dataset.target=target;
-    node.style.top=box.top+'px';
-    node.style.left=box.left+'px';
-    node.style.width=box.width+'px';
-    node.style.height=box.height+'px';
-    node.style.setProperty('--browser-neighbor-x',(dir<0?box.width:-box.width)+'px');
-    node.innerHTML=buildTargetHTML(target);
-    document.body.appendChild(node);
-    neighbor=node;
-    return node;
-  }
-
-  function setLiveX(x){
-    live.style.setProperty('--browser-live-x',x+'px');
-  }
-  function setNeighborX(x){
-    if(neighbor)neighbor.style.setProperty('--browser-neighbor-x',x+'px');
-  }
-
-  function trackingOn(){
-    live.classList.add('browser-pager-tracking');
-  }
-  function clearMotion(){
-    clearTimeout(settleTimer);
-    live.classList.remove('browser-pager-tracking','browser-pager-settling');
-    live.style.removeProperty('--browser-live-x');
-    live.style.removeProperty('--browser-pager-duration');
-    live.style.removeProperty('--browser-pager-ease');
-    if(neighbor){
-      neighbor.classList.remove('browser-pager-settling');
-      neighbor.style.removeProperty('--browser-pager-duration');
-      neighbor.style.removeProperty('--browser-pager-ease');
+  function removeStage(){
+    if(stage?.isConnected)stage.remove();
+    stage=null;
+    if(targetFilter?.isConnected)targetFilter.remove();
+    targetFilter=null;
+    if(floating){
+      floating.style.removeProperty('opacity');
+      floating.style.removeProperty('transition');
+      floating.style.removeProperty('pointer-events');
     }
+  }
+
+  function makeStage(target,dir){
+    removeStage();
+    const box=viewportBox(),targetData=dataFor(target);
+    const holder=document.createElement('div');
+    holder.className='browser-pager-stage';
+    holder.style.top=box.top+'px';
+    holder.style.left=box.left+'px';
+    holder.style.width=box.width+'px';
+    holder.style.height=box.height+'px';
+
+    const current=document.createElement('div');
+    current.className='browser-pager-pane browser-pager-current';
+    current.innerHTML=currentSnapshot();
+
+    const next=document.createElement('div');
+    next.className='browser-pager-pane browser-pager-target';
+    next.innerHTML=targetData.html;
+    next.style.setProperty('--browser-pane-x',(dir<0?box.width:-box.width)+'px');
+
+    holder.append(current,next);
+    document.body.appendChild(holder);
+    stage=holder;
+
+    if(targetData.hasFilter){
+      const ghost=document.createElement('div');
+      ghost.className='browser-pager-filter-ghost';
+      ghost.innerHTML=targetData.filterHTML;
+      ghost.style.opacity='0';
+      holder.appendChild(ghost);
+      targetFilter=ghost;
+    }
+    if(floating){
+      floating.style.pointerEvents='none';
+      floating.style.transition='none';
+    }
+
+    return {box,current,next,targetData};
   }
 
   function targetFor(dir){
@@ -6604,49 +6656,56 @@ requestAnimationFrame(()=>{try{render()}catch(e){console.warn('rc12 initial rend
     return next>=0&&next<PRIMARY_PAGE_ORDER.length?PRIMARY_PAGE_ORDER[next]:'';
   }
 
-  function begin(target,dir,initialX=0){
+  function begin(target,dir){
     if(busy||!target||target===section)return null;
-    const box=viewportBox(),state={
-      target,dir,width:box.width,displayX:initialX
-    };
-    makeNeighbor(target,dir);
+    const built=makeStage(target,dir);
     busy=true;
-    trackingOn();
-    setLiveX(initialX);
-    setNeighborX(initialX+(dir<0?box.width:-box.width));
-    return state;
+    return {
+      target,dir,width:built.box.width,
+      current:built.current,next:built.next,
+      currentHasFilter:hasFilters(section),
+      targetHasFilter:built.targetData.hasFilter,
+      x:0
+    };
   }
 
-  function applyDrag(state,rawDx){
-    if(!state)return;
-    let dx=state.dir<0?Math.min(0,rawDx):Math.max(0,rawDx);
-    dx=Math.max(-state.width,Math.min(state.width,dx));
-    state.displayX=dx;
-    setLiveX(dx);
-    setNeighborX(dx+(state.dir<0?state.width:-state.width));
+  function setProgress(state,rawX){
+    let x=state.dir<0?Math.min(0,rawX):Math.max(0,rawX);
+    x=Math.max(-state.width,Math.min(state.width,x));
+    state.x=x;
+
+    state.current.style.setProperty('--browser-pane-x',x+'px');
+    state.next.style.setProperty('--browser-pane-x',(x+(state.dir<0?state.width:-state.width))+'px');
+
+    const p=Math.max(0,Math.min(1,Math.abs(x)/state.width));
+    if(floating){
+      if(state.currentHasFilter)floating.style.opacity=String(1-p);
+      else floating.style.opacity='0';
+    }
+    if(targetFilter){
+      targetFilter.style.opacity=String(state.targetHasFilter?p:0);
+    }
   }
 
-  function finishTransition(state,commit,duration=210){
-    if(!state)return;
-    const width=state.width;
-    const liveEnd=commit?(state.dir<0?-width:width):0;
-    const nextEnd=commit?0:(state.dir<0?width:-width);
+  function settle(state,commit,duration){
+    const currentEnd=commit?(state.dir<0?-state.width:state.width):0;
+    const targetEnd=commit?0:(state.dir<0?state.width:-state.width);
     const ease=commit?'cubic-bezier(.2,.85,.32,1)':'cubic-bezier(.18,.88,.3,1.05)';
 
-    live.classList.remove('browser-pager-tracking');
-    live.classList.add('browser-pager-settling');
-    live.style.setProperty('--browser-pager-duration',duration+'ms');
-    live.style.setProperty('--browser-pager-ease',ease);
-    if(neighbor){
-      neighbor.classList.add('browser-pager-settling');
-      neighbor.style.setProperty('--browser-pager-duration',duration+'ms');
-      neighbor.style.setProperty('--browser-pager-ease',ease);
+    for(const pane of [state.current,state.next]){
+      pane.classList.add('browser-pager-settling');
+      pane.style.setProperty('--browser-pager-duration',duration+'ms');
+      pane.style.setProperty('--browser-pager-ease',ease);
     }
+    if(floating)floating.style.transition='opacity '+duration+'ms '+ease;
+    if(targetFilter)targetFilter.style.transition='opacity '+duration+'ms '+ease;
 
-    void live.offsetWidth;
+    void state.current.offsetWidth;
     requestAnimationFrame(()=>{
-      setLiveX(liveEnd);
-      setNeighborX(nextEnd);
+      state.current.style.setProperty('--browser-pane-x',currentEnd+'px');
+      state.next.style.setProperty('--browser-pane-x',targetEnd+'px');
+      if(floating)floating.style.opacity=commit?(state.targetHasFilter?'0':'0'):(state.currentHasFilter?'1':'0');
+      if(targetFilter)targetFilter.style.opacity=commit&&state.targetHasFilter?'1':'0';
     });
 
     let done=false;
@@ -6656,20 +6715,22 @@ requestAnimationFrame(()=>{try{render()}catch(e){console.warn('rc12 initial rend
       clearTimeout(settleTimer);
 
       if(commit){
-        // Keep the rendered neighbour covering the viewport until the real page
-        // has synchronously replaced the live DOM underneath it.
+        // Render the target behind the already-arrived cached page.
         rc6Navigate(state.target);
+        // Keep the cached target/filter for one more paint, then reveal live DOM.
+        requestAnimationFrame(()=>requestAnimationFrame(()=>{
+          removeStage();
+          busy=false;
+          buildCache();
+          updateBackToTop();
+        }));
+      }else{
+        removeStage();
+        busy=false;
       }
-
-      clearMotion();
-      removeNeighbor();
-      busy=false;
-      window.__rc54PlaceFloating?.();
-      updateBackToTop();
     };
 
-    if(neighbor)neighbor.addEventListener('transitionend',finish,{once:true});
-    else live.addEventListener('transitionend',finish,{once:true});
+    state.next.addEventListener('transitionend',finish,{once:true});
     settleTimer=setTimeout(finish,duration+70);
   }
 
@@ -6679,117 +6740,91 @@ requestAnimationFrame(()=>{try{render()}catch(e){console.warn('rc12 initial rend
       return;
     }
     if(busy)return;
-    const from=PRIMARY_PAGE_ORDER.indexOf(section),to=PRIMARY_PAGE_ORDER.indexOf(target);
-    const dir=to>from?-1:1;
-    const state=begin(target,dir,0);
+    const from=PRIMARY_PAGE_ORDER.indexOf(section),to=PRIMARY_PAGE_ORDER.indexOf(target),dir=to>from?-1:1;
+    const state=begin(target,dir);
     if(!state)return;
-    // One full page-slide regardless of how many tabs were skipped.
-    requestAnimationFrame(()=>requestAnimationFrame(()=>finishTransition(state,true,220)));
+    requestAnimationFrame(()=>requestAnimationFrame(()=>settle(state,true,225)));
   };
 
   document.addEventListener('touchstart',e=>{
     if(e.touches?.length!==1||busy||section==='settings'||selection?.size||document.querySelector('.modalback,.entryback')||blocked(e.target)){
-      g=null;return;
+      gesture=null;return;
     }
-    if(!e.target.closest('#pageViewport')){g=null;return}
+    if(!e.target.closest('#pageViewport')){gesture=null;return}
     const t=e.touches[0];
-    g={
-      id:t.identifier,x:t.clientX,y:t.clientY,
-      lastX:t.clientX,lastY:t.clientY,lastTime:performance.now(),
-      vx:0,axis:'',dir:0,target:'',state:null
+    gesture={
+      id:t.identifier,x:t.clientX,y:t.clientY,lastX:t.clientX,lastY:t.clientY,
+      lastTime:performance.now(),vx:0,axis:'',dir:0,target:'',state:null
     };
   },{passive:true});
 
   document.addEventListener('touchmove',e=>{
-    if(!g||e.touches?.length!==1)return;
-    const t=[...e.touches].find(x=>x.identifier===g.id);if(!t)return;
-    const now=performance.now(),dx=t.clientX-g.x,dy=t.clientY-g.y,ax=Math.abs(dx),ay=Math.abs(dy);
+    if(!gesture||e.touches?.length!==1)return;
+    const t=[...e.touches].find(x=>x.identifier===gesture.id);if(!t)return;
+    const now=performance.now(),dx=t.clientX-gesture.x,dy=t.clientY-gesture.y,ax=Math.abs(dx),ay=Math.abs(dy);
 
-    if(!g.axis&&Math.max(ax,ay)>=10){
+    if(!gesture.axis&&Math.max(ax,ay)>=10){
       if(ax>ay*1.16){
-        g.axis='x';
-        g.dir=dx<0?-1:1;
-        g.target=targetFor(g.dir);
-        if(g.target)g.state=begin(g.target,g.dir,0);
+        gesture.axis='x';
+        gesture.dir=dx<0?-1:1;
+        gesture.target=targetFor(gesture.dir);
+        if(gesture.target)gesture.state=begin(gesture.target,gesture.dir);
       }else if(ay>ax*1.08){
-        g.axis='y';
+        gesture.axis='y';
         return;
       }
     }
 
-    if(g.axis==='x'){
-      const dt=Math.max(1,now-g.lastTime),sample=(t.clientX-g.lastX)/dt;
-      g.vx=g.vx*.62+sample*.38;
-      if(g.state){
-        applyDrag(g.state,dx);
-      }else{
-        // Edge resistance when no page exists in that direction.
-        const resisted=(g.dir<0?-1:1)*Math.min(50,Math.abs(dx)*.18);
-        setLiveX(resisted);
-        trackingOn();
-      }
+    if(gesture.axis==='x'&&gesture.state){
+      const dt=Math.max(1,now-gesture.lastTime),sample=(t.clientX-gesture.lastX)/dt;
+      gesture.vx=gesture.vx*.62+sample*.38;
+      setProgress(gesture.state,dx);
       if(e.cancelable)e.preventDefault();
     }
 
-    g.lastX=t.clientX;g.lastY=t.clientY;g.lastTime=now;
+    gesture.lastX=t.clientX;gesture.lastY=t.clientY;gesture.lastTime=now;
   },{passive:false});
 
   const endGesture=e=>{
-    if(!g)return;
-    const gesture=g;g=null;
-    if(gesture.axis!=='x'){
-      if(!busy){clearMotion();removeNeighbor()}
-      return;
-    }
+    if(!gesture)return;
+    const g=gesture;gesture=null;
+    if(g.axis!=='x'||!g.state)return;
 
     suppressUntil=Date.now()+430;
-
-    if(!gesture.state){
-      live.classList.remove('browser-pager-tracking');
-      live.classList.add('browser-pager-settling');
-      live.style.setProperty('--browser-pager-duration','180ms');
-      live.style.setProperty('--browser-pager-ease','cubic-bezier(.18,.88,.3,1.05)');
-      requestAnimationFrame(()=>setLiveX(0));
-      setTimeout(()=>clearMotion(),220);
-      return;
-    }
-
     let t=null;
-    for(const x of (e.changedTouches||[]))if(x.identifier===gesture.id){t=x;break}
-    const dx=(t?t.clientX:gesture.lastX)-gesture.x;
-    applyDrag(gesture.state,dx);
-    const progress=Math.abs(gesture.state.displayX||0)/gesture.state.width;
-    const velocityToward=gesture.dir<0?gesture.vx<-.34:gesture.vx>.34;
-    const stillValid=gesture.dir<0?dx<0:dx>0;
-    const commit=stillValid&&(progress>=.23||velocityToward);
+    for(const x of (e.changedTouches||[]))if(x.identifier===g.id){t=x;break}
+    const dx=(t?t.clientX:g.lastX)-g.x;
+    setProgress(g.state,dx);
+
+    const progress=Math.abs(g.state.x||0)/g.state.width;
+    const velocityToward=g.dir<0?g.vx<-.34:g.vx>.34;
+    const valid=g.dir<0?dx<0:dx>0;
+    const commit=valid&&(progress>=.23||velocityToward);
     const remaining=commit?1-progress:progress;
     const duration=Math.max(120,Math.min(230,125+100*remaining));
-    finishTransition(gesture.state,commit,duration);
+    settle(g.state,commit,duration);
   };
 
   document.addEventListener('touchend',endGesture,{passive:true});
-  document.addEventListener('touchcancel',e=>{
-    if(g?.state){
-      const state=g.state;g=null;finishTransition(state,false,180);
-    }else{
-      g=null;clearMotion();removeNeighbor();busy=false;
-    }
+  document.addEventListener('touchcancel',()=>{
+    if(gesture?.state){
+      const state=gesture.state;gesture=null;settle(state,false,175);
+    }else gesture=null;
   },{passive:true});
 
   document.addEventListener('click',e=>{
     if(Date.now()<suppressUntil&&e.target.closest('#pageViewport')){
-      e.preventDefault();
-      e.stopImmediatePropagation();
+      e.preventDefault();e.stopImmediatePropagation();
     }
   },true);
 
   window.addEventListener('resize',()=>{
-    if(busy&&neighbor){
-      // A browser chrome resize mid-transition is safer to cancel than to
-      // stretch the already rendered neighbour.
-      clearMotion();removeNeighbor();busy=false;g=null;
+    if(busy){
+      removeStage();busy=false;gesture=null;
     }
   },{passive:true});
+
+  buildCache();
 })();
 </script>
 <style id="web-v054-books-stats-header">
@@ -7362,23 +7397,9 @@ requestAnimationFrame(()=>{try{render()}catch(e){console.warn('rc12 initial rend
   }
 }
 </style>
-<style id="web-v058-browser-pager-scenes">
+<style id="web-v059-prerendered-browser-pager">
 @media(max-width:760px){
-  html.browser-tab #content.browser-pager-tracking{
-    transform:translate3d(var(--browser-live-x,0px),0,0)!important;
-    will-change:transform!important;
-    backface-visibility:hidden!important;
-  }
-  html.browser-tab #content.browser-pager-settling{
-    transform:translate3d(var(--browser-live-x,0px),0,0)!important;
-    transition-property:transform!important;
-    transition-duration:var(--browser-pager-duration,210ms)!important;
-    transition-timing-function:var(--browser-pager-ease,cubic-bezier(.2,.85,.32,1))!important;
-    will-change:transform!important;
-    backface-visibility:hidden!important;
-  }
-
-  html.browser-tab .browser-swipe-neighbor{
+  html.browser-tab .browser-pager-stage{
     display:block!important;
     position:absolute!important;
     z-index:880!important;
@@ -7387,31 +7408,40 @@ requestAnimationFrame(()=>{try{render()}catch(e){console.warn('rc12 initial rend
     box-sizing:border-box!important;
     background:var(--bg)!important;
     contain:layout paint style!important;
-    transform:translate3d(var(--browser-neighbor-x,100vw),0,0)!important;
-    backface-visibility:hidden!important;
   }
-  html.browser-tab .browser-swipe-neighbor.browser-pager-settling{
+  html.browser-tab .browser-pager-pane{
+    position:absolute!important;
+    inset:0!important;
+    width:100%!important;
+    height:100%!important;
+    overflow:hidden!important;
+    background:var(--bg)!important;
+    transform:translate3d(var(--browser-pane-x,0px),0,0)!important;
+    backface-visibility:hidden!important;
+    box-sizing:border-box!important;
+  }
+  html.browser-tab .browser-pager-pane.browser-pager-settling{
     transition-property:transform!important;
     transition-duration:var(--browser-pager-duration,210ms)!important;
     transition-timing-function:var(--browser-pager-ease,cubic-bezier(.2,.85,.32,1))!important;
     will-change:transform!important;
   }
-  html.browser-tab .browser-swipe-neighbor .rc55-scroll-snapshot{
+  html.browser-tab .browser-pager-pane .rc55-scroll-snapshot{
     position:absolute!important;
     top:0!important;
     left:16px!important;
     right:16px!important;
     width:auto!important;
     min-height:100%!important;
-    box-sizing:border-box!important;
     margin:0!important;
     padding:0!important;
+    box-sizing:border-box!important;
   }
-  html.browser-tab .browser-swipe-neighbor #safeFrame{
+  html.browser-tab .browser-pager-pane #safeFrame{
     display:none!important;
     height:0!important;
   }
-  html.browser-tab .browser-swipe-neighbor #controlsFrame{
+  html.browser-tab .browser-pager-pane #controlsFrame{
     display:block!important;
     position:relative!important;
     top:auto!important;
@@ -7423,7 +7453,8 @@ requestAnimationFrame(()=>{try{render()}catch(e){console.warn('rc12 initial rend
     backdrop-filter:none!important;
     -webkit-backdrop-filter:none!important;
   }
-  html.browser-tab .browser-swipe-neighbor #headerFrame{
+  html.browser-tab .browser-pager-pane #headerFrame{
+    display:block!important;
     position:relative!important;
     z-index:auto!important;
     min-height:78px!important;
@@ -7431,10 +7462,64 @@ requestAnimationFrame(()=>{try{render()}catch(e){console.warn('rc12 initial rend
     padding:0 0 6px!important;
     background:var(--bg)!important;
   }
-  html.browser-tab .browser-swipe-neighbor #pageBody{
-    position:relative!important;
+
+  /* Target filter stays at the same screen position and fades instead of sliding. */
+  html.browser-tab .browser-pager-filter-ghost{
+    position:absolute!important;
+    left:16px!important;
+    right:16px!important;
+    top:10px!important;
+    z-index:70!important;
+    height:auto!important;
+    pointer-events:none!important;
+    background:transparent!important;
+  }
+  html.browser-tab .browser-pager-filter-ghost .date-filter-row{
+    display:flex!important;
+    align-items:stretch!important;
+    gap:6px!important;
     width:100%!important;
+    height:42px!important;
+    min-height:42px!important;
+    margin:0!important;
+    padding:0!important;
+    border:0!important;
+    border-radius:0!important;
+    background:transparent!important;
+    box-shadow:none!important;
+  }
+  html.browser-tab .browser-pager-filter-ghost .date-banner{
+    height:42px!important;
+    min-height:42px!important;
+    border-radius:13px!important;
+    background:var(--card)!important;
+  }
+  html.browser-tab .browser-pager-filter-ghost .date-banner select{
+    height:40px!important;
+    min-height:40px!important;
+    padding:0 27px 0 10px!important;
+    font-size:11px!important;
+    line-height:40px!important;
     box-sizing:border-box!important;
+  }
+  html.browser-tab .browser-pager-filter-ghost .date-filter-book{
+    height:42px!important;
+    min-height:42px!important;
+    padding:0 25px 0 10px!important;
+    border-radius:13px!important;
+    background:var(--card)!important;
+    color:var(--ink)!important;
+    font-size:11px!important;
+    line-height:40px!important;
+    box-sizing:border-box!important;
+  }
+  html.browser-tab .browser-pager-filter-ghost .active-filters{
+    margin:6px 0 0!important;
+    padding:5px 8px!important;
+    border:1px solid var(--line)!important;
+    border-radius:12px!important;
+    background:var(--card)!important;
+    font-size:11px!important;
   }
 }
 </style></body></html>
