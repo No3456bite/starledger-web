@@ -6475,15 +6475,16 @@ requestAnimationFrame(()=>{try{render()}catch(e){console.warn('rc12 initial rend
   const floating=document.querySelector('#floatingControls');
   if(!live)return;
 
-  // Stable opaque edge anchors for Safari 26 chrome tint sampling.
-  for(const [id,edge] of [['safariTintTop','top'],['safariTintBottom','bottom']]){
-    if(document.getElementById(id))continue;
+  // Stable top-edge sampling anchor for Safari 26 chrome tint.
+  // Bottom is deliberately left to Safari's native glass treatment.
+  if(!document.getElementById('safariTintTop')){
     const el=document.createElement('div');
-    el.id=id;
-    el.className='safari-tint-anchor safari-tint-'+edge;
+    el.id='safariTintTop';
+    el.className='safari-tint-anchor safari-tint-top';
     el.setAttribute('aria-hidden','true');
     document.body.appendChild(el);
   }
+  document.getElementById('safariTintBottom')?.remove();
 
   let gesture=null,busy=false,stage=null,currentFilter=null,targetFilter=null,settleTimer=0,suppressUntil=0,cacheToken=0;
   const pageCache=new Map();
@@ -7563,10 +7564,10 @@ requestAnimationFrame(()=>{try{render()}catch(e){console.warn('rc12 initial rend
     left:0!important;
     right:0!important;
     width:100%!important;
-    height:4px!important;
-    z-index:1200!important;
+    height:2px!important;
+    z-index:2!important;
     pointer-events:none!important;
-    background:var(--bg)!important;
+    background:#f7f7f5!important;
     opacity:1!important;
     transform:none!important;
     filter:none!important;
@@ -7575,8 +7576,11 @@ requestAnimationFrame(()=>{try{render()}catch(e){console.warn('rc12 initial rend
     box-shadow:none!important;
     contain:none!important;
   }
+  html.browser-tab[data-mode="dark"] .safari-tint-anchor{
+    background:#1c1c1e!important;
+  }
   html.browser-tab .safari-tint-top{top:0!important;bottom:auto!important}
-  html.browser-tab .safari-tint-bottom{top:auto!important;bottom:0!important}
+  html.browser-tab .safari-tint-bottom{display:none!important}
 
   html.browser-tab .browser-pager-filter-current,
   html.browser-tab .browser-pager-filter-target{
