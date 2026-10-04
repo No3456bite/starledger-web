@@ -87,15 +87,16 @@ for (const marker of ['--sl-browser-chrome-gap','browser-pager-filter-current','
 }
 
 for (const marker of [
-  "github.event_name == 'pull_request'",
-  "github.event.action == 'closed'",
-  'github.event.pull_request.merged == true',
-  "github.event.pull_request.base.ref == 'main'"
+  'pull-requests: read',
+  'commits/$GITHUB_SHA/pulls',
+  'pr.merged_at',
+  "pr.base?.ref === 'main'",
+  "github.event_name == 'push' && github.ref == 'refs/heads/main'"
 ]) {
   if (!pagesWorkflow.includes(marker)) fail(`Pages deploy guard is missing: ${marker}`);
 }
-if (pagesWorkflow.includes("github.event_name != 'pull_request' && github.ref == 'refs/heads/main'")) {
-  fail('Pages must not deploy from an ordinary push to main');
+if (pagesWorkflow.includes("github.event.action == 'closed'")) {
+  fail('Pages must not deploy directly from the pull_request closed event');
 }
 
 if (!process.exitCode) {
