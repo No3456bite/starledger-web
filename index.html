@@ -3922,22 +3922,8 @@ body.selecting #searchResults .selection-top-actions{
  .bulk-edit-state{max-width:42%}
  .bulk-edit-modes{grid-template-columns:repeat(4,minmax(0,1fr))}
 }
-</style><style id="rc-bulk-edit-safari-chrome-gap">
-@media(max-width:760px){
-  /* Keep the bulk editor away from Safari's bottom tint sampling edge.
-     The transparent gutter exposes the normal page background to browser chrome,
-     while the editor remains internally scrollable. */
-  html.browser-tab #overlay.safari-document-modal>.bulk-edit-back{
-    box-sizing:border-box!important;
-    padding:10px 10px max(64px,calc(env(safe-area-inset-bottom,0px) + 48px))!important;
-  }
-  html.browser-tab #overlay.safari-document-modal>.bulk-edit-back>.bulk-edit-sheet{
-    max-height:min(calc(var(--sl-modal-height,100vh) - 86px),680px)!important;
-    margin:auto!important;
-  }
-}
 </style>
-</head><body><div class="shell"><aside class="side" data-ui-level="1"><button type="button" id="sideToggle" class="side-toggle" aria-label="收起左侧栏">‹</button><div class="brand"><span class="brand-long">我的<b>账本</b></span><span class="brand-short">账</span></div><nav id="nav"></nav><small>星账本 · Web v0.5.0 · OCR v1</small></aside><main data-ui-level="2"><div id="pageViewport"><div id="content"><div id="safeFrame" aria-hidden="true"></div><div id="controlsFrame" aria-hidden="true"></div><div id="headerFrame"><header class="top"><div><div class="eyebrow" id="status">账本数据</div><h1 id="title">我的账本</h1></div><div class="topactions"><button class="button ledger-switch" id="ledgerSwitch" hidden aria-label="切换主账本"></button><button class="button iconbutton" id="settingsBtn" aria-label="设置">⚙</button><button class="button" id="refreshBill" hidden>↻ 重新载入</button><button class="button primary" id="addBtn">＋ 记一笔</button></div></header></div><div id="pageBody"></div></div></div><div id="floatingControls"></div></main></div><div class="mobilebar" id="mobileNav"></div><button type="button" class="back-to-top" id="backToTop" hidden aria-label="回到顶部">↑ 顶部</button><div id="overlay"></div><input hidden type="file" id="folderFile" accept=".csv,.json,text/csv,application/json" webkitdirectory directory multiple><input hidden type="file" id="deltaFile" accept=".csv,text/csv"><input hidden type="file" id="configFile" accept=".json,application/json"><script src="./recognizer.js?v=ocr1"></script><script src="./app.js?v=midterm1"></script>
+</head><body><div class="shell"><aside class="side" data-ui-level="1"><button type="button" id="sideToggle" class="side-toggle" aria-label="收起左侧栏">‹</button><div class="brand"><span class="brand-long">我的<b>账本</b></span><span class="brand-short">账</span></div><nav id="nav"></nav><small>星账本 · Web v0.5.0 · OCR v1</small></aside><main data-ui-level="2"><div id="pageViewport"><div id="content"><div id="safeFrame" aria-hidden="true"></div><div id="controlsFrame" aria-hidden="true"></div><div id="headerFrame"><header class="top"><div><div class="eyebrow" id="status">账本数据</div><h1 id="title">我的账本</h1></div><div class="topactions"><button class="button ledger-switch" id="ledgerSwitch" hidden aria-label="切换主账本"></button><button class="button iconbutton" id="settingsBtn" aria-label="设置">⚙</button><button class="button" id="refreshBill" hidden>↻ 重新载入</button><button class="button primary" id="addBtn">＋ 记一笔</button></div></header></div><div id="pageBody"></div></div></div><div id="floatingControls"></div></main></div><div class="mobilebar" id="mobileNav"></div><button type="button" class="back-to-top" id="backToTop" hidden aria-label="回到顶部">↑ 顶部</button><div id="overlay"></div><input hidden type="file" id="folderFile" accept=".csv,.json,text/csv,application/json" webkitdirectory directory multiple><input hidden type="file" id="deltaFile" accept=".csv,text/csv"><input hidden type="file" id="configFile" accept=".json,application/json"><script src="./recognizer.js?v=ocr1"></script><script src="./app.js?v=midterm2"></script>
 
 
 
@@ -4614,37 +4600,5 @@ body.selecting #searchResults .selection-top-actions{
     }
   }
 }
-</style><style id="web-v059a-safari-short-page-scroll-sentinel">
-@media(max-width:760px){
-  /* Always leave enough document range for the 1px browser-chrome sentinel,
-     even on a page whose real content is shorter than the dynamic viewport. */
-  html.browser-tab body{
-    min-height:calc(100dvh + 2px)!important;
-  }
-}
-</style><style id="web-v059b-hide-browser-scrollbar">
-@media(max-width:760px){
-  html.browser-tab,
-  html.browser-tab body{
-    scrollbar-width:none!important;
-    -ms-overflow-style:none!important;
-  }
-  html.browser-tab::-webkit-scrollbar,
-  html.browser-tab body::-webkit-scrollbar{
-    width:0!important;
-    height:0!important;
-    display:none!important;
-    background:transparent!important;
-  }
-}
-</style><style id="web-v060-safari-filter-handoff">
-@media(max-width:760px){
-  html.browser-tab .browser-pager-filter-current,
-  html.browser-tab .browser-pager-filter-target{
-    display:block!important;
-    visibility:visible!important;
-    pointer-events:none!important;
-    will-change:opacity!important;
-  }
-}
-</style></body></html>
+</style><link rel="stylesheet" href="./mobile-compat.css?v=css1">
+</body></html>
