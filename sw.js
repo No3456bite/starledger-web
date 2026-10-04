@@ -1,12 +1,13 @@
-const CACHE='starledger-web-v050-ocr1-midterm1';
+const CACHE='starledger-web-v050-ocr1-midterm2';
 const ASSETS=[
   './',
   './index.html',
   './manifest.webmanifest',
   './recognizer.js?v=ocr1',
-  './app.js?v=midterm1',
+  './app.js?v=midterm2',
   './ui-runtime.js?v=midterm1',
-  './books-stats.js?v=midterm1'
+  './books-stats.js?v=midterm1',
+  './mobile-compat.css?v=css1'
 ];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));

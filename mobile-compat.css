@@ -1,0 +1,77 @@
+/*
+ * StarLedger mobile browser compatibility layer.
+ *
+ * This file is intentionally loaded after every historical inline style.
+ * It is the final authority for Safari browser-tab viewport/chrome fixes.
+ * Keep normal component styling in index.html; put only browser compatibility
+ * overrides here so later UI work does not accidentally outrank them.
+ */
+@media(max-width:760px){
+  html.browser-tab{
+    /*
+     * iPhone Safari's bottom browser chrome can visually overlap the page even
+     * when visualViewport reports the usable viewport. Keep a transparent gutter
+     * below primary floating editors so the browser chrome samples page background
+     * instead of the editor surface.
+     */
+    --sl-browser-chrome-gap:max(64px,calc(env(safe-area-inset-bottom,0px) + 48px));
+  }
+
+  /* Keep a tiny document scroll range even on short pages. */
+  html.browser-tab body{
+    min-height:calc(100dvh + 2px)!important;
+  }
+
+  /* Hide browser-document scrollbars without changing scroll behavior. */
+  html.browser-tab,
+  html.browser-tab body{
+    scrollbar-width:none!important;
+    -ms-overflow-style:none!important;
+  }
+  html.browser-tab::-webkit-scrollbar,
+  html.browser-tab body::-webkit-scrollbar{
+    width:0!important;
+    height:0!important;
+    display:none!important;
+    background:transparent!important;
+  }
+
+  /*
+   * Primary editors use document-positioned overlay geometry in Safari.
+   * Reserve browser-chrome clearance at the overlay edge and let the editor
+   * itself scroll internally. This replaces the old bulk-edit-only workaround.
+   */
+  html.browser-tab #overlay.safari-document-modal>.entryback,
+  html.browser-tab #overlay.safari-document-modal>.account-dialog-back{
+    box-sizing:border-box!important;
+  }
+
+  html.browser-tab #overlay.safari-document-modal>.entryback{
+    padding:8px 10px var(--sl-browser-chrome-gap)!important;
+  }
+  html.browser-tab #overlay.safari-document-modal>.entryback>.entry{
+    max-height:calc(var(--sl-modal-height,100vh) - var(--sl-browser-chrome-gap) - 8px)!important;
+    margin:auto!important;
+  }
+
+  html.browser-tab #overlay.safari-document-modal>.account-dialog-back{
+    padding:10px 10px var(--sl-browser-chrome-gap)!important;
+  }
+  html.browser-tab #overlay.safari-document-modal>.account-dialog-back>.modal{
+    max-height:min(calc(var(--sl-modal-height,100vh) - var(--sl-browser-chrome-gap) - 20px),720px)!important;
+    margin:auto!important;
+  }
+
+  html.browser-tab #overlay.safari-document-modal>.bulk-edit-back>.bulk-edit-sheet{
+    max-height:min(calc(var(--sl-modal-height,100vh) - var(--sl-browser-chrome-gap) - 20px),680px)!important;
+  }
+
+  /* Browser pager filters must remain visible during the opacity hand-off. */
+  html.browser-tab .browser-pager-filter-current,
+  html.browser-tab .browser-pager-filter-target{
+    display:block!important;
+    visibility:visible!important;
+    pointer-events:none!important;
+    will-change:opacity!important;
+  }
+}

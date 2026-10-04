@@ -27,7 +27,12 @@ This document is the maintenance boundary for the current single-page Web build.
    - Owns the later books and statistics header behavior that depends on styles loaded near the end of index.html.
    - It remains a separate file to preserve its execution position relative to those styles.
 
-6. **sw.js — offline cache**
+6. **mobile-compat.css — final mobile browser compatibility**
+   - Loads after all historical inline styles and owns the last-word Safari browser-tab overrides.
+   - Owns browser-chrome clearance, document-scrollbar suppression, short-page scroll sentinels and pager hand-off guards.
+   - Do not put normal component styling here. This file is for browser/runtime compatibility only.
+
+7. **sw.js — offline cache**
    - Every new runtime file loaded by index.html must be added to the precache list.
    - Bump the cache key when the runtime file set changes.
 

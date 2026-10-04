@@ -19,13 +19,15 @@ const ui = read('ui-runtime.js');
 const books = read('books-stats.js');
 const recognizer = read('recognizer.js');
 const sw = read('sw.js');
+const mobileCompat = read('mobile-compat.css');
 
 const externalScripts = [
   './recognizer.js?v=ocr1',
-  './app.js?v=midterm1',
+  './app.js?v=midterm2',
   './ui-runtime.js?v=midterm1',
   './books-stats.js?v=midterm1'
 ];
+const precacheAssets = [...externalScripts,'./mobile-compat.css?v=css1'];
 
 let last = -1;
 for (const src of externalScripts) {
@@ -59,6 +61,7 @@ if (unexpectedInline.length) {
 }
 
 if (!app.includes('function render()')) fail('app.js lost the primary render() function');
+if (!app.includes("scrollPageTo(0,'smooth')")) fail('back-to-top no longer uses the unified page scroller');
 if (!app.includes("const COLS=['id','date','type'")) fail('app.js lost the ledger column schema');
 if (!ui.includes('rc14-search-filter-behavior')) fail('ui-runtime.js lost the search filter controller');
 if (!ui.includes('web-v051-safari-document-modal-controller')) fail('ui-runtime.js lost Safari modal placement');
@@ -66,19 +69,20 @@ if (!ui.includes('web-v044-browser-tab-interactions')) fail('ui-runtime.js lost 
 if (!books.includes('function cleanBookName')) fail('books-stats.js lost the books/stats controller');
 if (!recognizer.includes('StarLedger')) fail('recognizer.js looks unexpectedly empty or replaced');
 
-for (const asset of externalScripts) {
+for (const asset of precacheAssets) {
   if (!sw.includes(`'${asset}'`) && !sw.includes(`"${asset}"`)) {
     fail(`service worker precache is missing ${asset}`);
   }
 }
 
-const safariGuards = [
-  'web-v051-safari-document-modal',
-  'web-v059a-safari-short-page-scroll-sentinel',
-  'web-v060-safari-filter-handoff'
-];
-for (const id of safariGuards) {
-  if (!index.includes(`id="${id}"`)) fail(`Safari compatibility style #${id} is missing`);
+if (!index.includes('href="./mobile-compat.css?v=css1"')) fail('index.html does not load mobile-compat.css');
+if (index.lastIndexOf('href="./mobile-compat.css?v=css1"') < index.lastIndexOf('</style>')) fail('mobile-compat.css must load after inline style layers');
+
+if (!index.includes('id="web-v051-safari-document-modal"')) {
+  fail('Safari document-modal geometry style is missing from index.html');
+}
+for (const marker of ['--sl-browser-chrome-gap','browser-pager-filter-current','::-webkit-scrollbar']) {
+  if (!mobileCompat.includes(marker)) fail(`mobile-compat.css lost Safari guard: ${marker}`);
 }
 
 if (!process.exitCode) {
