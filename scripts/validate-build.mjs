@@ -52,7 +52,7 @@ for (const id of requiredIds) {
   if (!re.test(index)) fail(`critical DOM anchor #${id} is missing`);
 }
 
-const inlineScripts = [...index.matchAll(/<script(?![^>]*\\bsrc=)([^>]*)>([\\s\\S]*?)<\\/script>/g)];
+const inlineScripts = [...index.matchAll(/<script(?![^>]*\bsrc=)([^>]*)>([\s\S]*?)<\/script>/g)];
 const unexpectedInline = inlineScripts.filter(match => !/id=["']display-mode-bootstrap["']/.test(match[1]));
 if (unexpectedInline.length) {
   fail(`unexpected inline runtime scripts remain: ${unexpectedInline.length}`);
