@@ -547,8 +547,15 @@ function parseMonthHeader(line){
  let m=String(line||'').match(/^\s*(20\d{2})\s*年\s*(\d{1,2})\s*月(?:\s*[v∨⌄˅>]?)?\s*$/i);
  return m?{year:+m[1],month:+m[2]}:null
 }
-function parseListDateAnchor(line,yearHint){
+function parseListDateAnchor(line,yearHint,monthHint){
  let s=String(line||'').trim(),m=s.match(/(?:(20\d{2})\s*年\s*)?(\d{1,2})\s*月\s*(\d{1,2})\s*日\s*(\d{1,2})\s*:\s*(\d{2})(?::(\d{2}))?/);
+ // iOS Vision commonly reads 月/日 in compact bill-list dates as A/F/E.
+ // Only accept this fallback when a time is present and the caller supplies
+ // month/list context; this keeps the tolerance local to document grouping.
+ if(!m&&monthHint){
+  let x=s.match(/(?:^|\s)(\d{1,2})\s*[A-Z]\s*(\d{1,2})\s*[A-Z]\s*(\d{1,2})\s*:\s*(\d{2})(?::(\d{2}))?(?:\s|$)/i);
+  if(x)m=[x[0],'',x[1],x[2],x[3],x[4],x[5]||'0'];
+ }
  if(!m)return null;
  let y=+(m[1]||yearHint||0),mo=+m[2],d=+m[3],hh=+m[4],mm=+m[5],ss=+(m[6]||0);
  if(!y||mo<1||mo>12||d<1||d>31||hh>23||mm>59||ss>59)return null;
@@ -564,11 +571,8 @@ function signedListAmount(line){
 }
 function listMerchantCandidate(line){
  let s=String(line||'').trim();if(!s)return '';
- if(parseMonthHeader(s)||parseListDateAnchor(s,2000)||signedListAmount(s)){
-  // A merchant and amount/date can share one OCR line. Remove the structured
-  // fragments and keep only meaningful text that remains.
-  s=s.replace(/(?:(?:20\d{2})\s*年\s*)?\d{1,2}\s*月\s*\d{1,2}\s*日\s*\d{1,2}\s*:\s*\d{2}(?::\d{2})?/g,' ')
-     .replace(/[+\-−]\s*(?:[¥￥]\s*)?\d{1,9}(?:,\d{3})*(?:\.\d{1,2})?/g,' ').replace(/\s+/g,' ').trim()
+ if(parseMonthHeader(s)||signedListAmount(s)){
+  s=s.replace(/[+\-−]\s*(?:[¥￥]\s*)?\d{1,9}(?:,\d{3})*(?:\.\d{1,2})?/g,' ').replace(/\s+/g,' ').trim()
  }
  if(!s||/^\d+$/.test(s)||/^[-+¥￥\d.,\s]+$/.test(s))return '';
  if(/^(?:零钱明细|零钱通明细|账单明细|账单|明细|全部交易|全部账单|收入|支出|筛选|关闭|返回)$/.test(s))return '';
@@ -581,24 +585,87 @@ function pageContextFromText(text){
  if(/零钱明细/.test(t))return {platform:'微信',pageType:'微信零钱明细',accountHint:'零钱'};
  if(/微信/.test(t)&&/(?:账单明细|账单列表|全部账单)/.test(t))return {platform:'微信',pageType:'微信账单列表',accountHint:''};
  if(/支付宝/.test(t)&&/(?:账单|明细)/.test(t))return {platform:'支付宝',pageType:'支付宝账单列表',accountHint:''};
+ // Generic bill-list screenshots (including app bill pages without a visible
+ // platform name) are still eligible when month headers + repeated rows exist.
+ if(/全部账单|查找交易|收支统计/.test(t))return {platform:'',pageType:'账单列表',accountHint:''};
  return {platform:'',pageType:'重复账单列表',accountHint:''}
 }
 function groupDocument(source,context={}){
  let text=cleanText(source),lines=linesOf(text),nowRaw=String(context?.now||''),now=new Date(nowRaw.replace(' ','T'));if(!Number.isFinite(now.getTime()))now=new Date();
  let monthByLine=new Array(lines.length),active={year:now.getFullYear(),month:now.getMonth()+1};
  for(let i=0;i<lines.length;i++){let h=parseMonthHeader(lines[i]);if(h)active=h;monthByLine[i]={...active}}
- let anchors=[];
- for(let i=0;i<lines.length;i++){let hint=monthByLine[i]||active,a=parseListDateAnchor(lines[i],hint.year);if(a){if(hint.month===a.month)a.year=hint.year,a.value=`${hint.year}-${String(a.month).padStart(2,'0')}-${String(a.day).padStart(2,'0')} ${String(a.hour).padStart(2,'0')}:${String(a.minute).padStart(2,'0')}:00`;anchors.push({...a,line:i})}}
- let amounts=[],merchants=[];
- for(let i=0;i<lines.length;i++){let a=signedListAmount(lines[i]);if(a)amounts.push({...a,line:i});let m=listMerchantCandidate(lines[i]);if(m)merchants.push({value:m,line:i,text:lines[i]})}
- function assignNearest(candidates,maxDist){
-  let by=new Map();
-  for(let c of candidates){let best=null;for(let ai=0;ai<anchors.length;ai++){let d=Math.abs(c.line-anchors[ai].line);if(d>maxDist)continue;let afterPenalty=c.line>anchors[ai].line?0.12:0,score=d+afterPenalty;if(!best||score<best.score)best={ai,score,d}}if(best){let arr=by.get(best.ai)||[];arr.push({...c,distance:best.d});by.set(best.ai,arr)}}
-  return by
+
+ let anchors=[],amounts=[],merchants=[];
+ for(let i=0;i<lines.length;i++){
+  let hint=monthByLine[i]||active,a=parseListDateAnchor(lines[i],hint.year,hint.month);
+  if(a){
+   // Explicit month headers own the year. This also fixes cross-month lists.
+   a.year=hint.year;
+   a.value=`${hint.year}-${String(a.month).padStart(2,'0')}-${String(a.day).padStart(2,'0')} ${String(a.hour).padStart(2,'0')}:${String(a.minute).padStart(2,'0')}:00`;
+   anchors.push({...a,line:i})
+  }
+  let am=signedListAmount(lines[i]);if(am)amounts.push({...am,line:i});
  }
- let amountBy=assignNearest(amounts,6),merchantBy=assignNearest(merchants,6),ctx=pageContextFromText(text),groups=[],seen=new Set();
+
+ // Build merchant candidates only from row-like text near the transaction
+ // region. Header controls and month summaries are deliberately excluded.
+ const headerNoise=/账单|全部账单|查找交易|收支统计|支出[¥￥]|收入[¥￥]|^\d{1,2}:\d{2}|^[•·.]+$/;
+ for(let i=0;i<lines.length;i++){
+  let hint=monthByLine[i]||active;
+  if(parseListDateAnchor(lines[i],hint.year,hint.month)||signedListAmount(lines[i])||parseMonthHeader(lines[i])||headerNoise.test(lines[i]))continue;
+  let m=listMerchantCandidate(lines[i]);if(m)merchants.push({value:m,line:i,text:lines[i]})
+ }
+
+ // OCR reading order on iOS is not row-stable. A visual pair of rows may be
+ // emitted as merchant1,date1,merchant2,date2,amount1,amount2. Reconstruct
+ // amounts in local chronological batches instead of requiring line proximity.
+ let amountForAnchor=new Map(),usedAmounts=new Set();
+ let boundaries=[...anchors.map(a=>a.line),lines.length];
+ for(let ai=0;ai<anchors.length;){
+  // A batch is a consecutive run of anchors before the first still-unused
+  // signed amount following the run. Amounts then preserve visual row order.
+  let batchStart=ai,batchEnd=ai;
+  while(batchEnd+1<anchors.length){
+   let between=amounts.some((am,idx)=>!usedAmounts.has(idx)&&am.line>anchors[batchEnd].line&&am.line<anchors[batchEnd+1].line);
+   if(between)break;
+   // Do not merge across a month header.
+   let crossed=false;
+   for(let k=anchors[batchEnd].line+1;k<anchors[batchEnd+1].line;k++)if(parseMonthHeader(lines[k])){crossed=true;break}
+   if(crossed)break;
+   batchEnd++;
+  }
+  let batchCount=batchEnd-batchStart+1,
+      lo=anchors[batchStart].line-2,
+      hi=batchEnd+1<anchors.length?anchors[batchEnd+1].line:lines.length,
+      candIdx=[];
+  for(let k=0;k<amounts.length;k++)if(!usedAmounts.has(k)&&amounts[k].line>=lo&&amounts[k].line<hi)candIdx.push(k);
+  // Prefer the first N signed amounts after/around this anchor batch. Summary
+  // totals are unsigned and therefore never enter this set.
+  candIdx.sort((x,y)=>amounts[x].line-amounts[y].line);
+  for(let j=0;j<batchCount&&j<candIdx.length;j++){
+   let idx=candIdx[j];amountForAnchor.set(batchStart+j,amounts[idx]);usedAmounts.add(idx)
+  }
+  ai=batchEnd+1;
+ }
+
+ // Merchant reconstruction: for each date, prefer the nearest unused text
+ // before it. This naturally maps merchant1/date1, merchant2/date2 layouts.
+ let merchantForAnchor=new Map(),usedMerchants=new Set();
  for(let ai=0;ai<anchors.length;ai++){
-  let a=anchors[ai],as=(amountBy.get(ai)||[]).sort((x,y)=>x.distance-y.distance||x.line-y.line),ms=(merchantBy.get(ai)||[]).sort((x,y)=>x.distance-y.distance||(x.line>a.line)-(y.line>a.line)||y.line-x.line),am=as[0],mc=ms[0];
+  let a=anchors[ai],best=-1,bestScore=1e9;
+  for(let mi=0;mi<merchants.length;mi++){
+   if(usedMerchants.has(mi))continue;
+   let m=merchants[mi],d=Math.abs(m.line-a.line),after=m.line>a.line?2.5:0;
+   if(d>5)continue;
+   let score=d+after;
+   if(score<bestScore){best=mi;bestScore=score}
+  }
+  if(best>=0){merchantForAnchor.set(ai,merchants[best]);usedMerchants.add(best)}
+ }
+
+ let ctx=pageContextFromText(text),groups=[],seen=new Set();
+ for(let ai=0;ai<anchors.length;ai++){
+  let a=anchors[ai],am=amountForAnchor.get(ai),mc=merchantForAnchor.get(ai);
   if(!am)continue;
   let merchant=mc?.value||'',key=[a.value,am.signed,compact(merchant)].join('|');if(seen.has(key))continue;seen.add(key);
   groups.push({index:groups.length,line:a.line,date:a.value,merchant,signedAmount:am.signed,amount:am.value,type:am.signed>=0?'收入':'支出',rawLines:[mc?.text||'',a.text,am.text].filter(Boolean),source:{dateLine:a.line,amountLine:am.line,merchantLine:mc?.line??-1}})
