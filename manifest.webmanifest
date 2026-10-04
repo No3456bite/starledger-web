@@ -1,9 +1,10 @@
 {
   "name": "StarLedger",
   "short_name": "StarLedger",
-  "start_url": "./?bridge=scriptable",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#f7f7f5",
   "theme_color": "#f7f7f5",
-  "description": "StarLedger Safari frontend with Scriptable backend"
+  "description": "StarLedger local-first Web App"
 }
