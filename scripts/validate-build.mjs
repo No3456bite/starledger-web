@@ -25,9 +25,9 @@ const externalScripts = [
   './recognizer.js?v=ocr1',
   './app.js?v=midterm2',
   './ui-runtime.js?v=midterm1',
-  './books-stats.js?v=midterm1',
-  './mobile-compat.css?v=css1'
+  './books-stats.js?v=midterm1'
 ];
+const precacheAssets = [...externalScripts,'./mobile-compat.css?v=css1'];
 
 let last = -1;
 for (const src of externalScripts) {
@@ -68,11 +68,14 @@ if (!ui.includes('web-v044-browser-tab-interactions')) fail('ui-runtime.js lost 
 if (!books.includes('function cleanBookName')) fail('books-stats.js lost the books/stats controller');
 if (!recognizer.includes('StarLedger')) fail('recognizer.js looks unexpectedly empty or replaced');
 
-for (const asset of externalScripts) {
+for (const asset of precacheAssets) {
   if (!sw.includes(`'${asset}'`) && !sw.includes(`"${asset}"`)) {
     fail(`service worker precache is missing ${asset}`);
   }
 }
+
+if (!index.includes('href="./mobile-compat.css?v=css1"')) fail('index.html does not load mobile-compat.css');
+if (index.lastIndexOf('href="./mobile-compat.css?v=css1"') < index.lastIndexOf('</style>')) fail('mobile-compat.css must load after inline style layers');
 
 if (!index.includes('id="web-v051-safari-document-modal"')) {
   fail('Safari document-modal geometry style is missing from index.html');
