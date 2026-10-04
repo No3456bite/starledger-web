@@ -3856,6 +3856,17 @@ body.selecting #searchResults .selection-top-actions{
  html.browser-tab body.selecting #content{padding-bottom:calc(236px + env(safe-area-inset-bottom,0px))!important}
 }
 </style>
+<style id="rc-selection-last-row-fix">
+/* A selected row at the physical end of the card must close as a standalone/group tail.
+   The previous :last-child selector misses when non-row nodes follow it. */
+.selecting #searchResults .row.selected:not(:has(~ .row)){
+ border-radius:0 0 14px 14px!important;
+}
+.selecting #searchResults .row.selected:first-child:not(:has(~ .row)),
+.selecting #searchResults .row:not(.selected)+.row.selected:not(:has(~ .row)){
+ border-radius:14px!important;
+}
+</style>
 </head><body><div class="shell"><aside class="side" data-ui-level="1"><button type="button" id="sideToggle" class="side-toggle" aria-label="收起左侧栏">‹</button><div class="brand"><span class="brand-long">我的<b>账本</b></span><span class="brand-short">账</span></div><nav id="nav"></nav><small>星账本 · Web v0.5.0 · OCR v1</small></aside><main data-ui-level="2"><div id="pageViewport"><div id="content"><div id="safeFrame" aria-hidden="true"></div><div id="controlsFrame" aria-hidden="true"></div><div id="headerFrame"><header class="top"><div><div class="eyebrow" id="status">账本数据</div><h1 id="title">我的账本</h1></div><div class="topactions"><button class="button ledger-switch" id="ledgerSwitch" hidden aria-label="切换主账本"></button><button class="button iconbutton" id="settingsBtn" aria-label="设置">⚙</button><button class="button" id="refreshBill" hidden>↻ 重新载入</button><button class="button primary" id="addBtn">＋ 记一笔</button></div></header></div><div id="pageBody"></div></div></div><div id="floatingControls"></div></main></div><div class="mobilebar" id="mobileNav"></div><button type="button" class="back-to-top" id="backToTop" hidden aria-label="回到顶部">↑ 顶部</button><div id="overlay"></div><input hidden type="file" id="folderFile" accept=".csv,.json,text/csv,application/json" webkitdirectory directory multiple><input hidden type="file" id="deltaFile" accept=".csv,text/csv"><input hidden type="file" id="configFile" accept=".json,application/json"><script src="./recognizer.js?v=ocr1"></script><script>
 // Pure Web build. The legacy Scriptable bridge is archived in GitHub.
 const BOOT=/*__BOOT__*/null;
