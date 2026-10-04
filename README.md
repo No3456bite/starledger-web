@@ -1,13 +1,13 @@
 # StarLedger Web
 
-当前主线：纯 Web App（local-first）。
+当前主线：纯 Web App（local-first）。当前网页版本：Web v0.3 · rc13.4。
 
 ## 数据架构
 
 - 账单、设置、账户、预算、关联关系：保存在浏览器本地 IndexedDB。
 - localStorage：仅作为本地存储失败时的后备。
 - GitHub Pages：只托管 HTML/CSS/JavaScript，不保存用户账本。
-- CSV：导入、导出和恢复用的可移植格式。
+- CSV：导入、导出和恢复用的可移植格式。支持一次选择多个 CSV，也支持从文件夹递归导入。
 - OCR：暂未迁移到 Web 主线，后续单独处理。
 
 ## 当前测试方式
