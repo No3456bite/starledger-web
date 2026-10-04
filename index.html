@@ -3523,7 +3523,31 @@ button.home-month-stat:active{background:var(--pale);border-radius:12px}
     -webkit-backdrop-filter:blur(22px) saturate(175%)!important;
   }
 }
-</style></head><body><div class="shell"><aside class="side" data-ui-level="1"><button type="button" id="sideToggle" class="side-toggle" aria-label="收起左侧栏">‹</button><div class="brand"><span class="brand-long">我的<b>账本</b></span><span class="brand-short">账</span></div><nav id="nav"></nav><small>星账本 · Web v0.4.3 · rc13.4</small></aside><main data-ui-level="2"><div id="pageViewport"><div id="content"><div id="safeFrame" aria-hidden="true"></div><div id="controlsFrame" aria-hidden="true"></div><div id="headerFrame"><header class="top"><div><div class="eyebrow" id="status">账本数据</div><h1 id="title">我的账本</h1></div><div class="topactions"><button class="button ledger-switch" id="ledgerSwitch" hidden aria-label="切换主账本"></button><button class="button iconbutton" id="settingsBtn" aria-label="设置">⚙</button><button class="button" id="refreshBill" hidden>↻ 重新载入</button><button class="button primary" id="addBtn">＋ 记一笔</button></div></header></div><div id="pageBody"></div></div></div><div id="floatingControls"></div></main></div><div class="mobilebar" id="mobileNav"></div><button type="button" class="back-to-top" id="backToTop" hidden aria-label="回到顶部">↑ 顶部</button><div id="overlay"></div><input hidden type="file" id="folderFile" accept=".csv,.json,text/csv,application/json" webkitdirectory directory multiple><input hidden type="file" id="deltaFile" accept=".csv,text/csv"><input hidden type="file" id="configFile" accept=".json,application/json"><script>
+</style><style id="web-v044-safari-sticky-arm">
+@media(max-width:760px){
+  /* First paint must be an ordinary document edge so Safari can establish its
+     translucent top chrome. The filter becomes sticky only after a real
+     vertical gesture begins. */
+  html.browser-tab #controlsFrame{
+    position:relative!important;
+    top:auto!important;
+  }
+  html.browser-tab.safari-sticky-ready #controlsFrame{
+    position:sticky!important;
+    top:8px!important;
+  }
+
+  /* Browser-tab swipe feedback. PWA keeps the older full snapshot swipe engine. */
+  html.browser-tab #pageViewport.browser-swipe-tracking{
+    will-change:transform!important;
+    transition:none!important;
+  }
+  html.browser-tab #pageViewport.browser-swipe-settling{
+    will-change:transform!important;
+    transition:transform 190ms cubic-bezier(.2,.82,.32,1)!important;
+  }
+}
+</style></head><body><div class="shell"><aside class="side" data-ui-level="1"><button type="button" id="sideToggle" class="side-toggle" aria-label="收起左侧栏">‹</button><div class="brand"><span class="brand-long">我的<b>账本</b></span><span class="brand-short">账</span></div><nav id="nav"></nav><small>星账本 · Web v0.4.4 · rc13.4</small></aside><main data-ui-level="2"><div id="pageViewport"><div id="content"><div id="safeFrame" aria-hidden="true"></div><div id="controlsFrame" aria-hidden="true"></div><div id="headerFrame"><header class="top"><div><div class="eyebrow" id="status">账本数据</div><h1 id="title">我的账本</h1></div><div class="topactions"><button class="button ledger-switch" id="ledgerSwitch" hidden aria-label="切换主账本"></button><button class="button iconbutton" id="settingsBtn" aria-label="设置">⚙</button><button class="button" id="refreshBill" hidden>↻ 重新载入</button><button class="button primary" id="addBtn">＋ 记一笔</button></div></header></div><div id="pageBody"></div></div></div><div id="floatingControls"></div></main></div><div class="mobilebar" id="mobileNav"></div><button type="button" class="back-to-top" id="backToTop" hidden aria-label="回到顶部">↑ 顶部</button><div id="overlay"></div><input hidden type="file" id="folderFile" accept=".csv,.json,text/csv,application/json" webkitdirectory directory multiple><input hidden type="file" id="deltaFile" accept=".csv,text/csv"><input hidden type="file" id="configFile" accept=".json,application/json"><script>
 // Pure Web build. The legacy Scriptable bridge is archived in GitHub.
 const BOOT=/*__BOOT__*/null;
 const COLS=['id','date','type','category','subcategory','amount','account','account2','reimbursement','note','image','role','tags','currency','merchant','book','extras','created_at','updated_at'];
@@ -6129,4 +6153,141 @@ requestAnimationFrame(()=>{try{render()}catch(e){console.warn('rc12 initial rend
 </script>
 
 <script id="starledger-pwa-register">if('serviceWorker' in navigator&&location.protocol==='https:')window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));</script>
-</body></html>
+<script id="web-v044-browser-tab-interactions">
+(()=>{
+  const root=document.documentElement;
+  if(!root.classList.contains('browser-tab'))return;
+
+  /* Arm sticky filters only when the first genuine vertical gesture starts.
+     This leaves Safari one clean initial paint with no viewport-edge sticky layer. */
+  let armTouch=null,stickyArmed=false;
+  const armSticky=()=>{
+    if(stickyArmed)return;
+    stickyArmed=true;
+    root.classList.add('safari-sticky-ready');
+  };
+  document.addEventListener('touchstart',e=>{
+    if(e.touches?.length!==1){armTouch=null;return}
+    const t=e.touches[0];
+    armTouch={id:t.identifier,x:t.clientX,y:t.clientY};
+  },{passive:true,capture:true});
+  document.addEventListener('touchmove',e=>{
+    if(stickyArmed||!armTouch||e.touches?.length!==1)return;
+    const t=[...e.touches].find(x=>x.identifier===armTouch.id);if(!t)return;
+    const dx=t.clientX-armTouch.x,dy=t.clientY-armTouch.y;
+    if(Math.abs(dy)>=8&&Math.abs(dy)>Math.abs(dx)*1.08)armSticky();
+  },{passive:true,capture:true});
+  window.addEventListener('scroll',()=>{
+    if(!stickyArmed&&(window.scrollY||document.documentElement.scrollTop||0)>6)armSticky();
+  },{passive:true});
+
+  /* Lightweight horizontal paging for the document-scroll browser shell. */
+  const viewport=document.querySelector('#pageViewport');
+  if(!viewport)return;
+  let g=null,suppressUntil=0,settleTimer=0;
+
+  const blocked=t=>!!t.closest(
+    'input,select,textarea,[contenteditable="true"],.mobilebar,.modalback,.entryback,'+
+    '#accountOverlay,.search-filter-sheet,.tag-choices,.category-tabs'
+  );
+  const targetFor=dir=>{
+    const i=PRIMARY_PAGE_ORDER.indexOf(section);
+    if(i<0)return'';
+    const next=i+(dir<0?1:-1);
+    return next>=0&&next<PRIMARY_PAGE_ORDER.length?PRIMARY_PAGE_ORDER[next]:'';
+  };
+  const clearStyles=()=>{
+    clearTimeout(settleTimer);
+    viewport.classList.remove('browser-swipe-tracking','browser-swipe-settling');
+    viewport.style.transform='';
+  };
+  const animateTo=(x,done)=>{
+    viewport.classList.remove('browser-swipe-tracking');
+    viewport.classList.add('browser-swipe-settling');
+    viewport.style.transform='translate3d('+x+'px,0,0)';
+    let fired=false;
+    const finish=()=>{
+      if(fired)return;fired=true;
+      viewport.removeEventListener('transitionend',finish);
+      done?.();
+    };
+    viewport.addEventListener('transitionend',finish,{once:true});
+    settleTimer=setTimeout(finish,240);
+  };
+
+  document.addEventListener('touchstart',e=>{
+    if(e.touches?.length!==1||section==='settings'||selection?.size||document.querySelector('.modalback,.entryback')||blocked(e.target)){g=null;return}
+    if(!e.target.closest('#pageViewport')){g=null;return}
+    const t=e.touches[0];
+    g={id:t.identifier,x:t.clientX,y:t.clientY,lastX:t.clientX,lastY:t.clientY,lastTime:performance.now(),vx:0,axis:'',target:'',dir:0,width:Math.max(1,window.innerWidth)};
+  },{passive:true});
+
+  document.addEventListener('touchmove',e=>{
+    if(!g||e.touches?.length!==1)return;
+    const t=[...e.touches].find(x=>x.identifier===g.id);if(!t)return;
+    const now=performance.now(),dx=t.clientX-g.x,dy=t.clientY-g.y,ax=Math.abs(dx),ay=Math.abs(dy);
+    if(!g.axis&&Math.max(ax,ay)>=10){
+      if(ax>ay*1.16){
+        g.axis='x';
+        g.dir=dx<0?-1:1;
+        g.target=targetFor(g.dir);
+        viewport.classList.add('browser-swipe-tracking');
+      }else if(ay>ax*1.08){
+        g.axis='y';
+        return;
+      }
+    }
+    if(g.axis==='x'){
+      const dt=Math.max(1,now-g.lastTime),sample=(t.clientX-g.lastX)/dt;
+      g.vx=g.vx*.62+sample*.38;
+      const edge=g.target?1:.18;
+      const shown=Math.max(-g.width*.42,Math.min(g.width*.42,dx*edge));
+      viewport.style.transform='translate3d('+shown+'px,0,0)';
+      if(e.cancelable)e.preventDefault();
+    }
+    g.lastX=t.clientX;g.lastY=t.clientY;g.lastTime=now;
+  },{passive:false});
+
+  const finish=e=>{
+    if(!g)return;
+    const state=g;g=null;
+    if(state.axis!=='x'){clearStyles();return}
+    let t=null;
+    for(const x of (e.changedTouches||[]))if(x.identifier===state.id){t=x;break}
+    const dx=(t?t.clientX:state.lastX)-state.x;
+    const progress=Math.abs(dx)/state.width;
+    const velocityToward=state.dir<0?state.vx<-.34:state.vx>.34;
+    const stillValid=state.dir<0?dx<0:dx>0;
+    const commit=!!state.target&&stillValid&&(progress>=.23||velocityToward);
+    suppressUntil=Date.now()+430;
+
+    if(!commit){
+      animateTo(0,clearStyles);
+      return;
+    }
+
+    const exitX=state.dir<0?-state.width:state.width;
+    animateTo(exitX,()=>{
+      const target=state.target;
+      clearStyles();
+      rc6Navigate(target);
+      /* New page enters from the opposite side. */
+      const startX=state.dir<0?state.width:-state.width;
+      viewport.classList.add('browser-swipe-tracking');
+      viewport.style.transform='translate3d('+startX+'px,0,0)';
+      void viewport.offsetWidth;
+      requestAnimationFrame(()=>requestAnimationFrame(()=>animateTo(0,clearStyles)));
+    });
+  };
+
+  document.addEventListener('touchend',finish,{passive:true});
+  document.addEventListener('touchcancel',()=>{
+    if(g?.axis==='x'){g=null;animateTo(0,clearStyles)}else{g=null;clearStyles()}
+  },{passive:true});
+  document.addEventListener('click',e=>{
+    if(Date.now()<suppressUntil&&e.target.closest('#pageViewport')){
+      e.preventDefault();e.stopImmediatePropagation();
+    }
+  },true);
+})();
+</script></body></html>
