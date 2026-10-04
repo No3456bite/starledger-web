@@ -4788,10 +4788,8 @@ function monthly(){let rs=filtered(rows,{monthOnly:true}),listRs=continuousBillR
 function yearly(){let rs=filtered(rows,{yearOnly:true}),months=Array.from({length:12},(_,i)=>stats(rs.filter(r=>inCycle(dateOf(r),year,i+1))));return `${yearCards(rs,months)}<div class="grid cols2 section"><div class="card"><div class="sectionhead"><h2>收支趋势</h2></div>${trendChart(months)}</div><div class="card">${categoryPanel(rs,'year')}</div></div><div class="section card"><div class="sectionhead"><h2>月度总览</h2></div>${yearlyNetChart(months)}</div>`}
 function statsPage(){return statsMode==='year'?yearly():monthly()}
 function bookPage(){
- let names=orderedBookNames(true),defaultName=defaultBookName(),total=names.reduce((n,name)=>n+rows.filter(r=>r.book===name).length,0),
-     hint=prefs.bookHintDismissed?'':`<div class="notice book-page-note"><span>第一项可用账本是普通新记账的默认账本；OCR 会沿用最近一笔账单使用的账本。长按账本名称可拖动排序。</span><button type="button" data-dismissbooknote aria-label="关闭账本提示">×</button></div>`;
- return `${hint}
- <div class="card section book-list-card">
+ let names=orderedBookNames(true),defaultName=defaultBookName(),total=names.reduce((n,name)=>n+rows.filter(r=>r.book===name).length,0);
+ return `<div class="card section book-list-card">
   <div class="sectionhead"><h2>账本 · ${names.length}</h2><span class="group-total">共 ${total} 笔账单</span></div>
   <div class="book-list">${names.map((name,i)=>{let p=bookProfile(name),count=rows.filter(r=>r.book===name).length;return `<div class="book-entry ${p.hidden?'book-hidden':''}" data-bookentry="${esc(name)}"><button type="button" class="book-item book-name" data-bookname="${esc(name)}" aria-label="管理账本 ${esc(name)}"><span><b>${esc(name)}</b><small>${defaultName===name?'默认 · 新记账':''}${p.hidden?(defaultName===name?' · ':'')+'已隐藏':''}${p.note?' · '+esc(p.note):''}</small></span></button><button type="button" class="book-item book-count" data-bookname="${esc(name)}"><span><b>${count} 笔</b><small>管理　›</small></span></button></div>`}).join('')||'<div class="empty">还没有账本</div>'}</div>
  </div>
@@ -6974,12 +6972,11 @@ requestAnimationFrame(()=>{try{render()}catch(e){console.warn('rc12 initial rend
 
   // Click controls.
   document.addEventListener('click',e=>{
-    let t=e.target.closest?.('#addInnerBook,[data-bookname],[data-bookdefault],[data-bookdelete],[data-bookconfirmdelete],[data-statsmode],[data-dismissbooknote]');
+    let t=e.target.closest?.('#addInnerBook,[data-bookname],[data-bookdefault],[data-bookdelete],[data-bookconfirmdelete],[data-statsmode]');
     if(!t)return;
     if(Date.now()<window.__slSuppressBookClickUntil&&t.closest('.book-entry')){e.preventDefault();e.stopImmediatePropagation();return}
     e.preventDefault();e.stopImmediatePropagation();
     if(t.id==='addInnerBook')newInnerBookForm();
-    else if(t.hasAttribute('data-dismissbooknote'))savePrefs({bookHintDismissed:true}).catch(err=>toast(err.message));
     else if(t.dataset.bookname)bookForm(t.dataset.bookname);
     else if(t.dataset.bookdefault)setBookDefault(t.dataset.bookdefault).catch(err=>toast(err.message));
     else if(t.dataset.bookdelete)confirmBookDelete(t.dataset.bookdelete);
