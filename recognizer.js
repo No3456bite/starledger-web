@@ -366,8 +366,32 @@ function detectAccount(text,lines,platform,context,evidence){
 function transferAccountMatch(raw,context){
  let value=normalizeAccountMethodValue(raw),accounts=Array.isArray(context?.accounts)?context.accounts:[];
  if(!value)return null;
- let exact=accounts.map(x=>typeof x==='string'?x:x?.name).filter(Boolean).find(a=>compact(a)===compact(value));
+ let names=accounts.map(x=>typeof x==='string'?x:x?.name).filter(Boolean);
+ let exact=names.find(a=>compact(a)===compact(value));
  if(exact)return {value:exact,matched:true,raw:value,matchKind:'exact-transfer-account'};
+
+ // Bank/card descriptions from payment apps are more verbose than ledger names,
+ // e.g. "工商银行银联储蓄卡[1196]" vs "工商银行储蓄卡".
+ // Build a bank+card hint from this field only; do not use the rest of the screenshot.
+ let bankDef=BANK_ALIASES.find(([bank,aliases])=>aliases.some(x=>value.includes(x))),card=/信用卡/.test(value)?'信用卡':/储蓄卡|借记卡/.test(value)?'储蓄卡':'';
+ if(bankDef){
+   let [bank,aliases]=bankDef,candidates=names.map(name=>{
+     let nc=compact(name),score=0;
+     if(aliases.some(x=>nc.includes(compact(x))))score+=120;
+     if(card==='信用卡'){
+       if(/信用卡/.test(name))score+=35;
+       else if(/储蓄卡|借记卡/.test(name))score-=80;
+     }else if(card==='储蓄卡'){
+       if(/储蓄卡|借记卡/.test(name))score+=35;
+       else if(/信用卡/.test(name))score-=80;
+     }
+     let tail=value.match(/[\[［](\d{3,6})[\]］]/)?.[1]||'';
+     if(tail&&name.includes(tail))score+=80;
+     return {name,score}
+   }).sort((a,b)=>b.score-a.score);
+   if(candidates[0]?.score>=120&&(candidates.length<2||candidates[0].score>candidates[1].score))
+     return {value:candidates[0].name,matched:true,raw:value,matchKind:'bank-card-field'};
+ }
  let hint={name:value,literal:value,tokens:accountAliasTokens(value,context?.accountAliases),confidence:.995,source:'explicit-transfer'};
  let matched=matchAccount(accounts,[hint],context?.accountAliases);
  return matched?{value:matched.account,matched:true,raw:value,matchKind:matched.matchKind}:{value:'',matched:false,raw:value,matchKind:''}
