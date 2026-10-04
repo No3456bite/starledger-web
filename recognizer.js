@@ -591,38 +591,25 @@ function pageContextFromText(text){
  return {platform:'',pageType:'重复账单列表',accountHint:''}
 }
 function parseAlipayListDate(line,yearHint,monthHint){
- let s=String(line||'').trim(),m=s.match(/(?:^|\s)(\d{1,2})\s*[-－]\s*(\d{1,2})(.*)$/);
+ let s=String(line||'').trim(),m=s.match(/(\d{1,2})\s*[-－]\s*(\d{1,2})\s*(\d{1,2})\s*:\s*(\d{1,2})/);
  if(!m)return null;
- let mo=+m[1],d=+m[2],tail=String(m[3]||'').trim(),tm=tail.match(/^(\d{1,2})\s*:\s*(\d{1,2})/);
- // If Vision removed the separator entirely, the day regex may have greedily
- // eaten the first hour digit (08-1820:20 => d="18", tail="20:20" normally,
- // but guard compact 3/4-digit date-time forms explicitly as well).
- if(!tm){
-   let c=s.match(/(?:^|\s)(\d{1,2})[-－](\d{2})(\d{2}):([0-9]{1,2})/);
-   if(c){mo=+c[1];d=+c[2];tm=[c[0],c[3],c[4]]}
- }
- if(!tm)return null;
- let hh=+tm[1],rawMin=String(tm[2]||''),mm=rawMin.length>=2?+rawMin.slice(0,2):+(rawMin+'0'),y=+yearHint;
+ let mo=+m[1],d=+m[2],hh=+m[3],rawMin=String(m[4]||''),mm=rawMin.length>=2?+rawMin.slice(0,2):+(rawMin+'0'),y=+yearHint;
  if(!y||mo<1||mo>12||d<1||d>31||hh>23||mm>59)return null;
  return {value:`${y}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')} ${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}:00`,year:y,month:mo,day:d,hour:hh,minute:mm,text:s}
 }
-function alipayAmountToken(line){
- let raw=String(line||'').trim();
- // Signed values can be attached to the merchant line by Vision.
- let sm=raw.match(/([+\-−])\s*(\d{1,9}(?:,\d{3})*(?:\.\d{1,2})?)/);
- if(sm){
-  let n=Number(sm[2].replace(/,/g,''));if(Number.isFinite(n)&&n>0&&n<=1e8)
-   return {value:round2(n),sign:(sm[1]==='-'||sm[1]==='−')?-1:1,raw:sm[0],text:raw,attached:true}
- }
- // Unsigned amount must occupy the whole OCR line. Allow garbage after the
- // decimal digits because Vision may corrupt the final glyph.
- let cleaned=raw.replace(/[¥￥\s]/g,''),m=cleaned.match(/^(\d{1,9}(?:,\d{3})*(?:\.\d{1,2})?)(?:[^\d].*)?$/);
- if(!m)return null;
- let n=Number(m[1].replace(/,/g,''));if(!Number.isFinite(n)||n<=0||n>1e8)return null;
+function alipaySignedSuffix(line){
+ let raw=String(line||'').trim(),m=raw.match(/([+\-−])\s*(\d{1,9}(?:,\d{3})*(?:\.\d{1,2})?)\s*$/);
+ if(!m)return null;let n=Number(m[2].replace(/,/g,''));if(!Number.isFinite(n)||n<=0)return null;
+ return {value:round2(n),sign:(m[1]==='-'||m[1]==='−')?-1:1,raw:m[0],text:raw,attached:raw.slice(0,m.index).trim().length>0}
+}
+function alipayStandaloneAmount(line){
+ let raw=String(line||'').trim(),signed=alipaySignedSuffix(raw);if(signed&&!signed.attached)return signed;
+ let x=raw.replace(/[¥￥\s]/g,''),m=x.match(/^(\d{1,9}(?:,\d{3})*(?:\.\d{1,2})?)(?:[^\d].*)?$/);
+ if(!m)return null;let n=Number(m[1].replace(/,/g,''));if(!Number.isFinite(n)||n<=0||n>1e8)return null;
  return {value:round2(n),sign:0,raw,text:raw,attached:false}
 }
 function stripAlipayAttachedAmount(line){
- return String(line||'').replace(/\s*[+\-−]\s*\d{1,9}(?:,\d{3})*(?:\.\d{1,2})?.*$/,'').trim()
+ return String(line||'').replace(/\s*[+\-−]\s*\d{1,9}(?:,\d{3})*(?:\.\d{1,2})?\s*$/,'').trim()
 }
 function groupAlipayDocument(source,context={}){
  let text=cleanText(source),lines=linesOf(text);
@@ -630,61 +617,36 @@ function groupAlipayDocument(source,context={}){
  let nowRaw=String(context?.now||''),now=new Date(nowRaw.replace(' ','T'));if(!Number.isFinite(now.getTime()))now=new Date();
  let year=now.getFullYear(),mh=text.match(/(\d{1,2})\s*月/),monthHint=mh?+mh[1]:now.getMonth()+1,anchors=[];
  for(let i=0;i<lines.length;i++){let a=parseAlipayListDate(lines[i],year,monthHint);if(a)anchors.push({...a,line:i})}
- if(anchors.length<2)return null;
+ // Once the page signature is certain, never fall back to generic single OCR.
+ if(!anchors.length)return {detected:true,platform:'支付宝',pageType:'支付宝账单列表',accountHint:'支付宝',lineCount:lines.length,anchorCount:0,signedAmountCount:0,merchantCandidateCount:0,groups:[],excludedClosed:0};
 
  const noise=/搜索交易记录|^全部$|^支出$|^收入$|^转账$|^退款$|^搜索$|筛选|收支分析|支出[¥￥]|收入[¥￥]|^\d+月|^[!！•·.]+$/;
  let rows=[];
  for(let ai=0;ai<anchors.length;ai++){
-  let a=anchors[ai],prev=ai?anchors[ai-1].line:-1,start=Math.max(prev+1,a.line-7),tokens=[];
+  let a=anchors[ai],prev=ai?anchors[ai-1].line:-1,start=Math.max(prev+1,a.line-8),tokens=[];
   for(let i=start;i<a.line;i++){
    let x=String(lines[i]||'').trim();if(!x||noise.test(x))continue;
-   let am=alipayAmountToken(x);
-   // Ignore phone status-bar numbers; transaction region starts after the first
-   // month/summary and each row is bounded by adjacent date anchors.
-   tokens.push({text:x,line:i,amount:am})
+   tokens.push({text:x,line:i,standalone:alipayStandaloneAmount(x),suffix:alipaySignedSuffix(x)})
   }
-  let closed=tokens.some(t=>/交易关闭/.test(t.text)),
-      refund=tokens.some(t=>/有退款|退款成功/.test(t.text)),
+  let closed=tokens.some(t=>/交易关闭/.test(t.text)),refund=tokens.some(t=>/有退款|退款成功/.test(t.text)),
       incomeLabel=tokens.some(t=>/^收入$/.test(t.text)),
-      amountToken=tokens.find(t=>t.amount&&t.amount.sign!==0)||tokens.find(t=>t.amount&&!/^\d{1,2}$/.test(t.text)),
-      textTokens=tokens.filter(t=>!t.amount&&!/交易关闭|有退款|退款成功|自动扣款成功|^收入$/.test(t.text)),
-      attached=tokens.find(t=>t.amount?.attached),
-      merchant=cleanMerchant(stripAlipayAttachedAmount(attached?.text||textTokens[0]?.text||'')),
-      category='';
-  // For attached amount rows, the next ordinary token is the category.
-  // For standalone amount rows, merchant/category are the first two text tokens.
-  if(attached)category=textTokens[0]?.text||'';
-  else category=textTokens[1]?.text||'';
-  rows.push({anchor:a,merchant,category,merchantLine:attached?.line??textTokens[0]?.line??-1,amount:amountToken?.amount||null,amountLine:amountToken?.line??-1,closed,refund,incomeLabel})
+      attached=tokens.find(t=>t.suffix?.attached),
+      amountTok=attached||tokens.find(t=>t.standalone),
+      amount=attached?.suffix||amountTok?.standalone||null,
+      ordinary=tokens.filter(t=>!t.standalone&&!t.suffix?.attached&&!/交易关闭|有退款|退款成功|自动扣款成功|^收入$/.test(t.text)),
+      merchant=cleanMerchant(stripAlipayAttachedAmount(attached?.text||ordinary[0]?.text||'')),
+      category=attached?(ordinary[0]?.text||''):(ordinary[1]?.text||'');
+  rows.push({anchor:a,merchant,category,merchantLine:attached?.line??ordinary[0]?.line??-1,amount,amountLine:amountTok?.line??-1,closed,refund,incomeLabel})
  }
-
- // Fallback for column-major OCR: pair otherwise-unbound standalone amounts in order.
- let used=new Set(rows.filter(r=>r.amountLine>=0).map(r=>r.amountLine)),globals=[];
- for(let i=0;i<lines.length;i++){
-  if(used.has(i))continue;
-  let am=alipayAmountToken(lines[i]);
-  if(am&&!am.attached&&!noise.test(lines[i])&&!parseAlipayListDate(lines[i],year,monthHint))globals.push({...am,line:i})
- }
- let gi=0;
- for(let r of rows)if(!r.amount){
-  while(gi<globals.length&&globals[gi].line<anchors[0].line-2)gi++;
-  if(gi<globals.length){r.amount=globals[gi];r.amountLine=globals[gi].line;gi++}
- }
-
  let groups=[],seen=new Set(),excludedClosed=0;
  for(let r of rows){
-  if(r.closed){excludedClosed++;continue}
-  let am=r.amount;if(!am)continue;
-  let isYield=/余额宝[-—]?收益发放|收益发放/.test(r.merchant),
-      isAutoIn=/余额宝[-—]?自动转入|自动转入/.test(r.merchant),
-      type;
-  if(am.sign>0||r.incomeLabel||r.refund||isYield||isAutoIn)type='收入';
-  else type='支出';
-  let signed=type==='收入'?am.value:-am.value,key=[r.anchor.value,signed,compact(r.merchant)].join('|');
+  if(r.closed){excludedClosed++;continue} if(!r.amount)continue;
+  let isYield=/余额宝[-—]?收益发放|收益发放/.test(r.merchant),isAutoIn=/余额宝[-—]?自动转入|自动转入/.test(r.merchant),
+      type=(r.amount.sign>0||r.incomeLabel||r.refund||isYield||isAutoIn)?'收入':'支出',
+      signed=type==='收入'?r.amount.value:-r.amount.value,key=[r.anchor.value,signed,compact(r.merchant)].join('|');
   if(seen.has(key))continue;seen.add(key);
-  groups.push({index:groups.length,line:r.anchor.line,date:r.anchor.value,merchant:r.merchant,signedAmount:signed,amount:am.value,type,categoryHint:r.category,rawLines:[r.merchant,r.category,r.anchor.text,am.text].filter(Boolean),source:{dateLine:r.anchor.line,amountLine:r.amountLine,merchantLine:r.merchantLine}})
+  groups.push({index:groups.length,line:r.anchor.line,date:r.anchor.value,merchant:r.merchant,signedAmount:signed,amount:r.amount.value,type,categoryHint:r.category,rawLines:[r.merchant,r.category,r.anchor.text,r.amount.text].filter(Boolean),source:{dateLine:r.anchor.line,amountLine:r.amountLine,merchantLine:r.merchantLine}})
  }
- if(!groups.length)return {detected:true,platform:'支付宝',pageType:'支付宝账单列表',accountHint:'支付宝',lineCount:lines.length,anchorCount:anchors.length,signedAmountCount:rows.filter(r=>r.amount).length,merchantCandidateCount:rows.length,groups:[],excludedClosed};
  return {detected:true,platform:'支付宝',pageType:'支付宝账单列表',accountHint:'支付宝',lineCount:lines.length,anchorCount:anchors.length,signedAmountCount:rows.filter(r=>r.amount).length,merchantCandidateCount:rows.length,groups,excludedClosed}
 }
 function groupDocument(source,context={}){
