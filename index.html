@@ -3894,7 +3894,7 @@ function settingsPage(){
   </div>
  </div>
  <div class="card section"><div class="sectionhead"><h2>工作区 · ${esc(workspace.folderName||'未选择文件夹')}</h2></div>
-  <p class="muted">当前主账本：${esc(prefs.mainName||'未建立')} · ${rows.length.toLocaleString()} 笔。${workspace.readWrite?'当前浏览器已获得文件夹读写权限；账单与配置变化会同步写入固定工作区。':workspace.mode==='snapshot'?'已从文件夹读取到浏览器本地；当前 Safari 只提供文件夹读取，网页不能在后台持续写回这个外部文件夹。':'尚未连接外部工作区；数据只保存在此浏览器。'}</p>
+  <p class="muted">当前主账本：${esc(prefs.mainName||'未建立')} · ${rows.length.toLocaleString()} 笔。${workspace.readWrite?'当前浏览器已获得文件夹读写权限；账单与配置变化会同步写入固定工作区。':workspace.mode==='snapshot'?'已从文件夹读取到浏览器本地；当前浏览器只提供文件夹读取，网页不能在后台持续写回这个外部文件夹。':'尚未连接外部工作区；数据只保存在此浏览器。'}</p>
   <button class="button primary" id="importFolder">${workspace.folderName?'重新选择工作区文件夹':'选择 StarLedger 工作区文件夹'}</button>
   ${workspace.names.length>1?`<button class="button" id="ledgerSwitchSettings">切换主账本（${workspace.names.length}）</button>`:''}
   <button class="button" id="newBook">新建主账本</button>
@@ -4441,8 +4441,7 @@ function render(){
   if(floating){floating.hidden=true;floating.innerHTML=''}
  }
 
- const prefix=(native&&BOOT?.ledgerReady===false?'<div class="backup-alert">未找到此主文件名对应的 CSV。请先导入账单，导入前不能记账。<br><button class="button primary" id="importOther">导入 CSV</button></div>':'')
-  +(volatileDeletion?'<div class="backup-alert">当前仅显示已导出的删除结果。手机原 CSV 未改变；请保存导出的 CSV，并重新导入后再继续记账。</div>':'')
+ const prefix=(volatileDeletion?'<div class="backup-alert">当前仅显示已导出的删除结果。手机原 CSV 未改变；请保存导出的 CSV，并重新导入后再继续记账。</div>':'')
   +(prefs.mainName&&section!=='settings'&&exportStatus()?exportStatus():'');
  const emptyPage=`<div class="card importarea"><h2>打开星账本</h2><p>选择一个 StarLedger 工作区文件夹。网页会同时读取其中的账单 CSV、配置和关联数据；其他文件会被忽略。</p><button class="button primary" id="importFolder">选择 StarLedger 工作区文件夹</button> <button class="button" id="newBook">新建主账本</button></div>`;
  const renderers={home:homeV2,month:monthly,year:yearly,accounts:accountPage,search:searchPage,settings:settingsPage};
@@ -4459,31 +4458,23 @@ window.addEventListener('scroll',updateBackToTop,{passive:true});
 $('#content')?.addEventListener('scroll',updateBackToTop,{passive:true});window.addEventListener('resize',updateBackToTop);
 
 async function readCsvFile(file){let bytes=await file.arrayBuffer();try{return new TextDecoder('utf-8',{fatal:true}).decode(bytes)}catch(e){return new TextDecoder('gb18030').decode(bytes)}}
-async function importCsvFiles(fileList){
- let files=[...fileList].filter(f=>/\.csv$/i.test(f.name)||String(f.type||'').toLowerCase().includes('csv'));
- if(!files.length)throw Error('没有找到 CSV 文件');
- let all=[],valid=[],skipped=[];
- for(let f of files){
-  try{
-   let parsed=csvParse(await readCsvFile(f),inferMainName(f.name));
-   if(!parsed.length){skipped.push(f.name);continue}
-   all.push(...parsed);valid.push(f)
-  }catch(e){skipped.push(f.name)}
- }
- if(!valid.length)throw Error('没有识别到可导入的账本 CSV');
- let merged=mergeSourceRows([],[],all);
- if(!merged.length)throw Error('这些 CSV 中没有可导入账单');
- let books=[...new Set(merged.map(r=>r.book).filter(Boolean))];
- let root=String(valid[0].webkitRelativePath||'').split('/')[0];
- let suggested=prefs.mainName||root||(valid.length===1?inferMainName(valid[0].name):'我的账本');
- if(prefs.mainName&&!confirm(`将 ${valid.length} 个 CSV 合并为 ${merged.length} 笔账单（${books.length||1} 个账本），并替换当前 ${rows.length} 笔。请先导出未备份修改。`))return;
- let mainName=prefs.mainName||askMainName(suggested);if(!mainName)return;
- await send('replaceLedger',null,null,{csv:csvWrite(merged),filename:valid.length===1?valid[0].name:'',mainName,allowEmpty:true});
- toast(`已导入 ${merged.length} 笔 · ${valid.length} 个 CSV${books.length?' · '+books.length+' 个账本':''}${skipped.length?' · 跳过 '+skipped.length+' 个文件':''}`)
-}
 function inferMainName(filename){return String(filename||'账本').replace(/\.csv$/i,'').replace(/_(?:scriptable|desktop|mobile|手机主账本)$/i,'').replace(/_\d{4}-\d{2}-\d{2}_\d{6}$/,'')||'账本'}
 function askMainName(suggestion){let v=prompt('账本名称',suggestion);if(v===null)return'';v=v.trim();if(!v||/[\/:*?"<>|]/.test(v)||v.length>60)throw Error('主文件名不能为空，且不能含文件名保留字符');return v}
-async function createBook(){let name=askMainName(prefs.mainName||'我的账本');if(!name)return;if(prefs.mainName&&!confirm('新建空账本会替换此浏览器的主账本。请先导出旧账本。'))return;await send('replaceLedger',null,null,{csv:csvWrite([]),filename:'',mainName:name,allowEmpty:true});toast('已新建：'+name)}
+async function createBook(){
+ let name=askMainName('我的账本');if(!name)return;
+ if(workspace.names.includes(name)){await switchWorkspaceLedger(name);return}
+ let nextPrefs={...DEFAULT_PREFS,mainName:name,appearance:prefs.appearance,theme:prefs.theme};
+ if(folderHandle){
+  if(!await permission(folderHandle,'readwrite',true))throw Error('需要允许浏览器写入工作区文件夹');
+  await writeDesktopDelta(name,[]);
+ }
+ workspace=normalizeWorkspace({...workspace,names:[...workspace.names,name],active:name,updatedAt:Date.now()});
+ prefs=nextPrefs;
+ await putBundle({prefs,csv:csvWrite([]),[ledgerPrefsKey(name)]:nextPrefs,[ledgerCsvKey(name)]:csvWrite([]),['relations:'+name]:{groups:[],suppressedLegacy:[],updatedAt:''},[WORKSPACE_KEY]:workspace});
+ if(folderHandle)await writeSharedPrefs({...nextPrefs,mainName:name});
+ rows=[];revision=digest(csvWrite([]));book='全部账本';query='';kind='全部类型';account='全部账户';category='全部分类';subcategory='全部小类';currencyFilter='全部币种';day='';page=0;
+ applyTheme();render();window.dispatchEvent(new CustomEvent('star-ledger-main-changed',{detail:{name}}));toast('已新建主账本：'+name)
+}
 async function getFolder(){try{let d=await db(),v=await new Promise((res,rej)=>{let tx=d.transaction('state','readonly'),q=tx.objectStore('state').get('folder');q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)});d.close();return v||null}catch(e){return null}}
 async function storeFolder(handle){let d=await db();await new Promise((res,rej)=>{let tx=d.transaction('state','readwrite');tx.objectStore('state').put(handle,'folder');tx.oncomplete=res;tx.onerror=()=>rej(tx.error)});d.close()}
 async function permission(handle,mode,request=false){try{let opts={mode};if(await handle.queryPermission(opts)==='granted')return true;if(request&&await handle.requestPermission(opts)==='granted')return true}catch(e){}return false}
@@ -5185,9 +5176,6 @@ document.addEventListener('change',e=>{
 
  function pageBodyHTMLFor(target){
   const prefix=
-   (native&&BOOT?.ledgerReady===false
-    ?'<div class="backup-alert">未找到此主文件名对应的 CSV。请先导入账单，导入前不能记账。<br><button class="button primary" id="importOther">导入 CSV</button></div>'
-    :'')+
    (volatileDeletion
     ?'<div class="backup-alert">当前仅显示已导出的删除结果。手机原 CSV 未改变；请保存导出的 CSV，并重新导入后再继续记账。</div>'
     :'')+
