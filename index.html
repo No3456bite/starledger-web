@@ -5360,7 +5360,7 @@ document.addEventListener('click',e=>{if(e.target.closest?.('.entry-date-action'
  else if(t.id==='cancelDelete'){pendingDeleteIds=null;let dialog=deleteDialog();if(dialog.id==='accountOverlay')dialog.innerHTML='';else close()}
  else if(t.dataset.viewall)openFullList(t.dataset.viewall)
  else if(t.id==='sideToggle'){toggleDesktopSidebar()}
- else if(t.dataset.go){rc6Navigate(t.dataset.go)}
+ else if(t.dataset.go){if(browserTabScrollMode()&&window.__browserPagerNavigate)window.__browserPagerNavigate(t.dataset.go);else rc6Navigate(t.dataset.go)}
  else if(t.dataset.id){if(suppressRecordClick){suppressRecordClick=false;return}if(selection.size){toggleSelection(t.dataset.id);return}let r=rows.find(x=>x.id===t.dataset.id);if(r)form(r)}
  else if(t.dataset.categorymode){renderKeepingVisualAnchor(()=>{categoryChartMode=t.dataset.categorymode})}
  else if(t.dataset.categoryflow){renderKeepingVisualAnchor(()=>{categoryFlow=t.dataset.categoryflow})}
@@ -6473,137 +6473,323 @@ requestAnimationFrame(()=>{try{render()}catch(e){console.warn('rc12 initial rend
   const root=document.documentElement;
   if(!root.classList.contains('browser-tab'))return;
 
-  /* Arm sticky filters only when the first genuine vertical gesture starts.
-     This leaves Safari one clean initial paint with no viewport-edge sticky layer. */
-  let armTouch=null,stickyArmed=false;
-  const armSticky=()=>{
-    if(stickyArmed)return;
-    stickyArmed=true;
-    root.classList.add('safari-sticky-ready');
-  };
-  document.addEventListener('touchstart',e=>{
-    if(e.touches?.length!==1){armTouch=null;return}
-    const t=e.touches[0];
-    armTouch={id:t.identifier,x:t.clientX,y:t.clientY};
-  },{passive:true,capture:true});
-  document.addEventListener('touchmove',e=>{
-    if(stickyArmed||!armTouch||e.touches?.length!==1)return;
-    const t=[...e.touches].find(x=>x.identifier===armTouch.id);if(!t)return;
-    const dx=t.clientX-armTouch.x,dy=t.clientY-armTouch.y;
-    if(Math.abs(dy)>=8&&Math.abs(dy)>Math.abs(dx)*1.08)armSticky();
-  },{passive:true,capture:true});
-  window.addEventListener('scroll',()=>{
-    if(!stickyArmed&&(window.scrollY||document.documentElement.scrollTop||0)>6)armSticky();
-  },{passive:true});
-
-  /* Lightweight horizontal paging for the document-scroll browser shell. */
   const viewport=document.querySelector('#pageViewport');
-  if(!viewport)return;
-  let g=null,suppressUntil=0,settleTimer=0;
+  const live=document.querySelector('#content');
+  if(!viewport||!live)return;
+
+  let g=null,busy=false,neighbor=null,settleTimer=0,suppressUntil=0;
 
   const blocked=t=>!!t.closest(
     'input,select,textarea,[contenteditable="true"],.mobilebar,.modalback,.entryback,'+
     '#accountOverlay,.search-filter-sheet,.tag-choices,.category-tabs'
   );
-  const targetFor=dir=>{
+
+  const saveGlobals=()=>({
+    section,day,page,searchPeriod,searchDateMode,searchRangeStart,searchRangeEnd
+  });
+  const restoreGlobals=v=>{
+    section=v.section;day=v.day;page=v.page;
+    searchPeriod=v.searchPeriod;searchDateMode=v.searchDateMode;
+    searchRangeStart=v.searchRangeStart;searchRangeEnd=v.searchRangeEnd;
+  };
+
+  const pageBodyHTMLFor=target=>{
+    const prefix=
+      (volatileDeletion
+        ?'<div class="backup-alert">当前仅显示已导出的删除结果。手机原 CSV 未改变；请保存导出的 CSV，并重新导入后再继续记账。</div>'
+        :'')+
+      (prefs.mainName&&exportStatus()?exportStatus():'');
+    if(!prefs.mainName){
+      return prefix+'<div class="card importarea"><h2>打开星账本</h2><p>选择一个 StarLedger 工作区文件夹。网页会同时读取其中的账单 CSV、配置和关联数据；其他文件会被忽略。</p><button class="button primary" id="importFolder">选择 StarLedger 工作区文件夹</button> <button class="button" id="newBook">新建主账本</button></div>';
+    }
+    const fn={home:homeV2,stats:statsPage,books:bookPage,accounts:accountPage,search:searchPage}[target];
+    return prefix+(fn?fn():'');
+  };
+
+  function buildTargetHTML(target){
+    const saved=saveGlobals();
+    try{
+      section=target;
+      rc6ApplyPageDefaults(target);
+
+      const clone=live.cloneNode(true);
+      clone.classList.remove('browser-pager-tracking','browser-pager-settling');
+      clone.style.transform='';
+
+      const title=clone.querySelector('#title');
+      if(title){
+        if(target==='stats'){
+          title.innerHTML='<span class="stats-title-switch"><button type="button" class="'+(statsMode==='month'?'active':'')+'">月度</button><button type="button" class="'+(statsMode==='year'?'active':'')+'">年度</button></span>';
+        }else title.textContent=labels[target]||'';
+      }
+
+      const body=clone.querySelector('#pageBody');
+      if(body){
+        body.classList.remove('settings-page');
+        body.innerHTML=pageBodyHTMLFor(target);
+      }
+
+      const slot=clone.querySelector('#controlsFrame');
+      if(slot){
+        slot.innerHTML='';
+        slot.hidden=false;
+        slot.style.setProperty('height','62px','important');
+      }
+
+      return rc55SceneHTML(clone.innerHTML,rc27PageScroll[target]||0,{visible:false,html:'',top:0});
+    }finally{
+      restoreGlobals(saved);
+    }
+  }
+
+  function viewportBox(){
+    const vv=window.visualViewport;
+    const scrollY=window.scrollY||document.documentElement.scrollTop||0;
+    return {
+      top:scrollY+(vv?.offsetTop||0),
+      left:(window.scrollX||0)+(vv?.offsetLeft||0),
+      width:Math.max(1,vv?.width||window.innerWidth||document.documentElement.clientWidth),
+      height:Math.max(1,vv?.height||window.innerHeight||document.documentElement.clientHeight)
+    };
+  }
+
+  function removeNeighbor(){
+    if(neighbor?.isConnected)neighbor.remove();
+    neighbor=null;
+  }
+
+  function makeNeighbor(target,dir){
+    removeNeighbor();
+    const box=viewportBox(),node=document.createElement('div');
+    node.className='browser-swipe-neighbor';
+    node.dataset.target=target;
+    node.style.top=box.top+'px';
+    node.style.left=box.left+'px';
+    node.style.width=box.width+'px';
+    node.style.height=box.height+'px';
+    node.style.setProperty('--browser-neighbor-x',(dir<0?box.width:-box.width)+'px');
+    node.innerHTML=buildTargetHTML(target);
+    document.body.appendChild(node);
+    neighbor=node;
+    return node;
+  }
+
+  function setLiveX(x){
+    live.style.setProperty('--browser-live-x',x+'px');
+  }
+  function setNeighborX(x){
+    if(neighbor)neighbor.style.setProperty('--browser-neighbor-x',x+'px');
+  }
+
+  function trackingOn(){
+    live.classList.add('browser-pager-tracking');
+  }
+  function clearMotion(){
+    clearTimeout(settleTimer);
+    live.classList.remove('browser-pager-tracking','browser-pager-settling');
+    live.style.removeProperty('--browser-live-x');
+    live.style.removeProperty('--browser-pager-duration');
+    live.style.removeProperty('--browser-pager-ease');
+    if(neighbor){
+      neighbor.classList.remove('browser-pager-settling');
+      neighbor.style.removeProperty('--browser-pager-duration');
+      neighbor.style.removeProperty('--browser-pager-ease');
+    }
+  }
+
+  function targetFor(dir){
     const i=PRIMARY_PAGE_ORDER.indexOf(section);
     if(i<0)return'';
     const next=i+(dir<0?1:-1);
     return next>=0&&next<PRIMARY_PAGE_ORDER.length?PRIMARY_PAGE_ORDER[next]:'';
-  };
-  const clearStyles=()=>{
-    clearTimeout(settleTimer);
-    viewport.classList.remove('browser-swipe-tracking','browser-swipe-settling');
-    viewport.style.transform='';
-  };
-  const animateTo=(x,done)=>{
-    viewport.classList.remove('browser-swipe-tracking');
-    viewport.classList.add('browser-swipe-settling');
-    viewport.style.transform='translate3d('+x+'px,0,0)';
-    let fired=false;
-    const finish=()=>{
-      if(fired)return;fired=true;
-      viewport.removeEventListener('transitionend',finish);
-      done?.();
+  }
+
+  function begin(target,dir,initialX=0){
+    if(busy||!target||target===section)return null;
+    const box=viewportBox(),state={
+      target,dir,width:box.width,displayX:initialX
     };
-    viewport.addEventListener('transitionend',finish,{once:true});
-    settleTimer=setTimeout(finish,240);
+    makeNeighbor(target,dir);
+    busy=true;
+    trackingOn();
+    setLiveX(initialX);
+    setNeighborX(initialX+(dir<0?box.width:-box.width));
+    return state;
+  }
+
+  function applyDrag(state,rawDx){
+    if(!state)return;
+    let dx=state.dir<0?Math.min(0,rawDx):Math.max(0,rawDx);
+    dx=Math.max(-state.width,Math.min(state.width,dx));
+    state.displayX=dx;
+    setLiveX(dx);
+    setNeighborX(dx+(state.dir<0?state.width:-state.width));
+  }
+
+  function finishTransition(state,commit,duration=210){
+    if(!state)return;
+    const width=state.width;
+    const liveEnd=commit?(state.dir<0?-width:width):0;
+    const nextEnd=commit?0:(state.dir<0?width:-width);
+    const ease=commit?'cubic-bezier(.2,.85,.32,1)':'cubic-bezier(.18,.88,.3,1.05)';
+
+    live.classList.remove('browser-pager-tracking');
+    live.classList.add('browser-pager-settling');
+    live.style.setProperty('--browser-pager-duration',duration+'ms');
+    live.style.setProperty('--browser-pager-ease',ease);
+    if(neighbor){
+      neighbor.classList.add('browser-pager-settling');
+      neighbor.style.setProperty('--browser-pager-duration',duration+'ms');
+      neighbor.style.setProperty('--browser-pager-ease',ease);
+    }
+
+    void live.offsetWidth;
+    requestAnimationFrame(()=>{
+      setLiveX(liveEnd);
+      setNeighborX(nextEnd);
+    });
+
+    let done=false;
+    const finish=()=>{
+      if(done)return;
+      done=true;
+      clearTimeout(settleTimer);
+
+      if(commit){
+        // Keep the rendered neighbour covering the viewport until the real page
+        // has synchronously replaced the live DOM underneath it.
+        rc6Navigate(state.target);
+      }
+
+      clearMotion();
+      removeNeighbor();
+      busy=false;
+      window.__rc54PlaceFloating?.();
+      updateBackToTop();
+    };
+
+    if(neighbor)neighbor.addEventListener('transitionend',finish,{once:true});
+    else live.addEventListener('transitionend',finish,{once:true});
+    settleTimer=setTimeout(finish,duration+70);
+  }
+
+  window.__browserPagerNavigate=target=>{
+    if(!compactViewport()||!PRIMARY_PAGE_ORDER.includes(target)||target===section){
+      if(target!==section)rc6Navigate(target);
+      return;
+    }
+    if(busy)return;
+    const from=PRIMARY_PAGE_ORDER.indexOf(section),to=PRIMARY_PAGE_ORDER.indexOf(target);
+    const dir=to>from?-1:1;
+    const state=begin(target,dir,0);
+    if(!state)return;
+    // One full page-slide regardless of how many tabs were skipped.
+    requestAnimationFrame(()=>requestAnimationFrame(()=>finishTransition(state,true,220)));
   };
 
   document.addEventListener('touchstart',e=>{
-    if(e.touches?.length!==1||section==='settings'||selection?.size||document.querySelector('.modalback,.entryback')||blocked(e.target)){g=null;return}
+    if(e.touches?.length!==1||busy||section==='settings'||selection?.size||document.querySelector('.modalback,.entryback')||blocked(e.target)){
+      g=null;return;
+    }
     if(!e.target.closest('#pageViewport')){g=null;return}
     const t=e.touches[0];
-    g={id:t.identifier,x:t.clientX,y:t.clientY,lastX:t.clientX,lastY:t.clientY,lastTime:performance.now(),vx:0,axis:'',target:'',dir:0,width:Math.max(1,window.innerWidth)};
+    g={
+      id:t.identifier,x:t.clientX,y:t.clientY,
+      lastX:t.clientX,lastY:t.clientY,lastTime:performance.now(),
+      vx:0,axis:'',dir:0,target:'',state:null
+    };
   },{passive:true});
 
   document.addEventListener('touchmove',e=>{
     if(!g||e.touches?.length!==1)return;
     const t=[...e.touches].find(x=>x.identifier===g.id);if(!t)return;
     const now=performance.now(),dx=t.clientX-g.x,dy=t.clientY-g.y,ax=Math.abs(dx),ay=Math.abs(dy);
+
     if(!g.axis&&Math.max(ax,ay)>=10){
       if(ax>ay*1.16){
         g.axis='x';
         g.dir=dx<0?-1:1;
         g.target=targetFor(g.dir);
-        viewport.classList.add('browser-swipe-tracking');
+        if(g.target)g.state=begin(g.target,g.dir,0);
       }else if(ay>ax*1.08){
         g.axis='y';
         return;
       }
     }
+
     if(g.axis==='x'){
       const dt=Math.max(1,now-g.lastTime),sample=(t.clientX-g.lastX)/dt;
       g.vx=g.vx*.62+sample*.38;
-      const edge=g.target?1:.18;
-      const shown=Math.max(-g.width*.42,Math.min(g.width*.42,dx*edge));
-      viewport.style.transform='translate3d('+shown+'px,0,0)';
+      if(g.state){
+        applyDrag(g.state,dx);
+      }else{
+        // Edge resistance when no page exists in that direction.
+        const resisted=(g.dir<0?-1:1)*Math.min(50,Math.abs(dx)*.18);
+        setLiveX(resisted);
+        trackingOn();
+      }
       if(e.cancelable)e.preventDefault();
     }
+
     g.lastX=t.clientX;g.lastY=t.clientY;g.lastTime=now;
   },{passive:false});
 
-  const finish=e=>{
+  const endGesture=e=>{
     if(!g)return;
-    const state=g;g=null;
-    if(state.axis!=='x'){clearStyles();return}
-    let t=null;
-    for(const x of (e.changedTouches||[]))if(x.identifier===state.id){t=x;break}
-    const dx=(t?t.clientX:state.lastX)-state.x;
-    const progress=Math.abs(dx)/state.width;
-    const velocityToward=state.dir<0?state.vx<-.34:state.vx>.34;
-    const stillValid=state.dir<0?dx<0:dx>0;
-    const commit=!!state.target&&stillValid&&(progress>=.23||velocityToward);
-    suppressUntil=Date.now()+430;
-
-    if(!commit){
-      animateTo(0,clearStyles);
+    const gesture=g;g=null;
+    if(gesture.axis!=='x'){
+      if(!busy){clearMotion();removeNeighbor()}
       return;
     }
 
-    const exitX=state.dir<0?-state.width:state.width;
-    animateTo(exitX,()=>{
-      const target=state.target;
-      clearStyles();
-      rc6Navigate(target);
-      /* New page enters from the opposite side. */
-      const startX=state.dir<0?state.width:-state.width;
-      viewport.classList.add('browser-swipe-tracking');
-      viewport.style.transform='translate3d('+startX+'px,0,0)';
-      void viewport.offsetWidth;
-      requestAnimationFrame(()=>requestAnimationFrame(()=>animateTo(0,clearStyles)));
-    });
+    suppressUntil=Date.now()+430;
+
+    if(!gesture.state){
+      live.classList.remove('browser-pager-tracking');
+      live.classList.add('browser-pager-settling');
+      live.style.setProperty('--browser-pager-duration','180ms');
+      live.style.setProperty('--browser-pager-ease','cubic-bezier(.18,.88,.3,1.05)');
+      requestAnimationFrame(()=>setLiveX(0));
+      setTimeout(()=>clearMotion(),220);
+      return;
+    }
+
+    let t=null;
+    for(const x of (e.changedTouches||[]))if(x.identifier===gesture.id){t=x;break}
+    const dx=(t?t.clientX:gesture.lastX)-gesture.x;
+    applyDrag(gesture.state,dx);
+    const progress=Math.abs(gesture.state.displayX||0)/gesture.state.width;
+    const velocityToward=gesture.dir<0?gesture.vx<-.34:gesture.vx>.34;
+    const stillValid=gesture.dir<0?dx<0:dx>0;
+    const commit=stillValid&&(progress>=.23||velocityToward);
+    const remaining=commit?1-progress:progress;
+    const duration=Math.max(120,Math.min(230,125+100*remaining));
+    finishTransition(gesture.state,commit,duration);
   };
 
-  document.addEventListener('touchend',finish,{passive:true});
-  document.addEventListener('touchcancel',()=>{
-    if(g?.axis==='x'){g=null;animateTo(0,clearStyles)}else{g=null;clearStyles()}
+  document.addEventListener('touchend',endGesture,{passive:true});
+  document.addEventListener('touchcancel',e=>{
+    if(g?.state){
+      const state=g.state;g=null;finishTransition(state,false,180);
+    }else{
+      g=null;clearMotion();removeNeighbor();busy=false;
+    }
   },{passive:true});
+
   document.addEventListener('click',e=>{
     if(Date.now()<suppressUntil&&e.target.closest('#pageViewport')){
-      e.preventDefault();e.stopImmediatePropagation();
+      e.preventDefault();
+      e.stopImmediatePropagation();
     }
   },true);
+
+  window.addEventListener('resize',()=>{
+    if(busy&&neighbor){
+      // A browser chrome resize mid-transition is safer to cancel than to
+      // stretch the already rendered neighbour.
+      clearMotion();removeNeighbor();busy=false;g=null;
+    }
+  },{passive:true});
 })();
 </script>
 <style id="web-v054-books-stats-header">
@@ -7176,4 +7362,79 @@ requestAnimationFrame(()=>{try{render()}catch(e){console.warn('rc12 initial rend
   }
 }
 </style>
-</body></html>
+<style id="web-v058-browser-pager-scenes">
+@media(max-width:760px){
+  html.browser-tab #content.browser-pager-tracking{
+    transform:translate3d(var(--browser-live-x,0px),0,0)!important;
+    will-change:transform!important;
+    backface-visibility:hidden!important;
+  }
+  html.browser-tab #content.browser-pager-settling{
+    transform:translate3d(var(--browser-live-x,0px),0,0)!important;
+    transition-property:transform!important;
+    transition-duration:var(--browser-pager-duration,210ms)!important;
+    transition-timing-function:var(--browser-pager-ease,cubic-bezier(.2,.85,.32,1))!important;
+    will-change:transform!important;
+    backface-visibility:hidden!important;
+  }
+
+  html.browser-tab .browser-swipe-neighbor{
+    display:block!important;
+    position:absolute!important;
+    z-index:880!important;
+    overflow:hidden!important;
+    pointer-events:none!important;
+    box-sizing:border-box!important;
+    background:var(--bg)!important;
+    contain:layout paint style!important;
+    transform:translate3d(var(--browser-neighbor-x,100vw),0,0)!important;
+    backface-visibility:hidden!important;
+  }
+  html.browser-tab .browser-swipe-neighbor.browser-pager-settling{
+    transition-property:transform!important;
+    transition-duration:var(--browser-pager-duration,210ms)!important;
+    transition-timing-function:var(--browser-pager-ease,cubic-bezier(.2,.85,.32,1))!important;
+    will-change:transform!important;
+  }
+  html.browser-tab .browser-swipe-neighbor .rc55-scroll-snapshot{
+    position:absolute!important;
+    top:0!important;
+    left:16px!important;
+    right:16px!important;
+    width:auto!important;
+    min-height:100%!important;
+    box-sizing:border-box!important;
+    margin:0!important;
+    padding:0!important;
+  }
+  html.browser-tab .browser-swipe-neighbor #safeFrame{
+    display:none!important;
+    height:0!important;
+  }
+  html.browser-tab .browser-swipe-neighbor #controlsFrame{
+    display:block!important;
+    position:relative!important;
+    top:auto!important;
+    height:62px!important;
+    min-height:62px!important;
+    margin:0!important;
+    padding:0!important;
+    background:transparent!important;
+    backdrop-filter:none!important;
+    -webkit-backdrop-filter:none!important;
+  }
+  html.browser-tab .browser-swipe-neighbor #headerFrame{
+    position:relative!important;
+    z-index:auto!important;
+    min-height:78px!important;
+    height:78px!important;
+    padding:0 0 6px!important;
+    background:var(--bg)!important;
+  }
+  html.browser-tab .browser-swipe-neighbor #pageBody{
+    position:relative!important;
+    width:100%!important;
+    box-sizing:border-box!important;
+  }
+}
+</style></body></html>
