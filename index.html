@@ -3314,7 +3314,7 @@ button.home-month-stat:active{background:var(--pale);border-radius:12px}
   .entry[data-rc12-task="1"] .rc12-current-relation{display:none!important}
 }
 </style>
-</head><body><div class="shell"><aside class="side" data-ui-level="1"><button type="button" id="sideToggle" class="side-toggle" aria-label="收起左侧栏">‹</button><div class="brand"><span class="brand-long">我的<b>账本</b></span><span class="brand-short">账</span></div><nav id="nav"></nav><small>星账本 · Web v0.3 · rc13.4</small></aside><main data-ui-level="2"><div id="pageViewport"><div id="content"><div id="safeFrame" aria-hidden="true"></div><div id="controlsFrame" aria-hidden="true"></div><div id="headerFrame"><header class="top"><div><div class="eyebrow" id="status">账本数据</div><h1 id="title">我的账本</h1></div><div class="topactions"><button class="button iconbutton" id="settingsBtn" aria-label="设置">⚙</button><button class="button" id="refreshBill" hidden>↻ 刷新账单</button><button class="button primary" id="addBtn">＋ 记一笔</button></div></header></div><div id="pageBody"></div></div></div><div id="floatingControls"></div></main></div><div class="mobilebar" id="mobileNav"></div><button type="button" class="back-to-top" id="backToTop" hidden aria-label="回到顶部">↑ 顶部</button><div id="overlay"></div><input hidden type="file" id="file" accept=".csv,text/csv" multiple><input hidden type="file" id="folderFile" accept=".csv,text/csv" webkitdirectory directory multiple><input hidden type="file" id="deltaFile" accept=".csv,text/csv"><input hidden type="file" id="configFile" accept=".json,application/json"><script>
+</head><body><div class="shell"><aside class="side" data-ui-level="1"><button type="button" id="sideToggle" class="side-toggle" aria-label="收起左侧栏">‹</button><div class="brand"><span class="brand-long">我的<b>账本</b></span><span class="brand-short">账</span></div><nav id="nav"></nav><small>星账本 · Web v0.3 · rc13.4</small></aside><main data-ui-level="2"><div id="pageViewport"><div id="content"><div id="safeFrame" aria-hidden="true"></div><div id="controlsFrame" aria-hidden="true"></div><div id="headerFrame"><header class="top"><div><div class="eyebrow" id="status">账本数据</div><h1 id="title">我的账本</h1></div><div class="topactions"><button class="button iconbutton" id="settingsBtn" aria-label="设置">⚙</button><button class="button" id="refreshBill" hidden>↻ 刷新账单</button><button class="button primary" id="addBtn">＋ 记一笔</button></div></header></div><div id="pageBody"></div></div></div><div id="floatingControls"></div></main></div><div class="mobilebar" id="mobileNav"></div><button type="button" class="back-to-top" id="backToTop" hidden aria-label="回到顶部">↑ 顶部</button><div id="overlay"></div><input hidden type="file" id="file" accept=".csv,text/csv" multiple><input hidden type="file" id="folderFile" accept=".csv,.json,text/csv,application/json" webkitdirectory directory multiple><input hidden type="file" id="deltaFile" accept=".csv,text/csv"><input hidden type="file" id="configFile" accept=".json,application/json"><script>
 // Pure Web build. The legacy Scriptable bridge is archived in GitHub.
 const BOOT=/*__BOOT__*/null;
 const COLS=['id','date','type','category','subcategory','amount','account','account2','reimbursement','note','image','role','tags','currency','merchant','book','extras','created_at','updated_at'];
@@ -3762,6 +3762,7 @@ async function switchWorkspaceLedger(name,{silent=false}={}){
  prefs={...DEFAULT_PREFS,...(savedPrefs||{}),mainName:name};
  workspace=normalizeWorkspace({...workspace,active:name,updatedAt:Date.now()});
  await putBundle({prefs,csv:csv||csvWrite([]),[WORKSPACE_KEY]:workspace});
+ if(folderHandle&&workspace.readWrite){try{await writeSharedPrefs({mainName:name})}catch(e){toast('已切换，但工作区配置未能写回：'+e.message)}}
  book='全部账本';query='';kind='全部类型';account='全部账户';category='全部分类';subcategory='全部小类';currencyFilter='全部币种';day='';page=0;
  applyTheme();takeCsv(csv||csvWrite([]));
  window.dispatchEvent(new CustomEvent('star-ledger-main-changed',{detail:{name}}));
@@ -4612,6 +4613,166 @@ async function refreshDelta(auto=false){
   if(!auto)throw Error('读取StarLedger/Data 文件夹失败：'+e.message)
  }finally{checkingDelta=false}
 }
+
+/* Web v0.4 workspace folder engine.
+ * Only the fixed StarLedger file names are read:
+ *   <ledger>_mobile.csv / <ledger>_手机主账本.csv
+ *   <ledger>_scriptable.csv
+ *   <ledger>_desktop.csv
+ *   StarLedgerConfig.json
+ *   StarLedgerRelations.json
+ * Everything else in the chosen folder is ignored.
+ */
+const WORKSPACE_RELATIONS_FILE='StarLedgerRelations.json';
+const WORKSPACE_LEDGER_RE=/^(.*)_(mobile|scriptable|desktop|手机主账本)\.csv$/;
+
+function workspaceLedgerFile(name){
+ let m=String(name||'').match(WORKSPACE_LEDGER_RE);
+ return m&&m[1]?{ledger:m[1],kind:m[2]}:null
+}
+function configForLedgerStore(store,name){
+ if(!store||typeof store!=='object'||Array.isArray(store))return null;
+ let nested=store.ledgers&&typeof store.ledgers==='object'&&!Array.isArray(store.ledgers)?store.ledgers[name]:null;
+ if(nested&&typeof nested==='object'&&!Array.isArray(nested))return {...sharedPrefSubset(nested),mainName:name};
+ if(String(store.mainName||'')===name)return {...sharedPrefSubset(store),mainName:name};
+ return null
+}
+async function parseWorkspaceFiles(files){
+ let byName=new Map(),warnings=[];
+ for(let file of [...files]){
+  let name=String(file?.name||'');
+  if(name===SHARED_CONFIG_FILE||name===WORKSPACE_RELATIONS_FILE||workspaceLedgerFile(name)){
+   let prev=byName.get(name),path=String(file.webkitRelativePath||file.name||'');
+   if(!prev||path.split('/').length<String(prev.webkitRelativePath||prev.name||'').split('/').length)byName.set(name,file)
+  }
+ }
+ let config=null,relationsStore=null,configFile=byName.get(SHARED_CONFIG_FILE),relationsFile=byName.get(WORKSPACE_RELATIONS_FILE);
+ if(configFile){try{config=JSON.parse(await configFile.text())}catch(e){warnings.push(SHARED_CONFIG_FILE+' 格式无效')}}
+ if(relationsFile){try{let v=JSON.parse(await relationsFile.text());if(v&&typeof v==='object'&&v.version===1&&v.ledgers&&typeof v.ledgers==='object')relationsStore=v;else warnings.push(WORKSPACE_RELATIONS_FILE+' 格式无效')}catch(e){warnings.push(WORKSPACE_RELATIONS_FILE+' 格式无效')}}
+ let parts=new Map(),meta=[];
+ for(let [name,file] of byName){
+  let info=workspaceLedgerFile(name);if(!info)continue;
+  let bucket=parts.get(info.ledger)||{base:[],mobile:[],desktop:[]};
+  try{
+   let parsed=csvParse(await readCsvFile(file));
+   if(info.kind==='mobile'||info.kind==='手机主账本')bucket.base=parsed;
+   else if(info.kind==='scriptable')bucket.mobile=parsed;
+   else if(info.kind==='desktop')bucket.desktop=parsed;
+   parts.set(info.ledger,bucket);
+   meta.push(name+'|'+Number(file.lastModified||0)+'|'+Number(file.size||0))
+  }catch(e){warnings.push(name+' 不是有效 StarLedger CSV')}
+ }
+ let ledgers=[];
+ for(let [name,source] of [...parts.entries()].sort((a,b)=>a[0].localeCompare(b[0],'zh-CN'))){
+  let merged=mergeSourceRows(source.base,source.mobile,source.desktop);
+  let settings=configForLedgerStore(config,name);
+  ledgers.push({name,csv:csvWrite(merged),settings,relations:relationsStore?.ledgers?.[name]||null,counts:{base:source.base.length,mobile:source.mobile.length,desktop:source.desktop.length,total:merged.length}})
+ }
+ let names=ledgers.map(x=>x.name),active='';
+ for(let candidate of [config?.activeLedger,config?.mainName,workspace.active,prefs.mainName])if(candidate&&names.includes(String(candidate))){active=String(candidate);break}
+ if(!active)active=names[0]||'';
+ if(configFile)meta.push(SHARED_CONFIG_FILE+'|'+Number(configFile.lastModified||0)+'|'+Number(configFile.size||0));
+ if(relationsFile)meta.push(WORKSPACE_RELATIONS_FILE+'|'+Number(relationsFile.lastModified||0)+'|'+Number(relationsFile.size||0));
+ return {ledgers,names,active,warnings,meta:meta.sort().join('||'),configPresent:!!configFile,relationsPresent:!!relationsFile}
+}
+async function workspaceSnapshotFromDirectory(handle){
+ let files=[];
+ for await(let [name,entry] of handle.entries()){
+  if(entry.kind!=='file')continue;
+  if(name===SHARED_CONFIG_FILE||name===WORKSPACE_RELATIONS_FILE||workspaceLedgerFile(name)){
+   try{files.push(await entry.getFile())}catch(e){}
+  }
+ }
+ return parseWorkspaceFiles(files)
+}
+async function applyWorkspaceSnapshot(snapshot,{folderName='',mode='snapshot',readWrite=false,preferredActive='',askIfMultiple=false}={}){
+ if(!snapshot?.names?.length)throw Error('这个文件夹没有找到 StarLedger 账本文件');
+ let names=snapshot.names,active=names.includes(preferredActive)?preferredActive:names.includes(snapshot.active)?snapshot.active:names[0],entries={};
+ for(let ledger of snapshot.ledgers){
+  let localPrefs=await get(ledgerPrefsKey(ledger.name));
+  let nextPrefs={...DEFAULT_PREFS,...(localPrefs||{}),...(ledger.settings||{}),mainName:ledger.name};
+  entries[ledgerCsvKey(ledger.name)]=ledger.csv;
+  entries[ledgerPrefsKey(ledger.name)]=nextPrefs;
+  if(snapshot.relationsPresent)entries['relations:'+ledger.name]=ledger.relations||{groups:[],suppressedLegacy:[],updatedAt:''}
+ }
+ workspace=normalizeWorkspace({names,active,folderName,mode,readWrite,updatedAt:Date.now()});
+ let activeLedger=snapshot.ledgers.find(x=>x.name===active),activePrefs=entries[ledgerPrefsKey(active)],activeCsv=activeLedger?.csv||csvWrite([]);
+ entries[WORKSPACE_KEY]=workspace;entries.prefs=activePrefs;entries.csv=activeCsv;
+ await putBundle(entries);
+ prefs=activePrefs;applyTheme();takeCsv(activeCsv);
+ window.dispatchEvent(new CustomEvent('star-ledger-main-changed',{detail:{name:active}}));
+ if(snapshot.warnings?.length)toast('已读取工作区；'+snapshot.warnings.join('；'));
+ else toast('已读取 '+names.length+' 个主账本');
+ if(askIfMultiple&&names.length>1)setTimeout(workspacePicker,0)
+}
+async function importWorkspaceFileList(fileList){
+ let files=[...fileList],root=String(files[0]?.webkitRelativePath||'').split('/')[0]||'已选择文件夹';
+ let snapshot=await parseWorkspaceFiles(files);
+ folderHandle=null;
+ await applyWorkspaceSnapshot(snapshot,{folderName:root,mode:'snapshot',readWrite:false,askIfMultiple:true})
+}
+async function connectFolder(){
+ if(window.showDirectoryPicker){
+  let handle;try{handle=await showDirectoryPicker({mode:'readwrite'})}catch(e){if(e.name==='AbortError')return;throw e}
+  let snapshot=await workspaceSnapshotFromDirectory(handle);
+  if(!snapshot.names.length)throw Error('请选择 StarLedger/Data 文件夹；未发现固定格式的账本文件');
+  stopFileObserver();folderHandle=handle;lastDeltaMeta=snapshot.meta;
+  try{await storeFolder(handle)}catch(e){}
+  let rw=await permission(handle,'readwrite',true);
+  await applyWorkspaceSnapshot(snapshot,{folderName:handle.name,mode:'linked',readWrite:rw,askIfMultiple:true});
+  startAutoRefresh();
+  return
+ }
+ let input=$('#folderFile');if(input)input.click()
+}
+async function writeSharedPrefs(changes){
+ if(!folderHandle)return;
+ if(!await permission(folderHandle,'readwrite',true))throw Error('需要允许浏览器修改 StarLedger/Data 文件夹');
+ let existing=(await readSharedConfig(folderHandle)).settings||{},name=String(prefs.mainName||'').trim();
+ if(!name)throw Error('当前主账本为空');
+ let previous=configForLedgerStore(existing,name)||{},patch=sharedPrefSubset({...prefs,...changes,mainName:name}),
+     stamp=Math.max(Date.now(),Number(existing._starConfigUpdatedAt||0)+1,Number(previous._starConfigUpdatedAt||0)+1,Number(prefs._starConfigUpdatedAt||0)+1),
+     ledgerSettings={...previous,...patch,mainName:name,_starConfigUpdatedAt:stamp},
+     ledgers={...(existing.ledgers&&typeof existing.ledgers==='object'?existing.ledgers:{}),[name]:ledgerSettings},
+     next={...existing,...ledgerSettings,format:'star-ledger-config',version:2,mainName:name,activeLedger:name,ledgers,_starConfigUpdatedAt:stamp};
+ let fh=await folderHandle.getFileHandle(SHARED_CONFIG_FILE,{create:true}),w=await fh.createWritable();
+ await w.write(JSON.stringify(next));await w.close();
+ prefs={...prefs,...sharedPrefSubset(ledgerSettings),mainName:name};
+ await putBundle({prefs});
+ lastDeltaMeta=''
+}
+async function refreshDelta(auto=false){
+ if(checkingDelta||auto&&!visible())return;
+ if(!folderHandle){if(!auto)await connectFolder();return}
+ if(!await permission(folderHandle,'read',!auto)){if(!auto)throw Error('请重新允许读取 StarLedger/Data 文件夹');return}
+ if(auto&&$('#overlay').children.length)return;
+ checkingDelta=true;
+ try{
+  let snapshot=await workspaceSnapshotFromDirectory(folderHandle);
+  if(auto&&snapshot.meta===lastDeltaMeta)return;
+  lastDeltaMeta=snapshot.meta;
+  let preferred=workspace.names.includes(prefs.mainName)?prefs.mainName:'';
+  await applyWorkspaceSnapshot(snapshot,{folderName:folderHandle.name,mode:'linked',readWrite:await permission(folderHandle,'readwrite'),preferredActive:preferred,askIfMultiple:false});
+  if(!auto)toast('工作区已刷新：'+snapshot.names.length+' 个主账本')
+ }catch(e){
+  if(!auto)throw Error('读取 StarLedger/Data 文件夹失败：'+e.message)
+ }finally{checkingDelta=false}
+}
+async function watchFolder(){
+ if(native||!folderHandle||!visible()||observer||!('FileSystemObserver' in window))return;
+ if(!await permission(folderHandle,'read'))return;
+ try{
+  let w=new FileSystemObserver(records=>{
+   let hit=records.some(r=>{
+    let names=[r.changedHandle?.name,...(r.relativePathComponents||[])].filter(Boolean);
+    return r.type==='unknown'||r.type==='errored'||names.some(name=>name===SHARED_CONFIG_FILE||name===WORKSPACE_RELATIONS_FILE||workspaceLedgerFile(name))
+   });
+   if(hit)scheduleAutoCheck()
+  });
+  await w.observe(folderHandle);if(visible()&&folderHandle)observer=w;else w.disconnect()
+ }catch(e){stopFileObserver()}
+}
+
 async function reviewDelta(csv,auto){let incoming=csvParse(csv),existing=new Map(rows.filter(r=>r.id).map(r=>[r.id,r])),fingerprints=new Set(rows.map(fingerprint)),seen=new Set(),candidates=[];for(let [i,source] of incoming.entries()){let r={...source};if(!r.id)r.id='DEL-'+digest(JSON.stringify(r))+'-'+i;if(seen.has(r.id))continue;seen.add(r.id);let previous=existing.get(r.id),conflict=!!previous;if(isDeletion(r)&&!previous)continue;if(previous&&JSON.stringify(previous)===JSON.stringify(r))continue;let duplicate=conflict||isDeletion(r)||fingerprints.has(fingerprint(r));if(!duplicate)fingerprints.add(fingerprint(r));candidates.push({r,duplicate,conflict})}if(!candidates.length){if(!auto)toast('已是最新的了');return}let safe=candidates.filter(x=>!x.duplicate);if(safe.length>0&&safe.length<=5&&!candidates.some(x=>x.duplicate)){await mergeRecords(safe.map(x=>x.r));return}pendingDelta=candidates;$('#overlay').innerHTML=`<div class="modalback"><div class="modal"><h2>核对待汇入账单</h2><p class="muted">主账本：${esc(prefs.mainName)} · 新增 ${safe.length} 笔 · 需核对 ${candidates.length-safe.length} 笔。修改、删除及疑似重复均需手动核对。时间精确到秒、收支类型、金额和账户一致的项已高亮且默认不选中。</p><form id="mergeReview"><div class="merge-list">${candidates.map(({r,duplicate,conflict})=>`<label class="merge-item ${duplicate?'suspect':''}"><input type="checkbox" name="merge" value="${esc(r.id)}" ${duplicate?'':'checked'}><span><b>${isDeletion(r)?'删除 · ':''}${esc(r.merchant||r.note||r.subcategory||r.type)} · ${money(amount(r),r.currency)}</b><small>${esc(r.date)} · ${esc(r.account)} ${isDeletion(r)?'· 删除待确认':conflict?'· 同一笔已变动':duplicate?'· 疑似重复':''}</small></span></label>`).join('')}</div><div class="modalfooter"><button type="button" class="button" id="closeBtn">稍后</button><button class="button primary" type="submit">汇入所选</button></div></form></div></div>`}
 async function mergeRecords(rs){if(!rs.length){toast('没有选中账单');return}let selected=new Map(rs.map(r=>[r.id,r])),merged=[...rs.filter(r=>!isDeletion(r)),...rows.filter(r=>!selected.has(r.id))];await localWrite('replaceLedger',null,null,{csv:csvWrite(merged),filename:prefs.lastExportName,mainName:prefs.mainName,allowEmpty:true});toast('已汇入 '+rs.length+' 笔，记得导出完整 CSV')}
 async function mergeSelected(ids){let selected=new Set(ids),records=(pendingDelta||[]).filter(x=>selected.has(x.r.id)).map(x=>x.r);pendingDelta=null;await mergeRecords(records)}
