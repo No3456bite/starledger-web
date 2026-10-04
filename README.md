@@ -1,5 +1,7 @@
 # StarLedger Web
 
+> AI / coding agent：开始修改本项目之前，必须先阅读根目录 [AGENTS.md](./AGENTS.md)，再阅读 [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)。
+
 当前主线：纯 Web App（local-first）。当前网页版本：Web v0.4 · rc13.4。
 
 ## 数据架构
