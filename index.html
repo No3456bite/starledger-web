@@ -3671,6 +3671,35 @@ button.home-month-stat:active{background:var(--pale);border-radius:12px}
 </style>
 
 
+<style id="rc-filter-stable-unified">
+/* Search filter uses the same floating-window shell as entry/account editors. */
+#overlay:has(.search-modalback){position:fixed!important;inset:0!important;z-index:99999!important;pointer-events:auto!important}
+.search-modalback{
+ position:fixed!important;inset:0!important;width:auto!important;height:auto!important;
+ display:flex!important;align-items:center!important;justify-content:center!important;
+ padding:10px!important;box-sizing:border-box!important;
+ background:rgba(0,0,0,.22)!important;
+ -webkit-backdrop-filter:blur(18px) saturate(135%)!important;
+ backdrop-filter:blur(18px) saturate(135%)!important;
+}
+.search-modalback>.search-filter-sheet{
+ width:min(560px,calc(100vw - 20px))!important;
+ max-height:calc(100dvh - 20px)!important;
+ margin:auto!important;padding:18px!important;overflow:auto!important;
+ border:1px solid var(--line)!important;border-radius:22px!important;
+ background:var(--card)!important;box-shadow:0 22px 65px rgba(0,0,0,.42)!important;
+ transform:none!important;animation:none!important;
+}
+@media(max-width:760px){
+ .search-modalback{align-items:center!important;padding:8px 10px max(8px,env(safe-area-inset-bottom))!important}
+ .search-modalback>.search-filter-sheet{
+   width:100%!important;max-height:calc(100dvh - 16px)!important;
+   border-radius:22px!important;padding:16px!important;
+ }
+}
+/* Filter option changes are state updates, not modal transitions. */
+.search-filter-sheet .search-filter-option{transition:border-color .12s ease,background-color .12s ease,color .12s ease}
+</style>
 </head><body><div class="shell"><aside class="side" data-ui-level="1"><button type="button" id="sideToggle" class="side-toggle" aria-label="收起左侧栏">‹</button><div class="brand"><span class="brand-long">我的<b>账本</b></span><span class="brand-short">账</span></div><nav id="nav"></nav><small>星账本 · Web v0.5.0 · OCR v1</small></aside><main data-ui-level="2"><div id="pageViewport"><div id="content"><div id="safeFrame" aria-hidden="true"></div><div id="controlsFrame" aria-hidden="true"></div><div id="headerFrame"><header class="top"><div><div class="eyebrow" id="status">账本数据</div><h1 id="title">我的账本</h1></div><div class="topactions"><button class="button ledger-switch" id="ledgerSwitch" hidden aria-label="切换主账本"></button><button class="button iconbutton" id="settingsBtn" aria-label="设置">⚙</button><button class="button" id="refreshBill" hidden>↻ 重新载入</button><button class="button primary" id="addBtn">＋ 记一笔</button></div></header></div><div id="pageBody"></div></div></div><div id="floatingControls"></div></main></div><div class="mobilebar" id="mobileNav"></div><button type="button" class="back-to-top" id="backToTop" hidden aria-label="回到顶部">↑ 顶部</button><div id="overlay"></div><input hidden type="file" id="folderFile" accept=".csv,.json,text/csv,application/json" webkitdirectory directory multiple><input hidden type="file" id="deltaFile" accept=".csv,text/csv"><input hidden type="file" id="configFile" accept=".json,application/json"><script src="./recognizer.js?v=ocr1"></script><script>
 // Pure Web build. The legacy Scriptable bridge is archived in GitHub.
 const BOOT=/*__BOOT__*/null;
@@ -4822,6 +4851,23 @@ function filterOption(key,value,current,label=value){return `<button type="butto
 function refreshSearchBehind(){let node=$('#searchResults');if(node)node.innerHTML=searchResults();let pageNode=$('.search-page');if(pageNode){let old=pageNode.querySelector('.filter-chips');let chips=searchActiveChips();if(old)old.remove();if(chips){let toolbar=pageNode.querySelector('.search-toolbar');if(toolbar)toolbar.insertAdjacentHTML('afterend',`<div class="filter-chips">${chips}</div>`)}}}
 let searchFilterOrder=Array.isArray(prefs.searchFilterOrder)?prefs.searchFilterOrder.slice():['book','kind','currencyFilter','account','category','subcategory','searchTag'];
 function normalizeSearchFilterOrder(){let base=['book','kind','currencyFilter','account','category','subcategory','searchTag'];searchFilterOrder=[...searchFilterOrder.filter(x=>base.includes(x)),...base.filter(x=>!searchFilterOrder.includes(x))];prefs.searchFilterOrder=searchFilterOrder.slice()}
+function updateSearchFilterSheetState(changedKey){
+ let sheet=$('.search-filter-sheet');if(!sheet)return;
+ sheet.querySelectorAll('.search-filter-group').forEach(g=>{
+   let key=g.dataset.filtergroup,current=key==='book'?book:key==='kind'?kind:key==='currencyFilter'?currencyFilter:key==='account'?account:key==='category'?category:key==='subcategory'?subcategory:key==='searchTag'?searchTag:'';
+   g.querySelectorAll('[data-searchset]').forEach(b=>b.classList.toggle('active',b.dataset.searchvalue===current));
+ });
+ // Category changes alter the available subcategory group; rebuild only that group, never the whole modal.
+ if(changedKey==='category'){
+   let old=sheet.querySelector('[data-filtergroup="subcategory"]');
+   if(category==='全部分类'){if(old)old.remove()}
+   else{
+     let vals=rankedSearchValues('subcategory','全部小类',category);
+     let html=`<div class="search-filter-group" data-filtergroup="subcategory" draggable="false"><div class="search-filter-title"><span class="filter-drag-handle">≡</span>小类</div><div class="search-filter-options">${filterOption('subcategory','全部小类',subcategory,'全部小类')}${vals.map(v=>filterOption('subcategory',v,subcategory)).join('')}</div></div>`;
+     if(old)old.outerHTML=html;else{let cat=sheet.querySelector('[data-filtergroup="category"]');cat?.insertAdjacentHTML('afterend',html)}
+   }
+ }
+}
 function searchFilterSheet(keepPosition=false){
  let previous=$('.search-filter-sheet'),oldTop=keepPosition&&previous?previous.scrollTop:0;
  let books=rankedSearchValues('book'),accounts=orderedAccountNameList(rankedSearchValues('account').filter(name=>!accountProfile(name).hidden)),cats=rankedSearchValues('category'),subs=category!=='全部分类'?rankedSearchValues('subcategory','全部小类',category):[];
@@ -5338,10 +5384,10 @@ document.addEventListener('click',e=>{if(e.target.closest?.('.entry-date-action'
  else if(t.id==='toggleFilterSearch'){let box=$('.search-filter-search');if(box){box.hidden=!box.hidden;if(!box.hidden)$('#searchFilterQuery')?.focus()}}
  else if(t.id==='closeBtn2')close()
  else if(t.dataset.searchdatemode){searchDateMode=t.dataset.searchdatemode;searchPeriod=searchDateMode;day='';page=0;render();searchDateSheet()}
- else if(t.dataset.searchset){let k=t.dataset.searchset,v=t.dataset.searchvalue;if(k==='book')book=v;else if(k==='kind')kind=v;else if(k==='currencyFilter')currencyFilter=v;else if(k==='account')account=v;else if(k==='category'){category=v;subcategory='全部小类'}else if(k==='subcategory')subcategory=v;page=0;refreshSearchBehind();searchFilterSheet(true)}
+ else if(t.dataset.searchset){let k=t.dataset.searchset,v=t.dataset.searchvalue;if(k==='book')book=v;else if(k==='kind')kind=v;else if(k==='currencyFilter')currencyFilter=v;else if(k==='account')account=v;else if(k==='category'){category=v;subcategory='全部小类'}else if(k==='subcategory')subcategory=v;else if(k==='searchTag')searchTag=v;page=0;refreshSearchBehind();updateSearchFilterSheetState(k)}
  else if(t.id==='clearSearchDate'||t.id==='clearSearchRangeStart'){searchRangeStart='';searchRangeEnd=localDate(new Date());searchDateMode='range';searchPeriod='range';day='';page=0;render();searchDateSheet()}
- else if(t.id==='clearSearchFilters'){book='全部账本';kind='全部类型';currencyFilter='全部币种';account='全部账户';category='全部分类';subcategory='全部小类';searchDateMode='range';searchPeriod='range';searchRangeStart='';searchRangeEnd=localDate(new Date());page=0;refreshSearchBehind();searchFilterSheet()}
- else if(t.dataset.clearfilter){let f=t.dataset.clearfilter;if(f==='book')book='全部账本';else if(f==='kind')kind='全部类型';else if(f==='currencyFilter')currencyFilter='全部币种';else if(f==='account')account='全部账户';else if(f==='category'){category='全部分类';subcategory='全部小类'}else if(f==='subcategory')subcategory='全部小类';page=0;render()}
+ else if(t.id==='clearSearchFilters'){book='全部账本';kind='全部类型';currencyFilter='全部币种';account='全部账户';category='全部分类';subcategory='全部小类';searchTag='全部标签';searchDateMode='range';searchPeriod='range';searchRangeStart='';searchRangeEnd=localDate(new Date());page=0;refreshSearchBehind();searchFilterSheet()}
+ else if(t.dataset.clearfilter){let f=t.dataset.clearfilter;if(f==='book')book='全部账本';else if(f==='kind')kind='全部类型';else if(f==='currencyFilter')currencyFilter='全部币种';else if(f==='account')account='全部账户';else if(f==='category'){category='全部分类';subcategory='全部小类'}else if(f==='subcategory')subcategory='全部小类';else if(f==='searchTag')searchTag='全部标签';page=0;render()}
  else if(t.dataset.bannerconfig)bannerConfigForm(t.dataset.bannerconfig)
  else if(t.id==='setBudget')budgetForm()
  else if(t.dataset.managecategory){manageCategoryForm('categoryRename',t.dataset.categorytype,t.dataset.managecategory)}
