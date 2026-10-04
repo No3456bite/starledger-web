@@ -6630,21 +6630,29 @@ requestAnimationFrame(()=>{try{render()}catch(e){console.warn('rc12 initial rend
 
   function viewportBox(){
     const vv=window.visualViewport,
+          scrollY=window.scrollY||document.documentElement.scrollTop||0,
+          scrollX=window.scrollX||document.documentElement.scrollLeft||0,
           visualHeight=Math.max(1,vv?.height||window.innerHeight||document.documentElement.clientHeight),
           layoutHeight=Math.max(visualHeight,window.innerHeight||0,document.documentElement.clientHeight||0),
           // Safari's bottom browser chrome sits outside visualViewport. Give
           // the actual page snapshot enough paint area to continue behind it.
           bottomOverscan=Math.max(180,Math.min(320,(layoutHeight-visualHeight)+180));
     return {
-      // The transition stage is viewport-fixed. Do not include document
-      // scrollX/scrollY here: the live page restores the target scroll while
-      // this snapshot is still covering it.
-      top:vv?.offsetTop||0,
-      left:vv?.offsetLeft||0,
+      top:scrollY+(vv?.offsetTop||0),
+      left:scrollX+(vv?.offsetLeft||0),
       width:Math.max(1,vv?.width||window.innerWidth||document.documentElement.clientWidth),
       height:visualHeight,
       paintHeight:visualHeight+bottomOverscan
     };
+  }
+
+  function pinStageToViewport(){
+    if(!stage?.isConnected)return;
+    const vv=window.visualViewport,
+          scrollY=window.scrollY||document.documentElement.scrollTop||0,
+          scrollX=window.scrollX||document.documentElement.scrollLeft||0;
+    stage.style.top=(scrollY+(vv?.offsetTop||0))+'px';
+    stage.style.left=(scrollX+(vv?.offsetLeft||0))+'px';
   }
 
   function currentSnapshot(){
@@ -6784,6 +6792,12 @@ requestAnimationFrame(()=>{try{render()}catch(e){console.warn('rc12 initial rend
       if(commit){
         // Render the target behind the already-arrived cached page.
         rc6Navigate(state.target);
+        // rc6Navigate restores the target document scroll. Keep the absolute
+        // snapshot pinned to the same visual viewport position so it does not
+        // jump during the handoff, while still remaining part of the document
+        // paint that Safari uses behind its browser chrome.
+        pinStageToViewport();
+        requestAnimationFrame(pinStageToViewport);
         // Keep the cached target/filter for one more paint, then reveal live DOM.
         requestAnimationFrame(()=>requestAnimationFrame(()=>{
           // The target filter snapshot still covers the fixed-filter handoff.
@@ -6887,11 +6901,20 @@ requestAnimationFrame(()=>{try{render()}catch(e){console.warn('rc12 initial rend
     }
   },true);
 
+  const keepStagePinned=()=>{
+    if(busy&&stage?.isConnected)pinStageToViewport();
+  };
+  window.addEventListener('scroll',keepStagePinned,{passive:true});
+  window.visualViewport?.addEventListener('scroll',keepStagePinned,{passive:true});
+
   window.addEventListener('resize',()=>{
     if(busy){
-      removeStage();busy=false;gesture=null;
+      // Safari may resize visualViewport while its chrome expands/collapses.
+      // Re-pin instead of exposing the live page mid-transition.
+      pinStageToViewport();
     }
   },{passive:true});
+  window.visualViewport?.addEventListener('resize',keepStagePinned,{passive:true});
 
   buildCache();
 })();
@@ -7469,7 +7492,7 @@ requestAnimationFrame(()=>{try{render()}catch(e){console.warn('rc12 initial rend
 @media(max-width:760px){
   html.browser-tab .browser-pager-stage{
     display:block!important;
-    position:fixed!important;
+    position:absolute!important;
     z-index:880!important;
     overflow:visible!important;
     pointer-events:none!important;
