@@ -649,6 +649,46 @@ function groupAlipayDocument(source,context={}){
  }
  return {detected:true,platform:'支付宝',pageType:'支付宝账单列表',accountHint:'支付宝',lineCount:lines.length,anchorCount:anchors.length,signedAmountCount:rows.filter(r=>r.amount).length,merchantCandidateCount:rows.length,groups,excludedClosed}
 }
+function alipayParserSelfTest(){
+ const sample=`全部
+21:58
+• 搜索交易记录
+支出
+收入
+转账
+搜索
+退款
+筛选、
+8月7
+支出¥2,629.84
+收入￥330.00
+收支分析＞
+米家电煮锅1.5L 分体式 带蒸笼
++30.00
+收入
+有退款
+08-18 20:20
+松下HV23直板夹直发卷发棒两用.-125.00
+日用百货
+08-18 17:26
+米家空气净化器25，2021年8月…
++120.00
+收入
+08-18 13:50
+小米商城
+329.00
+数码电器
+交易关闭
+08-17 09:38
+余额宝-自动转入
+208.74
+投资理财
+08-16 00:49
+分账-基础软件服务费（512719139118..-1.26
+商业服务
+08-15 19:18`;
+ return groupAlipayDocument(sample,{now:'2026-10-04 21:58:00'})
+}
 function groupDocument(source,context={}){
  let ali=groupAlipayDocument(source,context);if(ali)return ali;
 
