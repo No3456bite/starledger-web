@@ -4009,9 +4009,9 @@ function budgetCard(){let {spent,has,value,left}=budgetState();return `<button t
 function homeBudgetBanner(){let {has,left}=budgetState();return `<button type="button" class="card metric budget-action" id="setBudget" aria-label="${has?'修改':'设置'}每月预算"><div class="label">剩余预算</div><strong class="${has?(left<0?'negative':'positive'):''}">${has?money(left):'未设置'}</strong></button>`}
 function trendChart(months){let max=Math.max(1,...months.flatMap(m=>[m.income,m.expense])),x=i=>62+i*25.5,y=v=>155-(Number(v)||0)/max*128;let path=k=>{let p=months.map((m,i)=>[x(i),y(m[k])]),d=`M ${p[0][0]} ${p[0][1]}`;for(let i=1;i<p.length;i++){let a=p[i-1],b=p[i],dx=(b[0]-a[0])*.35;d+=` C ${a[0]+dx} ${a[1]}, ${b[0]-dx} ${b[1]}, ${b[0]} ${b[1]}`}return d};let values=months.flatMap((m,i)=>[{i,k:'income',v:m.income},{i,k:'expense',v:m.expense}]),high=values.reduce((a,b)=>b.v>a.v?b:a),low=values.reduce((a,b)=>b.v<a.v?b:a);let annotation=(p,cls)=>`<circle cx="${x(p.i)}" cy="${y(p.v)}" r="4" fill="${p.k==='income'?'var(--up)':'var(--down)'}" stroke="var(--card)" stroke-width="2"/><text class="extreme-label ${cls}" x="${x(p.i)}" y="${cls==='high'?Math.max(13,y(p.v)-9):Math.min(169,y(p.v)+14)}" text-anchor="${p.i>8?'end':p.i<3?'start':'middle'}">${cls==='high'?'最高':'最低'} ${calendarAmount(p.v)}</text>`;return `<div class="trendwrap"><svg class="trend" viewBox="0 0 360 193" role="img" aria-label="年度收入和支出趋势及最大最小值">${[.75,.5,.25].map(n=>`<line class="guide" x1="59" x2="348" y1="${y(max*n)}" y2="${y(max*n)}"/><text class="guide-label" x="55" y="${y(max*n)+3}" text-anchor="end">${calendarAmount(max*n)}</text>`).join('')}<line class="gridline" x1="39" y1="155" x2="349" y2="155"/><path class="income-line" d="${path('income')}" fill="none" stroke-width="2.7"/><path class="expense-line" d="${path('expense')}" fill="none" stroke-width="2.7"/>${months.map((m,i)=>`<text x="${x(i)}" y="187" text-anchor="middle">${i+1}</text><circle class="income-line" cx="${x(i)}" cy="${y(m.income)}" r="2.5"/><circle class="expense-line" cx="${x(i)}" cy="${y(m.expense)}" r="2.5"/><rect class="month-hit" x="${x(i)-12}" y="12" width="24" height="150" data-month="${i+1}"><title>${i+1} 月 收入 ${money(m.income)} 支出 ${money(m.expense)}</title></rect>`).join('')}${annotation(high,'high')}${high.i===low.i&&high.k===low.k?'':annotation(low,'low')}</svg><div class="legend"><span class="dot"></span>收入<span class="dot exp"></span>支出</div></div>`}
 
-const DEFAULT_PREFS={mainName:'',theme:'slate',appearance:'system',exportDays:7,lastExportAt:0,lastExportName:'',lastChangeAt:0,monthStartDay:1,budgets:{},accountTypes:{},accountProfiles:{},accountGroups:[{id:'default',name:'默认分组'}],recordTitle:'both',accountOrder:{},bookProfiles:{},bookOrder:[],deletedBooks:[],searchFilterOrder:['book','kind','currencyFilter','account','category','subcategory'],bannerConfigs:{},deletedAccounts:[]};
+const DEFAULT_PREFS={mainName:'',theme:'slate',appearance:'system',exportDays:7,lastExportAt:0,lastExportName:'',lastChangeAt:0,monthStartDay:1,budgets:{},accountTypes:{},accountProfiles:{},accountGroups:[{id:'default',name:'默认分组'}],recordTitle:'both',accountOrder:{},bookProfiles:{},bookOrder:[],deletedBooks:[],bookHintDismissed:false,searchFilterOrder:['book','kind','currencyFilter','account','category','subcategory'],bannerConfigs:{},deletedAccounts:[]};
 const SHARED_CONFIG_FILE='StarLedgerConfig.json';
-const SHARED_PREF_KEYS=['accountGroups','accountProfiles','accountTypes','accountAliases','recordTitle','accountOrder','bookProfiles','bookOrder','deletedBooks','recordBlockOrder','searchFilterOrder','bannerConfigs','deletedAccounts','budgets','monthStartDay','theme','appearance','fxRates'];
+const SHARED_PREF_KEYS=['accountGroups','accountProfiles','accountTypes','accountAliases','recordTitle','accountOrder','bookProfiles','bookOrder','deletedBooks','bookHintDismissed','recordBlockOrder','searchFilterOrder','bannerConfigs','deletedAccounts','budgets','monthStartDay','theme','appearance','fxRates'];
 function sharedPrefSubset(source){
  let out={};
  for(let k of SHARED_PREF_KEYS)if(source&&source[k]!==undefined)out[k]=source[k];
@@ -4788,8 +4788,9 @@ function monthly(){let rs=filtered(rows,{monthOnly:true}),listRs=continuousBillR
 function yearly(){let rs=filtered(rows,{yearOnly:true}),months=Array.from({length:12},(_,i)=>stats(rs.filter(r=>inCycle(dateOf(r),year,i+1))));return `${yearCards(rs,months)}<div class="grid cols2 section"><div class="card"><div class="sectionhead"><h2>收支趋势</h2></div>${trendChart(months)}</div><div class="card">${categoryPanel(rs,'year')}</div></div><div class="section card"><div class="sectionhead"><h2>月度总览</h2></div>${yearlyNetChart(months)}</div>`}
 function statsPage(){return statsMode==='year'?yearly():monthly()}
 function bookPage(){
- let names=orderedBookNames(true),defaultName=defaultBookName(),total=names.reduce((n,name)=>n+rows.filter(r=>r.book===name).length,0);
- return `<div class="notice book-page-note">第一项可用账本是普通新记账的默认账本；OCR 会沿用最近一笔账单使用的账本。长按账本名称可拖动排序。</div>
+ let names=orderedBookNames(true),defaultName=defaultBookName(),total=names.reduce((n,name)=>n+rows.filter(r=>r.book===name).length,0),
+     hint=prefs.bookHintDismissed?'':`<div class="notice book-page-note"><span>第一项可用账本是普通新记账的默认账本；OCR 会沿用最近一笔账单使用的账本。长按账本名称可拖动排序。</span><button type="button" data-dismissbooknote aria-label="关闭账本提示">×</button></div>`;
+ return `${hint}
  <div class="card section book-list-card">
   <div class="sectionhead"><h2>账本 · ${names.length}</h2><span class="group-total">共 ${total} 笔账单</span></div>
   <div class="book-list">${names.map((name,i)=>{let p=bookProfile(name),count=rows.filter(r=>r.book===name).length;return `<div class="book-entry ${p.hidden?'book-hidden':''}" data-bookentry="${esc(name)}"><button type="button" class="book-item book-name" data-bookname="${esc(name)}" aria-label="管理账本 ${esc(name)}"><span><b>${esc(name)}</b><small>${defaultName===name?'默认 · 新记账':''}${p.hidden?(defaultName===name?' · ':'')+'已隐藏':''}${p.note?' · '+esc(p.note):''}</small></span></button><button type="button" class="book-item book-count" data-bookname="${esc(name)}"><span><b>${count} 笔</b><small>管理　›</small></span></button></div>`}).join('')||'<div class="empty">还没有账本</div>'}</div>
@@ -4888,20 +4889,14 @@ function render(){
  if(headerFrame)headerFrame.hidden=false;
 
  if(compactViewport()){
-  if(browserTabScrollMode()){
-   if(controls){
-    controls.hidden=false;
-    controls.innerHTML=hasTopFilters?filterHTML:'';
-    controls.style.setProperty('height','62px','important');
-   }
-   if(floating){floating.hidden=true;floating.innerHTML=''}
-  }else{
-   if(controls){
-    controls.innerHTML='';
-    controls.hidden=false;
-    if(!hasTopFilters)controls.style.setProperty('height','62px','important');
-   }
-   if(floating){floating.hidden=!hasTopFilters;floating.innerHTML=filterHTML}
+  if(controls){
+   controls.innerHTML='';
+   controls.hidden=false;
+   controls.style.setProperty('height','62px','important');
+  }
+  if(floating){
+   floating.hidden=!hasTopFilters;
+   floating.innerHTML=hasTopFilters?filterHTML:'';
   }
  }else{
   // Desktop keeps the same order in normal flow: filters first, title/actions second.
@@ -6758,11 +6753,12 @@ requestAnimationFrame(()=>{try{render()}catch(e){console.warn('rc12 initial rend
 
   // Click controls.
   document.addEventListener('click',e=>{
-    let t=e.target.closest?.('#addInnerBook,[data-bookname],[data-bookdefault],[data-bookdelete],[data-bookconfirmdelete],[data-statsmode]');
+    let t=e.target.closest?.('#addInnerBook,[data-bookname],[data-bookdefault],[data-bookdelete],[data-bookconfirmdelete],[data-statsmode],[data-dismissbooknote]');
     if(!t)return;
     if(Date.now()<window.__slSuppressBookClickUntil&&t.closest('.book-entry')){e.preventDefault();e.stopImmediatePropagation();return}
     e.preventDefault();e.stopImmediatePropagation();
     if(t.id==='addInnerBook')newInnerBookForm();
+    else if(t.hasAttribute('data-dismissbooknote'))savePrefs({bookHintDismissed:true}).catch(err=>toast(err.message));
     else if(t.dataset.bookname)bookForm(t.dataset.bookname);
     else if(t.dataset.bookdefault)setBookDefault(t.dataset.bookdefault).catch(err=>toast(err.message));
     else if(t.dataset.bookdelete)confirmBookDelete(t.dataset.bookdelete);
@@ -7003,6 +6999,140 @@ requestAnimationFrame(()=>{try{render()}catch(e){console.warn('rc12 initial rend
 @keyframes slDropSpindleIn{
   from{opacity:0}
   to{opacity:1}
+}
+</style>
+
+<style id="web-v056-fixed-compact-filter">
+@media(max-width:760px){
+  /*
+   * Row 1 is now only a structural spacer. The actual filter uses the same
+   * viewport-fixed model as the bottom navigation, so it never scrolls away.
+   */
+  #controlsFrame,
+  #controlsFrame[hidden]{
+    display:block!important;
+    position:relative!important;
+    top:auto!important;
+    z-index:auto!important;
+    height:62px!important;
+    min-height:62px!important;
+    padding:0!important;
+    margin:0!important;
+    background:transparent!important;
+    backdrop-filter:none!important;
+    -webkit-backdrop-filter:none!important;
+    pointer-events:none!important;
+  }
+
+  #floatingControls[hidden]{
+    display:none!important;
+  }
+  #floatingControls:not([hidden]){
+    display:block!important;
+    position:fixed!important;
+    left:16px!important;
+    right:16px!important;
+    top:10px!important;
+    z-index:950!important;
+    width:auto!important;
+    margin:0!important;
+    padding:0!important;
+    background:transparent!important;
+    box-shadow:none!important;
+    backdrop-filter:none!important;
+    -webkit-backdrop-filter:none!important;
+    pointer-events:none!important;
+    transform:none!important;
+    will-change:auto!important;
+  }
+
+  /* No grey tray behind the controls. Only the individual controls remain. */
+  #floatingControls .date-filter-row{
+    display:flex!important;
+    align-items:stretch!important;
+    gap:6px!important;
+    width:100%!important;
+    height:42px!important;
+    min-height:42px!important;
+    margin:0!important;
+    padding:0!important;
+    border:0!important;
+    border-radius:0!important;
+    background:transparent!important;
+    box-shadow:none!important;
+    backdrop-filter:none!important;
+    -webkit-backdrop-filter:none!important;
+    pointer-events:auto!important;
+  }
+
+  #floatingControls .date-banner{
+    height:42px!important;
+    min-height:42px!important;
+    border-radius:13px!important;
+    background:var(--card)!important;
+    box-shadow:none!important;
+  }
+  #floatingControls .date-banner select{
+    height:40px!important;
+    min-height:40px!important;
+    padding:0 27px 0 10px!important;
+    font-size:11px!important;
+    line-height:40px!important;
+    background-position:calc(100% - 13px) 18px,calc(100% - 9px) 18px!important;
+    background-size:4px 4px,4px 4px!important;
+    box-sizing:border-box!important;
+  }
+  #floatingControls .date-filter-book{
+    height:42px!important;
+    min-height:42px!important;
+    padding:0 25px 0 10px!important;
+    border-radius:13px!important;
+    background-color:var(--card)!important;
+    color:var(--ink)!important;
+    font-size:11px!important;
+    line-height:40px!important;
+    box-sizing:border-box!important;
+  }
+
+  #floatingControls .active-filters{
+    margin:6px 0 0!important;
+    padding:5px 8px!important;
+    border:1px solid var(--line)!important;
+    border-radius:12px!important;
+    background:var(--card)!important;
+    box-shadow:none!important;
+    backdrop-filter:none!important;
+    -webkit-backdrop-filter:none!important;
+    font-size:11px!important;
+    pointer-events:auto!important;
+  }
+
+  /* Dismissible book-page help. */
+  .book-page-note{
+    display:flex!important;
+    align-items:flex-start!important;
+    justify-content:space-between!important;
+    gap:10px!important;
+    padding:10px 11px 10px 13px!important;
+  }
+  .book-page-note>span{
+    min-width:0!important;
+    flex:1 1 auto!important;
+  }
+  .book-page-note>[data-dismissbooknote]{
+    flex:0 0 auto!important;
+    width:28px!important;
+    height:28px!important;
+    margin:-4px -4px 0 0!important;
+    padding:0!important;
+    border:0!important;
+    border-radius:999px!important;
+    background:transparent!important;
+    color:var(--muted)!important;
+    font-size:21px!important;
+    line-height:28px!important;
+    text-align:center!important;
+  }
 }
 </style>
 </body></html>
