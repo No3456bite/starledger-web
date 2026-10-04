@@ -7636,6 +7636,41 @@ requestAnimationFrame(()=>{try{render()}catch(e){console.warn('rc12 initial rend
     font-size:11px!important;
   }
 }
+</style><style id="web-v058a-floating-filter-glass-parity">
+@media(max-width:760px){
+  /* The live fixed month/year + book filters use the accepted compact glass
+     material too. This override comes after web-v056, whose solid var(--card)
+     background was masking the rc13.3 glass on the live controls. */
+  #floatingControls .date-banner,
+  #floatingControls .date-filter-book{
+    border:.5px solid var(--sl-glass-rim)!important;
+    border-radius:15px!important;
+    background:
+      linear-gradient(180deg,rgba(255,255,255,.062),transparent 20%,transparent 82%,rgba(255,255,255,.015)),
+      var(--sl-glass-surface-compact)!important;
+    -webkit-backdrop-filter:blur(6px) saturate(108%)!important;
+    backdrop-filter:blur(6px) saturate(108%)!important;
+    box-shadow:
+      0 4px 12px rgba(27,38,57,.020),
+      inset 0 .4px 0 color-mix(in srgb,var(--sl-glass-top) 66%,transparent),
+      inset 0 -.28px 0 color-mix(in srgb,var(--sl-glass-bottom) 60%,transparent)!important;
+  }
+  #floatingControls .date-banner{
+    overflow:hidden!important;
+  }
+  #floatingControls .date-banner select{
+    background-color:transparent!important;
+  }
+  #floatingControls .date-banner select+select{
+    border-left-color:color-mix(in srgb,var(--line) 42%,transparent)!important;
+  }
+  @supports (corner-shape:squircle){
+    #floatingControls .date-banner,
+    #floatingControls .date-filter-book{
+      corner-shape:squircle!important;
+    }
+  }
+}
 </style><style id="web-v059-filter-ghost-parity">
 @media(max-width:760px){
   /* The pager filter ghost must be visually identical to the live
