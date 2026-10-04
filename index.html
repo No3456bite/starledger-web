@@ -6475,7 +6475,17 @@ requestAnimationFrame(()=>{try{render()}catch(e){console.warn('rc12 initial rend
   const floating=document.querySelector('#floatingControls');
   if(!live)return;
 
-  let gesture=null,busy=false,stage=null,targetFilter=null,settleTimer=0,suppressUntil=0,cacheToken=0;
+  // Stable opaque edge anchors for Safari 26 chrome tint sampling.
+  for(const [id,edge] of [['safariTintTop','top'],['safariTintBottom','bottom']]){
+    if(document.getElementById(id))continue;
+    const el=document.createElement('div');
+    el.id=id;
+    el.className='safari-tint-anchor safari-tint-'+edge;
+    el.setAttribute('aria-hidden','true');
+    document.body.appendChild(el);
+  }
+
+  let gesture=null,busy=false,stage=null,currentFilter=null,targetFilter=null,settleTimer=0,suppressUntil=0,cacheToken=0;
   const pageCache=new Map();
 
   const blocked=t=>!!t.closest(
@@ -6599,12 +6609,13 @@ requestAnimationFrame(()=>{try{render()}catch(e){console.warn('rc12 initial rend
   function removeStage(){
     if(stage?.isConnected)stage.remove();
     stage=null;
-    if(targetFilter?.isConnected)targetFilter.remove();
+    currentFilter=null;
     targetFilter=null;
     if(floating){
       floating.style.removeProperty('opacity');
       floating.style.removeProperty('transition');
       floating.style.removeProperty('pointer-events');
+      floating.style.removeProperty('visibility');
     }
   }
 
@@ -6631,20 +6642,32 @@ requestAnimationFrame(()=>{try{render()}catch(e){console.warn('rc12 initial rend
     document.body.appendChild(holder);
     stage=holder;
 
+    const currentHasFilter=hasFilters(section);
+    if(currentHasFilter&&floating?.innerHTML.trim()){
+      const ghost=document.createElement('div');
+      ghost.className='browser-pager-filter-ghost browser-pager-filter-current';
+      ghost.innerHTML=floating.innerHTML;
+      ghost.style.opacity='1';
+      holder.appendChild(ghost);
+      currentFilter=ghost;
+    }
     if(targetData.hasFilter){
       const ghost=document.createElement('div');
-      ghost.className='browser-pager-filter-ghost';
+      ghost.className='browser-pager-filter-ghost browser-pager-filter-target';
       ghost.innerHTML=targetData.filterHTML;
       ghost.style.opacity='0';
       holder.appendChild(ghost);
       targetFilter=ghost;
     }
     if(floating){
+      // Never animate the real fixed filter. A snapshot handles the fade so
+      // Safari does not recompose the fixed layer on the final frame.
+      floating.style.visibility='hidden';
       floating.style.pointerEvents='none';
       floating.style.transition='none';
     }
 
-    return {box,current,next,targetData};
+    return {box,current,next,targetData,currentHasFilter};
   }
 
   function targetFor(dir){
@@ -6661,7 +6684,7 @@ requestAnimationFrame(()=>{try{render()}catch(e){console.warn('rc12 initial rend
     return {
       target,dir,width:built.box.width,
       current:built.current,next:built.next,
-      currentHasFilter:hasFilters(section),
+      currentHasFilter:built.currentHasFilter,
       targetHasFilter:built.targetData.hasFilter,
       x:0
     };
@@ -6676,9 +6699,8 @@ requestAnimationFrame(()=>{try{render()}catch(e){console.warn('rc12 initial rend
     state.next.style.setProperty('--browser-pane-x',(x+(state.dir<0?state.width:-state.width))+'px');
 
     const p=Math.max(0,Math.min(1,Math.abs(x)/state.width));
-    if(floating){
-      if(state.currentHasFilter)floating.style.opacity=String(1-p);
-      else floating.style.opacity='0';
+    if(currentFilter){
+      currentFilter.style.opacity=String(state.currentHasFilter?1-p:0);
     }
     if(targetFilter){
       targetFilter.style.opacity=String(state.targetHasFilter?p:0);
@@ -6695,14 +6717,14 @@ requestAnimationFrame(()=>{try{render()}catch(e){console.warn('rc12 initial rend
       pane.style.setProperty('--browser-pager-duration',duration+'ms');
       pane.style.setProperty('--browser-pager-ease',ease);
     }
-    if(floating)floating.style.transition='opacity '+duration+'ms '+ease;
+    if(currentFilter)currentFilter.style.transition='opacity '+duration+'ms '+ease;
     if(targetFilter)targetFilter.style.transition='opacity '+duration+'ms '+ease;
 
     void state.current.offsetWidth;
     requestAnimationFrame(()=>{
       state.current.style.setProperty('--browser-pane-x',currentEnd+'px');
       state.next.style.setProperty('--browser-pane-x',targetEnd+'px');
-      if(floating)floating.style.opacity=commit?(state.targetHasFilter?'0':'0'):(state.currentHasFilter?'1':'0');
+      if(currentFilter)currentFilter.style.opacity=commit?'0':(state.currentHasFilter?'1':'0');
       if(targetFilter)targetFilter.style.opacity=commit&&state.targetHasFilter?'1':'0';
     });
 
@@ -6717,6 +6739,8 @@ requestAnimationFrame(()=>{try{render()}catch(e){console.warn('rc12 initial rend
         rc6Navigate(state.target);
         // Keep the cached target/filter for one more paint, then reveal live DOM.
         requestAnimationFrame(()=>requestAnimationFrame(()=>{
+          // The target filter snapshot still covers the fixed-filter handoff.
+          // Remove snapshots only after the live target has painted twice.
           removeStage();
           busy=false;
           buildCache();
@@ -7529,6 +7553,37 @@ requestAnimationFrame(()=>{try{render()}catch(e){console.warn('rc12 initial rend
     border-radius:12px!important;
     background:var(--card)!important;
     font-size:11px!important;
+  }
+}
+</style><style id="web-v060-safari-tint-filter-handoff">
+@media(max-width:760px){
+  html.browser-tab .safari-tint-anchor{
+    display:block!important;
+    position:fixed!important;
+    left:0!important;
+    right:0!important;
+    width:100%!important;
+    height:4px!important;
+    z-index:1200!important;
+    pointer-events:none!important;
+    background:var(--bg)!important;
+    opacity:1!important;
+    transform:none!important;
+    filter:none!important;
+    backdrop-filter:none!important;
+    -webkit-backdrop-filter:none!important;
+    box-shadow:none!important;
+    contain:none!important;
+  }
+  html.browser-tab .safari-tint-top{top:0!important;bottom:auto!important}
+  html.browser-tab .safari-tint-bottom{top:auto!important;bottom:0!important}
+
+  html.browser-tab .browser-pager-filter-current,
+  html.browser-tab .browser-pager-filter-target{
+    display:block!important;
+    visibility:visible!important;
+    pointer-events:none!important;
+    will-change:opacity!important;
   }
 }
 </style></body></html>
