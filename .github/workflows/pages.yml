@@ -28,6 +28,7 @@ jobs:
           node --check books-stats.js
           node --check recognizer.js
           node --check sw.js
+          node --check scripts/validate-build.mjs
 
       - name: Check build invariants
         run: node scripts/validate-build.mjs
