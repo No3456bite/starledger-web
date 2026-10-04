@@ -70,6 +70,7 @@
 - 用大量 `setTimeout` 作为 UI 状态同步机制，除非有明确的浏览器原因并写清注释。
 - 在不知道历史 CSS 为什么存在时直接删除它。
 - 在 CI 失败时合并到 `main`。
+- 让普通 `push main` 直接触发正式 Pages 发布；生产发布必须来自已合并到 `main` 的 PR。
 - 只因为本地/静态检查通过，就声称 iPhone Safari 视觉问题已经得到真机验证。
 
 ## 3. 修改工作流
@@ -85,9 +86,10 @@
 7. 运行现有 CI / 静态校验。
 8. 检查 diff，确认没有无关改动。
 9. 对典型回归补充测试、validator、断言或维护注释。
-10. 通过 PR 合并，非必要不要直接推 `main`。
-11. 确认 `main` 的 Pages workflow 完整成功。
-12. 对 Safari / iOS 键盘 / browser chrome 等无法自动证明的行为，明确告诉用户需要真机验收哪些路径。
+10. 通过 PR 合并；正式代码不要直接推 `main`。
+11. Pages 只允许从“已合并到 `main` 的 PR”发布，普通 direct push 即使通过校验也不得发布。
+12. 确认合并 PR 后的 Pages workflow 完整成功。
+13. 对 Safari / iOS 键盘 / browser chrome 等无法自动证明的行为，明确告诉用户需要真机验收哪些路径。
 
 重构和功能开发应尽量分开 PR。
 

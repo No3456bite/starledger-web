@@ -20,6 +20,7 @@ const books = read('books-stats.js');
 const recognizer = read('recognizer.js');
 const sw = read('sw.js');
 const mobileCompat = read('mobile-compat.css');
+const pagesWorkflow = read('.github/workflows/pages.yml');
 
 const externalScripts = [
   './recognizer.js?v=ocr1',
@@ -83,6 +84,18 @@ if (!index.includes('id="web-v051-safari-document-modal"')) {
 }
 for (const marker of ['--sl-browser-chrome-gap','browser-pager-filter-current','::-webkit-scrollbar']) {
   if (!mobileCompat.includes(marker)) fail(`mobile-compat.css lost Safari guard: ${marker}`);
+}
+
+for (const marker of [
+  "github.event_name == 'pull_request'",
+  "github.event.action == 'closed'",
+  'github.event.pull_request.merged == true',
+  "github.event.pull_request.base.ref == 'main'"
+]) {
+  if (!pagesWorkflow.includes(marker)) fail(`Pages deploy guard is missing: ${marker}`);
+}
+if (pagesWorkflow.includes("github.event_name != 'pull_request' && github.ref == 'refs/heads/main'")) {
+  fail('Pages must not deploy from an ordinary push to main');
 }
 
 if (!process.exitCode) {
