@@ -591,13 +591,18 @@ function pageContextFromText(text){
  return {platform:'',pageType:'重复账单列表',accountHint:''}
 }
 function parseAlipayListDate(line,yearHint,monthHint){
- let s=String(line||'').trim();
- // Accept both "09-12 20:49" and Vision's "09-1220:49". The minute may end
- // in OCR garbage (04:3ł / 04:2îšł), so keep a reliable leading digit and
- // pad the damaged second digit with 0 rather than dropping the whole row.
- let m=s.match(/(?:^|\s)(\d{1,2})\s*[-－]\s*(\d{1,2})\s*(\d{1,2})\s*:\s*(\d{1,2})/);
+ let s=String(line||'').trim(),m=s.match(/(?:^|\s)(\d{1,2})\s*[-－]\s*(\d{1,2})(.*)$/);
  if(!m)return null;
- let mo=+m[1],d=+m[2],hh=+m[3],rawMin=String(m[4]||''),mm=rawMin.length>=2?+rawMin.slice(0,2):+(rawMin+'0'),y=+yearHint;
+ let mo=+m[1],d=+m[2],tail=String(m[3]||'').trim(),tm=tail.match(/^(\d{1,2})\s*:\s*(\d{1,2})/);
+ // If Vision removed the separator entirely, the day regex may have greedily
+ // eaten the first hour digit (08-1820:20 => d="18", tail="20:20" normally,
+ // but guard compact 3/4-digit date-time forms explicitly as well).
+ if(!tm){
+   let c=s.match(/(?:^|\s)(\d{1,2})[-－](\d{2})(\d{2}):([0-9]{1,2})/);
+   if(c){mo=+c[1];d=+c[2];tm=[c[0],c[3],c[4]]}
+ }
+ if(!tm)return null;
+ let hh=+tm[1],rawMin=String(tm[2]||''),mm=rawMin.length>=2?+rawMin.slice(0,2):+(rawMin+'0'),y=+yearHint;
  if(!y||mo<1||mo>12||d<1||d>31||hh>23||mm>59)return null;
  return {value:`${y}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')} ${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}:00`,year:y,month:mo,day:d,hour:hh,minute:mm,text:s}
 }
@@ -643,14 +648,13 @@ function groupAlipayDocument(source,context={}){
       incomeLabel=tokens.some(t=>/^收入$/.test(t.text)),
       amountToken=tokens.find(t=>t.amount&&t.amount.sign!==0)||tokens.find(t=>t.amount&&!/^\d{1,2}$/.test(t.text)),
       textTokens=tokens.filter(t=>!t.amount&&!/交易关闭|有退款|退款成功|自动扣款成功|^收入$/.test(t.text)),
-      // Attached signed amount stays on the merchant line, so retain its text
-      // after stripping the numeric suffix.
       attached=tokens.find(t=>t.amount?.attached),
       merchant=cleanMerchant(stripAlipayAttachedAmount(attached?.text||textTokens[0]?.text||'')),
-      category=textTokens.find(t=>t.text!==merchant)?.text||'';
-  if(attached&&merchant){ // remove duplicate original merchant token if needed
-    category=textTokens[0]?.text||category;
-  }
+      category='';
+  // For attached amount rows, the next ordinary token is the category.
+  // For standalone amount rows, merchant/category are the first two text tokens.
+  if(attached)category=textTokens[0]?.text||'';
+  else category=textTokens[1]?.text||'';
   rows.push({anchor:a,merchant,category,merchantLine:attached?.line??textTokens[0]?.line??-1,amount:amountToken?.amount||null,amountLine:amountToken?.line??-1,closed,refund,incomeLabel})
  }
 
@@ -680,7 +684,7 @@ function groupAlipayDocument(source,context={}){
   if(seen.has(key))continue;seen.add(key);
   groups.push({index:groups.length,line:r.anchor.line,date:r.anchor.value,merchant:r.merchant,signedAmount:signed,amount:am.value,type,categoryHint:r.category,rawLines:[r.merchant,r.category,r.anchor.text,am.text].filter(Boolean),source:{dateLine:r.anchor.line,amountLine:r.amountLine,merchantLine:r.merchantLine}})
  }
- if(groups.length<2)return null;
+ if(!groups.length)return {detected:true,platform:'支付宝',pageType:'支付宝账单列表',accountHint:'支付宝',lineCount:lines.length,anchorCount:anchors.length,signedAmountCount:rows.filter(r=>r.amount).length,merchantCandidateCount:rows.length,groups:[],excludedClosed};
  return {detected:true,platform:'支付宝',pageType:'支付宝账单列表',accountHint:'支付宝',lineCount:lines.length,anchorCount:anchors.length,signedAmountCount:rows.filter(r=>r.amount).length,merchantCandidateCount:rows.length,groups,excludedClosed}
 }
 function groupDocument(source,context={}){
