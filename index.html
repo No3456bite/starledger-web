@@ -5644,14 +5644,14 @@ document.addEventListener('click',e=>{if(e.target.closest?.('.entry-date-action'
  else if(t.id==='hideKeypad')$('#overlay .entryback').classList.add('keypad-hidden')
  else if(t.id==='openKeypad'){let back=$('.entryback');$('#amountInput')?.blur();back?.classList.remove('keypad-hidden','editing-text')}
  else if(t.id==='lookupFxRate')lookupFxRate().catch(err=>toast('查询参考汇率失败：'+err.message))
- else if(t.id==='bulkEditSelection')openBulkEditSelection()
- else if(t.dataset.bulkfield)renderBulkFieldEditor(t.dataset.bulkfield)
- else if(t.dataset.bulkmode)setBulkEditMode(t.dataset.bulkmode)
- else if(t.id==='backBulkEdit')renderBulkEditMain()
- else if(t.id==='closeBulkEdit'){bulkEditDraft=null;close()}
- else if(t.id==='removeBulkFieldOp')clearBulkFieldOp()
- else if(t.id==='saveBulkField')saveBulkField()
- else if(t.id==='applyBulkEdit')applyBulkEditSelection().catch(err=>toast('批量修改失败：'+err.message))
+ else if(t.id==='bulkEditSelection')window.__slBulkEdit?.open()
+ else if(t.dataset.bulkfield)window.__slBulkEdit?.field(t.dataset.bulkfield)
+ else if(t.dataset.bulkmode)window.__slBulkEdit?.mode(t.dataset.bulkmode)
+ else if(t.id==='backBulkEdit')window.__slBulkEdit?.back()
+ else if(t.id==='closeBulkEdit')window.__slBulkEdit?.close()
+ else if(t.id==='removeBulkFieldOp')window.__slBulkEdit?.remove()
+ else if(t.id==='saveBulkField')window.__slBulkEdit?.save()
+ else if(t.id==='applyBulkEdit')window.__slBulkEdit?.apply().catch(err=>toast('批量修改失败：'+err.message))
  else if(t.id==='deleteSelection')deleteSelection()
  else if(t.id==='confirmDelete'||t.id==='retryDelete')performDelete()
  else if(t.id==='exportAfterDelete')exportAfterDelete().catch(err=>toast('导出失败：'+err.message))
@@ -6569,6 +6569,17 @@ async function applyBulkEditSelection(){
  await localWrite('replaceLedger',null,null,{csv:csvWrite(next),mainName:prefs.mainName,allowEmpty:true});
  let count=ids.size;bulkEditDraft=null;selection.clear();close();render();renderSelection();toast('已批量修改 '+count+' 笔账单')
 }
+
+window.__slBulkEdit={
+ open:openBulkEditSelection,
+ field:renderBulkFieldEditor,
+ mode:setBulkEditMode,
+ back:renderBulkEditMain,
+ close:()=>{bulkEditDraft=null;close()},
+ remove:clearBulkFieldOp,
+ save:saveBulkField,
+ apply:applyBulkEditSelection
+};
 
 renderSelection=function(){
  document.body.classList.toggle('selecting',selection.size>0);let ids=[...selection],groups=ids.map(rc12GroupForBill).filter(Boolean),same=ids.length>=2&&groups.length===ids.length&&groups.every(g=>g.id===groups[0].id),relLabel=same?'解除关联':'关联';
