@@ -4210,10 +4210,22 @@ function recognizeOCRText(text){
 function openPendingPrefill(){
  if(!prefs.mainName||!pendingPrefill)return;
  let payload=typeof pendingPrefill==='string'?{v:1,action:'ocr',source:'legacy',text:pendingPrefill}:pendingPrefill;
+ // Consume first. No later lifecycle event may reuse this object.
  pendingPrefill='';
  if(payload?.action!=='ocr'||!payload?.text)return;
+ let payloadKey=String(payload.text).slice(0,32000),now=Date.now();
+ if(ocrLastPayloadKey===payloadKey&&now-(openPendingPrefill._lastAt||0)<1200)return;
+ ocrLastPayloadKey=payloadKey;openPendingPrefill._lastAt=now;
  try{
   let parsed=recognizeOCRText(payload.text);
+  // Invalidate every pending close callback before replacing the old task.
+  ocrOpenGeneration++;
+  if(typeof rc12Task!=='undefined'&&rc12Task)rc12Task=null;
+  let overlay=$('#overlay');
+  if(overlay)overlay.innerHTML='';
+  let accountOverlay=$('#accountOverlay');
+  if(accountOverlay)accountOverlay.innerHTML='';
+  document.body.classList.remove('dialog-open');
   ocrReviewText=payload.text;
   if(window.entryTaskOpenFromOCR)window.entryTaskOpenFromOCR(parsed);
   else entryForm(parsed.records[0]||{});
@@ -5235,13 +5247,20 @@ async function mergeRecords(rs){if(!rs.length){toast('没有选中账单');retur
 async function mergeSelected(ids){let selected=new Set(ids),records=(pendingDelta||[]).filter(x=>selected.has(x.r.id)).map(x=>x.r);pendingDelta=null;await mergeRecords(records)}
 
 function form(record){entryForm(record)}
+let ocrOpenGeneration=0,ocrLastPayloadKey='';
 function close(){
  if(closeAppTertiary())return;
- let overlay=$('#overlay'),back=overlay?.querySelector('.entryback,.modalback');
+ let overlay=$('#overlay'),back=overlay?.querySelector('.entryback,.modalback'),generation=ocrOpenGeneration;
  if(!back){if(overlay)overlay.innerHTML='';document.body.classList.remove('dialog-open');ocrReviewText='';return}
  if(back.classList.contains('rc21-closing'))return;
  back.classList.add('rc21-closing');
- setTimeout(()=>{if(overlay&&overlay.contains(back))overlay.innerHTML='';document.body.classList.remove('dialog-open');ocrReviewText=''},300)
+ setTimeout(()=>{
+   // A new OCR task may have opened during this closing animation. Never let
+   // the stale timer erase the new entry UI.
+   if(generation!==ocrOpenGeneration)return;
+   if(overlay&&overlay.contains(back))overlay.innerHTML='';
+   document.body.classList.remove('dialog-open');ocrReviewText=''
+ },300)
 }
 function validate(r){if(!r.book||r.book==='全部账本'||r.book==='__new_book__'||!r.date||!r.type||!r.subcategory||!r.account||!Number.isFinite(Number(r.amount))||Number(r.amount)<=0)throw Error('请填写日期、金额、账本、小类和账户');if(['转账','借贷'].includes(r.type)&&!r.account2)throw Error('转账和借贷必须填写账户 2');if(['支出','应付款'].includes(r.type)&&!r.category)throw Error('支出必须填写大类')}
 function send(action,record,id,extra={}){return sendV2(action,record,id,extra)}
@@ -5453,13 +5472,22 @@ async function commitBannerSettingsAfterClose(key,changes,slots){
 document.addEventListener('submit',e=>{if(e.target.id==='bannerConfigForm'){e.preventDefault();let f=e.target,key=f.dataset.bannerkey,slots=bannerFormSlots(f,key);let changes={bannerConfigs:{...(prefs.bannerConfigs||{}),[key]:slots}};if(bannerKind(key)==='month'){let raw=String(new FormData(f).get('monthlyBudget')||'').trim(),budgets={...(prefs.budgets||{})};if(raw==='')budgets[budgetKey()]=null;else{let v=Number(raw);if(!Number.isFinite(v)||v<0){toast('预算金额无效');return}budgets[budgetKey()]=v}changes.budgets=budgets}commitBannerSettingsAfterClose(key,changes,slots);return}if(e.target.id==='newAccountForm'){e.preventDefault();createAccount(e.target).catch(err=>toast(err.message));return}if(e.target.id==='accountProfileForm'){e.preventDefault();saveAccountForm(e.target).catch(err=>toast(err.message));return}if(e.target.id==='groupForm'){e.preventDefault();saveGroupForm(e.target).catch(err=>toast(err.message));return}if(e.target.id==='categoryManageForm'){e.preventDefault();let f=e.target,dest=f.elements.dest.value.trim(),op={kind:f.dataset.kind,type:f.dataset.type,category:f.dataset.category,target:f.dataset.target,dest};if(!dest||/[,，;；\n\r]/.test(dest)){toast('分类名称无效');return}if(dest===op.target){toast('新名称与原名称相同');return}let exists=rows.some(r=>r.type===op.type&&(op.kind==='categoryRename'?r.category===dest:r.category===op.category&&r.subcategory===dest));if(exists)mergeChoice(op);else runBatch(op).catch(err=>toast('修改失败：'+err.message));return}if(e.target.id==='manageForm'){e.preventDefault();let f=e.target,kind=f.dataset.type==='book'?'bookRename':'tagRename',dest=f.elements.dest.value.trim();if(dest===f.dataset.name){toast('新名称与原名称相同');return}{let op={kind,target:f.dataset.name,dest},exists=kind==='bookRename'?rows.some(r=>r.book===dest):rows.some(r=>tagParts(r.tags).includes(dest));if(exists)mergeChoice(op);else runBatch(op).catch(err=>toast('修改失败：'+err.message))}return}if(e.target.id==='budgetForm'){e.preventDefault();let v=Number(new FormData(e.target).get('budget'));if(!Number.isFinite(v)||v<0){toast('预算金额无效');return}savePrefs({budgets:{...(prefs.budgets||{}),[budgetKey()]:v}}).then(()=>close()).catch(err=>toast(err.message));return}if(e.target.id==='mergeReview'){e.preventDefault();let ids=[...e.target.querySelectorAll('input[name=merge]:checked')].map(x=>x.value);mergeSelected(ids).catch(err=>toast(err.message));return}if(e.target.id==='entry'){e.preventDefault();let f=e.target,amountCheck=amountSaveValue(f.elements.amount?.value);if(!amountCheck.ok){toast(amountCheck.error);return}let r=Object.fromEntries(new FormData(f));r.date=r.date.replace('T',' ');if(r.date.length===16)r.date+=':00';r.amount=amountCheck.value.toFixed(2);let fxText=String(r.fxRate||'').trim(),extras;try{extras=JSON.parse(r.extras||'{}');if(!extras||typeof extras!=='object'||Array.isArray(extras))extras={}}catch(err){extras={legacy:r.extras||''}}if(currencyCode(r.currency)==='CNY')delete extras.fx;else if(fxText){let rate=Number(fxText);if(!Number.isFinite(rate)||rate<=0||rate>1e8){toast('汇率须大于 0');return}let input=f.querySelector('[name=fxRate]');extras.fx={rate,date:input.dataset.rateDate||'',source:input.dataset.rateSource||'manual',quote:'CNY'}}else delete extras.fx;r.extras=Object.keys(extras).length?JSON.stringify(extras):'';delete r.fxRate;if(r.book==='__new_book__')r.book=String(r.newBookName||'').trim();delete r.newBookName;try{validate(r);if(f.dataset.saving==='1')return;f.dataset.saving='1';let button=f.querySelector('button[type=submit]');if(button)button.disabled=true;send(f.dataset.id?'update':'add',r,f.dataset.id||null).then(()=>close()).catch(err=>{delete f.dataset.saving;if(button)button.disabled=false;toast('保存失败：'+err.message)})}catch(err){toast(err.message)}}else if(e.target.id==='reconcile'){e.preventDefault();let f=e.target,name=f.dataset.account,info=accountData().find(([k])=>k===name)?.[1],kind=f.elements.kind.value,actual=Number(f.elements.actual.value);if(!info||!Number.isFinite(actual)||actual<0){toast('请输入正确余额');return}let target=kind==='debt'?-actual:actual,delta=Number((target-info.net).toFixed(2)),d=new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,19).replace('T',' '),record={date:d,type:'余额调整',category:'',subcategory:'余额校准',amount:Math.abs(delta).toFixed(2),account:name,account2:'',book:'日常账本',currency:'人民币',note:'账户余额校准',extras:JSON.stringify({delta,actual,previous:info.net,kind})};send('reconcile',record,null,{kind}).catch(err=>toast(err.message))}});
 window.__ledgerInstallCsv=function(csv){takeCsv(csv);openPendingPrefill();startAutoRefresh();return true};
 window.__ledgerApplyRates=function(rates){if(rates&&typeof rates==='object'&&!Array.isArray(rates))ledgerRuntimeRates={...ledgerRuntimeRates,...rates};if(rows.length)render();return true};window.__starActive=window.__starActive||window;window.__starActive.__ledgerApplyRates=window.__ledgerApplyRates;
+let ocrHashReceiving=false;
 function receiveHashPrefill(){
- let payload=consumeHashPrefill();
- if(!payload)return false;
- pendingPrefill=payload;
- console.info('StarLedger OCR URL received',{source:payload.source||'url',length:String(payload.text||'').length});
- openPendingPrefill();
- return true
+ if(ocrHashReceiving)return false;
+ ocrHashReceiving=true;
+ try{
+  let payload=consumeHashPrefill();
+  if(!payload)return false;
+  pendingPrefill=payload;
+  console.info('StarLedger OCR URL received',{source:payload.source||'url',length:String(payload.text||'').length});
+  openPendingPrefill();
+  return true
+ }finally{
+  // Release on the next task so hashchange/pageshow/visibilitychange from the
+  // same Safari return cannot race each other synchronously.
+  setTimeout(()=>{ocrHashReceiving=false},0)
+ }
 }
 function hasIncomingOCRHash(){
  let hash=String(location.hash||'');
