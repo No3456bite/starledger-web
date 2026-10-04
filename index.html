@@ -7029,10 +7029,6 @@ requestAnimationFrame(()=>{try{render()}catch(e){console.warn('rc12 initial rend
   }
   #floatingControls:not([hidden]){
     display:block!important;
-    position:fixed!important;
-    left:16px!important;
-    right:16px!important;
-    top:10px!important;
     z-index:950!important;
     width:auto!important;
     margin:0!important;
@@ -7044,6 +7040,13 @@ requestAnimationFrame(()=>{try{render()}catch(e){console.warn('rc12 initial rend
     pointer-events:none!important;
     transform:none!important;
     will-change:auto!important;
+  }
+  html.browser-tab #floatingControls:not([hidden]){
+    display:block!important;
+    position:fixed!important;
+    left:16px!important;
+    right:16px!important;
+    top:10px!important;
   }
 
   /* No grey tray behind the controls. Only the individual controls remain. */
