@@ -7403,22 +7403,34 @@ requestAnimationFrame(()=>{try{render()}catch(e){console.warn('rc12 initial rend
     display:block!important;
     position:absolute!important;
     z-index:880!important;
-    overflow:hidden!important;
+    overflow:visible!important;
     pointer-events:none!important;
     box-sizing:border-box!important;
-    background:var(--bg)!important;
-    contain:layout paint style!important;
+    background:transparent!important;
+    contain:layout style!important;
   }
   html.browser-tab .browser-pager-pane{
     position:absolute!important;
     inset:0!important;
     width:100%!important;
     height:100%!important;
-    overflow:hidden!important;
-    background:var(--bg)!important;
+    overflow:visible!important;
+    background:transparent!important;
     transform:translate3d(var(--browser-pane-x,0px),0,0)!important;
     backface-visibility:hidden!important;
     box-sizing:border-box!important;
+    isolation:isolate!important;
+  }
+  html.browser-tab .browser-pager-pane::before{
+    content:""!important;
+    position:absolute!important;
+    z-index:-1!important;
+    left:0!important;
+    right:0!important;
+    top:-180px!important;
+    bottom:-280px!important;
+    background:var(--bg)!important;
+    pointer-events:none!important;
   }
   html.browser-tab .browser-pager-pane.browser-pager-settling{
     transition-property:transform!important;
