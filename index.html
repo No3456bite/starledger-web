@@ -6629,15 +6629,18 @@ requestAnimationFrame(()=>{try{render()}catch(e){console.warn('rc12 initial rend
   }
 
   function viewportBox(){
-    const vv=window.visualViewport,scrollY=window.scrollY||document.documentElement.scrollTop||0,
+    const vv=window.visualViewport,
           visualHeight=Math.max(1,vv?.height||window.innerHeight||document.documentElement.clientHeight),
           layoutHeight=Math.max(visualHeight,window.innerHeight||0,document.documentElement.clientHeight||0),
           // Safari's bottom browser chrome sits outside visualViewport. Give
           // the actual page snapshot enough paint area to continue behind it.
           bottomOverscan=Math.max(180,Math.min(320,(layoutHeight-visualHeight)+180));
     return {
-      top:scrollY+(vv?.offsetTop||0),
-      left:(window.scrollX||0)+(vv?.offsetLeft||0),
+      // The transition stage is viewport-fixed. Do not include document
+      // scrollX/scrollY here: the live page restores the target scroll while
+      // this snapshot is still covering it.
+      top:vv?.offsetTop||0,
+      left:vv?.offsetLeft||0,
       width:Math.max(1,vv?.width||window.innerWidth||document.documentElement.clientWidth),
       height:visualHeight,
       paintHeight:visualHeight+bottomOverscan
@@ -7466,7 +7469,7 @@ requestAnimationFrame(()=>{try{render()}catch(e){console.warn('rc12 initial rend
 @media(max-width:760px){
   html.browser-tab .browser-pager-stage{
     display:block!important;
-    position:absolute!important;
+    position:fixed!important;
     z-index:880!important;
     overflow:visible!important;
     pointer-events:none!important;
