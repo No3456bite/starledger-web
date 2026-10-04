@@ -61,6 +61,7 @@ if (unexpectedInline.length) {
 }
 
 if (!app.includes('function render()')) fail('app.js lost the primary render() function');
+if (!app.includes("scrollPageTo(0,'smooth')")) fail('back-to-top no longer uses the unified page scroller');
 if (!app.includes("const COLS=['id','date','type'")) fail('app.js lost the ledger column schema');
 if (!ui.includes('rc14-search-filter-behavior')) fail('ui-runtime.js lost the search filter controller');
 if (!ui.includes('web-v051-safari-document-modal-controller')) fail('ui-runtime.js lost Safari modal placement');
