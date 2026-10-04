@@ -6790,6 +6790,16 @@ requestAnimationFrame(()=>{try{render()}catch(e){console.warn('rc12 initial rend
       clearTimeout(settleTimer);
 
       if(commit){
+        // Safari expands its browser chrome when a navigation restores the
+        // document to the exact top. If the outgoing page is already scrolled,
+        // keep a 1px physical scroll sentinel for targets whose saved position
+        // is logically the top. The shift is visually imperceptible but keeps
+        // the compact toolbar state continuous across short pages.
+        const outgoingScroll=getPageScroll();
+        if(outgoingScroll>0&&(rc27PageScroll[state.target]||0)<=0){
+          rc27PageScroll[state.target]=1;
+        }
+
         // Render the target behind the already-arrived cached page.
         rc6Navigate(state.target);
         // rc6Navigate restores the target document scroll. Keep the absolute
@@ -7624,6 +7634,14 @@ requestAnimationFrame(()=>{try{render()}catch(e){console.warn('rc12 initial rend
     border-radius:12px!important;
     background:var(--card)!important;
     font-size:11px!important;
+  }
+}
+</style><style id="web-v059a-safari-short-page-scroll-sentinel">
+@media(max-width:760px){
+  /* Always leave enough document range for the 1px browser-chrome sentinel,
+     even on a page whose real content is shorter than the dynamic viewport. */
+  html.browser-tab body{
+    min-height:calc(100dvh + 2px)!important;
   }
 }
 </style><style id="web-v060-safari-filter-handoff">
