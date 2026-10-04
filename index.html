@@ -6168,7 +6168,7 @@ function rc123GhostHydrate(clone,draft,index){
 }
 function rc123MakeGhost(entry,index,kind){
  if(!rc12Task||index<0||index>=rc12Task.drafts.length)return null;
- let clone=entry.cloneNode(true);clone.classList.remove('rc12-swipe-dragging','rc12-swipe-return','rc12-from-left','rc12-from-right','rc123-live-card');clone.classList.add('rc123-stack-card','rc123-'+kind);rc123GhostHydrate(clone,rc12Task.drafts[index],index);entry.parentElement.appendChild(clone);try{clone.scrollTop=entry.scrollTop}catch(_e){}return clone
+ let clone=entry.cloneNode(true);clone.classList.remove('rc12-swipe-dragging','rc12-swipe-return','rc12-from-left','rc12-from-right','rc123-live-card');clone.classList.add('rc123-stack-card','rc123-'+kind);clone.style.visibility='hidden';rc123GhostHydrate(clone,rc12Task.drafts[index],index);entry.parentElement.appendChild(clone);try{clone.scrollTop=entry.scrollTop}catch(_e){}return clone
 }
 function rc123SyncGeometry(pack){
  if(!pack?.entry?.isConnected)return;
@@ -6214,7 +6214,9 @@ function rc123ApplyScalar(value,pack=$('#entry')?.closest('.entryback')?._rc123P
   // Previous: previous bill fades in from the upper-left; current bill retreats to +5pt; the old back card leaves to the lower-right.
   show(prev,!!prev);show(next,!!next);show(next2,false);tr(prev,-11*(1-p),-11*(1-p),p,4);tr(live,5*p,5*p,1,3);tr(next,5+5*p,5+5*p,1-p,2)
  }else{
-  show(prev,false);show(next,!!next);show(next2,false);tr(live,0,0,1,3);tr(next,5,5,1,2);tr(prev,-11,-11,0,4);tr(next2,10,10,0,1)
+  // Resting state is one clean live card. Neighbour cards are revealed only
+  // after a real horizontal gesture starts.
+  show(prev,false);show(next,false);show(next2,false);tr(live,0,0,1,3);tr(next,5,5,1,2);tr(prev,-11,-11,0,4);tr(next2,10,10,0,1)
  }
 }
 function rc123StopMotion(){if(rc123Motion?.raf)cancelAnimationFrame(rc123Motion.raf);rc123Motion=null}
@@ -6314,7 +6316,7 @@ form=function(record){
  if(record?.id){let group=rc12GroupForBill(record.id);if(group){let members=group.members.map(m=>rows.find(r=>r.id===m.id)).filter(Boolean),active=Math.max(0,members.findIndex(r=>r.id===record.id));if(members.length>=2){rc12StartTask(members,{source:'compound',active,groups:[group]});return}}}
  rc12StartTask([record||{}],{source:record?.id?'edit':'new'})
 };
-window.entryTaskOpenFromOCR=function(payload){let records=Array.isArray(payload?.records)&&payload.records.length?payload.records:[{}];rc12StartTask(records,{source:'ocr',relationHints:payload?.relationHints||[]});toast(records.length>1?`OCR 识别到 ${records.length} 笔流水，请逐张核对`:'已预填识别结果，请核对后保存')};
+window.entryTaskOpenFromOCR=function(payload){let records=Array.isArray(payload?.records)&&payload.records.length?payload.records:[{}];rc12StartTask(records,{source:'ocr',active:0,relationHints:payload?.relationHints||[]});toast(records.length>1?`OCR 识别到 ${records.length} 笔流水，请逐张核对`:'已预填识别结果，请核对后保存')};
 close=function(){if(rc12Task&&$('#entry'))rc12Task=null;return rc12BaseClose()};
 
 async function rc12RelateSelected(){
