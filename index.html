@@ -4775,7 +4775,7 @@ function yearly(){let rs=filtered(rows,{yearOnly:true}),months=Array.from({lengt
 function statsPage(){return statsMode==='year'?yearly():monthly()}
 function bookPage(){
  let names=orderedBookNames(true),defaultName=defaultBookName(),total=names.reduce((n,name)=>n+rows.filter(r=>r.book===name).length,0);
- return `<div class="notice book-page-note">第一项是默认账本；OCR 和新建账单优先使用它。长按账本名称可拖动排序。</div>
+ return `<div class="notice book-page-note">第一项可用账本是默认账本；OCR 和新建账单优先使用它。长按账本名称可拖动排序。</div>
  <div class="card section book-list-card">
   <div class="sectionhead"><h2>账本 · ${names.length}</h2><span class="group-total">共 ${total} 笔账单</span></div>
   <div class="book-list">${names.map((name,i)=>{let p=bookProfile(name),count=rows.filter(r=>r.book===name).length;return `<div class="book-entry ${p.hidden?'book-hidden':''}" data-bookentry="${esc(name)}"><button type="button" class="book-item book-name" data-bookname="${esc(name)}" aria-label="管理账本 ${esc(name)}"><span><b>${esc(name)}</b><small>${defaultName===name?'默认 · OCR / 新记账':''}${p.hidden?(defaultName===name?' · ':'')+'已隐藏':''}${p.note?' · '+esc(p.note):''}</small></span></button><button type="button" class="book-item book-count" data-bookname="${esc(name)}"><span><b>${count} 笔</b><small>管理　›</small></span></button></div>`}).join('')||'<div class="empty">还没有账本</div>'}</div>
@@ -6693,7 +6693,7 @@ requestAnimationFrame(()=>{try{render()}catch(e){console.warn('rc12 initial rend
     let data=new FormData(form),name=cleanBookName(data.get('name')),note=cleanBookName(data.get('note'));
     if(!validBookName(name))throw Error('账本名称无效');
     if(bookExists(name))throw Error('已存在同名账本');
-    let profiles={...(prefs.bookProfiles||{}),[name]:{hidden:false,note}},deleted=(prefs.deletedBooks||[]).filter(x=>x!==name),order=normalizeBookOrder([...(prefs.bookOrder||[]),name]);
+    let profiles={...(prefs.bookProfiles||{}),[name]:{hidden:false,note}},deleted=(prefs.deletedBooks||[]).filter(x=>x!==name),order=[...orderedBookNames(true),name];
     await persistBookMeta({bookProfiles:profiles,deletedBooks:deleted,bookOrder:order});
     close();bookForm(name)
   }
