@@ -3886,6 +3886,42 @@ body.selecting #searchResults .selection-top-actions{
    margin:auto!important;
  }
 }
+</style><style id="rc-bulk-edit-v2">
+.bulk-edit-back>.bulk-edit-sheet{
+ width:min(560px,calc(100vw - 20px))!important;
+ max-height:min(88dvh,780px)!important;
+ overflow:auto!important;
+ padding:18px!important;
+}
+.bulk-edit-head{margin-bottom:8px!important}
+.bulk-edit-intro{margin:0 0 10px!important;line-height:1.55}
+.bulk-edit-list{border-top:1px solid var(--line)}
+.bulk-edit-item{
+ width:100%;display:flex;align-items:center;justify-content:space-between;gap:14px;
+ padding:13px 2px;border:0;border-bottom:1px solid var(--line);background:transparent;color:var(--ink);text-align:left;
+}
+.bulk-edit-copy{display:grid;gap:4px;min-width:0}
+.bulk-edit-copy b{font-size:15px}
+.bulk-edit-copy small{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:58vw}
+.bulk-edit-state{display:flex;align-items:center;gap:7px;flex:none;max-width:44%;font-size:13px;color:var(--muted);white-space:nowrap}
+.bulk-edit-state.changed{color:var(--green)}
+.bulk-edit-state{overflow:hidden;text-overflow:ellipsis}
+.bulk-edit-state i{font-style:normal;font-size:19px;color:var(--muted)}
+.bulk-edit-summary{margin:13px 0 0;color:var(--muted);font-size:12px}
+.bulk-edit-footer{position:sticky;bottom:-18px;margin:14px -18px -18px!important;padding:12px 18px calc(12px + env(safe-area-inset-bottom));background:var(--card);border-top:1px solid var(--line)}
+.bulk-edit-modes{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;padding:5px;background:var(--pale);border-radius:14px;margin:14px 0}
+.bulk-edit-modes button{border:0;border-radius:10px;background:transparent;color:var(--muted);padding:9px 5px;font:inherit}
+.bulk-edit-modes button.active{background:var(--card);color:var(--green);box-shadow:var(--shadow)}
+.bulk-field-control{margin-top:16px}
+.bulk-field-control input,.bulk-field-control select,.bulk-field-control textarea{width:100%;font-size:16px}
+.bulk-clear-note{margin:18px 0;padding:14px;border:1px solid color-mix(in srgb,var(--red) 36%,var(--line));border-radius:13px;color:var(--muted);background:color-mix(in srgb,var(--red) 7%,var(--card))}
+@media(max-width:760px){
+ .bulk-edit-back{align-items:center!important;padding:10px!important}
+ .bulk-edit-back>.bulk-edit-sheet{width:100%!important;max-height:calc(100dvh - 20px)!important;margin:auto!important}
+ .bulk-edit-copy small{max-width:52vw}
+ .bulk-edit-state{max-width:42%}
+ .bulk-edit-modes{grid-template-columns:repeat(4,minmax(0,1fr))}
+}
 </style></head><body><div class="shell"><aside class="side" data-ui-level="1"><button type="button" id="sideToggle" class="side-toggle" aria-label="收起左侧栏">‹</button><div class="brand"><span class="brand-long">我的<b>账本</b></span><span class="brand-short">账</span></div><nav id="nav"></nav><small>星账本 · Web v0.5.0 · OCR v1</small></aside><main data-ui-level="2"><div id="pageViewport"><div id="content"><div id="safeFrame" aria-hidden="true"></div><div id="controlsFrame" aria-hidden="true"></div><div id="headerFrame"><header class="top"><div><div class="eyebrow" id="status">账本数据</div><h1 id="title">我的账本</h1></div><div class="topactions"><button class="button ledger-switch" id="ledgerSwitch" hidden aria-label="切换主账本"></button><button class="button iconbutton" id="settingsBtn" aria-label="设置">⚙</button><button class="button" id="refreshBill" hidden>↻ 重新载入</button><button class="button primary" id="addBtn">＋ 记一笔</button></div></header></div><div id="pageBody"></div></div></div><div id="floatingControls"></div></main></div><div class="mobilebar" id="mobileNav"></div><button type="button" class="back-to-top" id="backToTop" hidden aria-label="回到顶部">↑ 顶部</button><div id="overlay"></div><input hidden type="file" id="folderFile" accept=".csv,.json,text/csv,application/json" webkitdirectory directory multiple><input hidden type="file" id="deltaFile" accept=".csv,text/csv"><input hidden type="file" id="configFile" accept=".json,application/json"><script src="./recognizer.js?v=ocr1"></script><script>
 // Pure Web build. The legacy Scriptable bridge is archived in GitHub.
 const BOOT=/*__BOOT__*/null;
@@ -5609,6 +5645,12 @@ document.addEventListener('click',e=>{if(e.target.closest?.('.entry-date-action'
  else if(t.id==='openKeypad'){let back=$('.entryback');$('#amountInput')?.blur();back?.classList.remove('keypad-hidden','editing-text')}
  else if(t.id==='lookupFxRate')lookupFxRate().catch(err=>toast('查询参考汇率失败：'+err.message))
  else if(t.id==='bulkEditSelection')openBulkEditSelection()
+ else if(t.dataset.bulkfield)renderBulkFieldEditor(t.dataset.bulkfield)
+ else if(t.dataset.bulkmode)setBulkEditMode(t.dataset.bulkmode)
+ else if(t.id==='backBulkEdit')renderBulkEditMain()
+ else if(t.id==='closeBulkEdit'){bulkEditDraft=null;close()}
+ else if(t.id==='removeBulkFieldOp')clearBulkFieldOp()
+ else if(t.id==='saveBulkField')saveBulkField()
  else if(t.id==='applyBulkEdit')applyBulkEditSelection().catch(err=>toast('批量修改失败：'+err.message))
  else if(t.id==='deleteSelection')deleteSelection()
  else if(t.id==='confirmDelete'||t.id==='retryDelete')performDelete()
@@ -6407,21 +6449,125 @@ records=function(rs,limit=10){
  if(!rs.length)return '<div class="empty">没有符合条件的账单</div>';let shown=rs.slice(0,limit);return shown.map((r,i)=>{let next=shown[i+1],monthBreak=!!next&&ym(r)!==ym(next),group=rc12GroupForBill(r.id),badge=group?`<small class="relation-badge">关联 · ${group.members.length}</small>`:'';return `<div class="row ${monthBreak?'month-break':''} ${group?'compound-row':''}" data-rowid="${esc(r.id)}"><input class="rowcheck" type="checkbox" data-check="${esc(r.id)}" aria-label="选择账单" ${selection.has(r.id)?'checked':''}><button data-id="${esc(r.id)}"><span class="record-copy"><span class="record-first"><b class="title">${esc(recordHeadline(r))}</b><small class="record-wallet">－ ${esc(r.account||'未选账户')}</small>${badge}</span><small class="record-note">${esc((prefs.recordTitle==='note'?[r.category,r.subcategory].filter(Boolean).join(' / '):r.note)||'　')}</small><small class="record-time">${esc(String(r.date||'').replace('T',' ').slice(0,19))}</small></span><span class="record-amount"><span class="amount ${r.type==='支出'?'negative':r.type==='收入'?'positive':''}">${r.type==='支出'?'-':''}${money(amount(r),r.currency)}</span>${!isCNY(r)&&cnyAmount(r)!==null?`<small class="amount-converted">≈ ${money(cnyAmount(r))}</small>`:''}</span></button></div>`}).join('')
 };
 
+let bulkEditDraft=null;
+const BULK_EDIT_FIELDS=[
+ ['type','类型'],['category','大类'],['subcategory','小类'],['amount','金额'],
+ ['account','账户'],['account2','转入账户'],['book','账本'],['currency','币种'],
+ ['merchant','商家'],['note','备注'],['tags','标签'],['date','日期']
+];
+function bulkSelectedRows(){let ids=new Set(selection);return rows.filter(r=>ids.has(r.id))}
+function bulkSharedValue(field){
+ let values=[...new Set(bulkSelectedRows().map(r=>String(r[field]??'').trim()))];
+ if(values.length===1)return values[0]||'空';
+ return values.length?'多个值':'空'
+}
+function bulkOpLabel(field,op){
+ if(!op)return '未修改';
+ if(op.mode==='clear')return '清除';
+ let value=String(op.value??'').trim();
+ if(field==='tags'){
+   if(op.mode==='append')return '追加：'+value;
+   if(op.mode==='remove')return '移除：'+value;
+ }
+ if(field==='note'&&op.mode==='append')return '追加：'+value;
+ return '改为：'+value
+}
+function bulkEditOptions(field){
+ let values=[];
+ if(field==='type')values=['支出','收入','转账','借贷','应付款','应收款'];
+ else if(field==='category')values=[...new Set(rows.map(r=>String(r.category||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'zh-CN'));
+ else if(field==='subcategory')values=[...new Set(rows.map(r=>String(r.subcategory||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'zh-CN'));
+ else if(field==='account'||field==='account2')values=accountNames();
+ else if(field==='book')values=orderedBookNames(false);
+ else if(field==='currency')values=[...new Set(rows.map(r=>String(r.currency||'').trim()).filter(Boolean))];
+ return values
+}
+function renderBulkEditMain(){
+ if(!bulkEditDraft)return;
+ let count=bulkEditDraft.ids.length,changed=Object.keys(bulkEditDraft.ops).length;
+ $('#overlay').innerHTML=`<div class="modalback account-dialog-back bulk-edit-back"><div class="modal account-config bulk-edit-sheet">
+   <div class="account-config-head bulk-edit-head"><h2>修改 ${count} 笔账单</h2><div class="account-head-actions"><button type="button" id="closeBulkEdit">取消</button></div></div>
+   <p class="muted bulk-edit-intro">这里只设置批量规则。未修改的字段保持每笔原值；已设置的字段会统一应用到全部 ${count} 笔。</p>
+   <div class="bulk-edit-list">
+    ${BULK_EDIT_FIELDS.map(([field,label])=>`<button type="button" class="bulk-edit-item" data-bulkfield="${field}">
+      <span class="bulk-edit-copy"><b>${label}</b><small>当前：${esc(bulkSharedValue(field))}</small></span>
+      <span class="bulk-edit-state ${bulkEditDraft.ops[field]?'changed':''}">${esc(bulkOpLabel(field,bulkEditDraft.ops[field]))}<i>›</i></span>
+    </button>`).join('')}
+   </div>
+   <div class="bulk-edit-summary">${changed?`已设置 ${changed} 个字段，将应用到 ${count} 笔账单`:'尚未设置修改内容'}</div>
+   <div class="modalfooter bulk-edit-footer"><button type="button" class="button" id="closeBulkEdit">取消</button><button type="button" class="button primary" id="applyBulkEdit" ${changed?'':'disabled'}>应用修改</button></div>
+ </div></div>`;
+ document.body.classList.add('dialog-open')
+}
+function renderBulkFieldEditor(field){
+ if(!bulkEditDraft)return;
+ let label=BULK_EDIT_FIELDS.find(x=>x[0]===field)?.[1]||field,op=bulkEditDraft.ops[field]||null,
+     weak=['merchant','note','tags'].includes(field),values=bulkEditOptions(field),mode=op?.mode||'replace',value=String(op?.value??'');
+ let modeButtons='';
+ if(field==='tags')modeButtons=[['replace','替换'],['append','追加'],['remove','移除'],['clear','清除']].map(([k,l])=>`<button type="button" class="${mode===k?'active':''}" data-bulkmode="${k}">${l}</button>`).join('');
+ else if(field==='note')modeButtons=[['replace','替换'],['append','追加'],['clear','清除']].map(([k,l])=>`<button type="button" class="${mode===k?'active':''}" data-bulkmode="${k}">${l}</button>`).join('');
+ else if(field==='merchant')modeButtons=[['replace','替换'],['clear','清除']].map(([k,l])=>`<button type="button" class="${mode===k?'active':''}" data-bulkmode="${k}">${l}</button>`).join('');
+ let input='';
+ if(mode!=='clear'){
+   if(values.length)input=`<select id="bulkFieldValue">${values.map(v=>`<option value="${esc(v)}" ${v===value?'selected':''}>${esc(field==='currency'?currencyLabel(currencyCode(v)):v)}</option>`).join('')}</select>`;
+   else if(field==='date')input=`<input id="bulkFieldValue" type="datetime-local" value="${esc(value.replace(' ','T').slice(0,16))}">`;
+   else if(field==='amount')input=`<input id="bulkFieldValue" type="number" min="0.01" step="0.01" inputmode="decimal" value="${esc(value)}" placeholder="统一金额">`;
+   else if(field==='note')input=`<textarea id="bulkFieldValue" rows="4" placeholder="${mode==='append'?'追加到每笔备注后面':'统一备注'}">${esc(value)}</textarea>`;
+   else input=`<input id="bulkFieldValue" type="text" value="${esc(value)}" placeholder="${field==='tags'?'标签，多个可用逗号分隔':'统一修改为…'}">`;
+ }
+ $('#overlay').innerHTML=`<div class="modalback account-dialog-back bulk-edit-back"><div class="modal account-config bulk-edit-sheet bulk-field-sheet" data-bulkfieldeditor="${field}">
+   <div class="account-config-head bulk-edit-head"><h2>${esc(label)}</h2><div class="account-head-actions"><button type="button" id="backBulkEdit">返回</button></div></div>
+   <p class="muted">当前选中的 ${bulkEditDraft.ids.length} 笔会一起修改；这里不会逐笔设置。</p>
+   ${weak?`<div class="bulk-edit-modes">${modeButtons}</div>`:''}
+   <label class="field bulk-field-control" ${mode==='clear'?'hidden':''}><span>${mode==='append'?'追加内容':mode==='remove'?'移除内容':'统一改为'}</span>${input}</label>
+   ${mode==='clear'?'<div class="bulk-clear-note">这个字段会从全部已选账单中清空。</div>':''}
+   <div class="modalfooter"><button type="button" class="button" id="removeBulkFieldOp" ${op?'':'disabled'}>恢复未修改</button><button type="button" class="button primary" id="saveBulkField">确定</button></div>
+ </div></div>`;
+ document.body.classList.add('dialog-open')
+}
 function openBulkEditSelection(){
  let ids=[...selection];if(!ids.length)return;
- let tagValues=[...new Set(rows.flatMap(r=>tagParts(r.tags)))].sort((a,b)=>a.localeCompare(b,'zh-CN'));
- $('#overlay').innerHTML=`<div class="modalback account-dialog-back bulk-edit-back"><div class="modal bulk-edit-sheet"><div class="sectionhead"><h2>修改 ${ids.length} 笔账单</h2><button type="button" id="closeBtn">取消</button></div>
- <p class="muted">只修改已勾选的字段；未勾选的内容保持原样。</p>
- ${[['type','类型'],['category','大类'],['subcategory','小类'],['account','账户'],['account2','账户2'],['book','账本'],['currency','币种'],['merchant','商家'],['note','备注'],['tags','标签'],['date','日期']].map(([k,l])=>`<label class="bulk-edit-row"><input type="checkbox" data-bulk-enable="${k}"><span>${l}</span>${k==='type'?'<select data-bulk-value="type"><option>支出</option><option>收入</option><option>转账</option><option>借贷</option></select>':k==='tags'?'<input data-bulk-value="tags" list="bulkTagList" placeholder="填写后将替换标签">':`<input data-bulk-value="${k}" placeholder="统一修改为…">`}</label>`).join('')}
- <datalist id="bulkTagList">${tagValues.map(v=>`<option value="${esc(v)}">`).join('')}</datalist>
- <div class="modalfooter"><button type="button" class="button primary" id="applyBulkEdit">应用修改</button></div></div></div>`;
- document.body.classList.add('dialog-open');
+ bulkEditDraft={ids,ops:{}};
+ renderBulkEditMain()
+}
+function setBulkEditMode(mode){
+ let sheet=document.querySelector('[data-bulkfieldeditor]');if(!sheet||!bulkEditDraft)return;
+ let field=sheet.dataset.bulkfieldeditor,old=bulkEditDraft.ops[field];
+ bulkEditDraft.ops[field]={mode,value:old?.value||''};
+ renderBulkFieldEditor(field)
+}
+function saveBulkField(){
+ let sheet=document.querySelector('[data-bulkfieldeditor]');if(!sheet||!bulkEditDraft)return;
+ let field=sheet.dataset.bulkfieldeditor,op=bulkEditDraft.ops[field]||{mode:'replace',value:''},mode=op.mode||'replace',input=$('#bulkFieldValue'),value=mode==='clear'?'':String(input?.value??'').trim();
+ if(mode!=='clear'&&!value){toast('请填写修改内容');return}
+ if(field==='amount'&&(!(Number(value)>0)||!Number.isFinite(Number(value)))){toast('金额必须大于 0');return}
+ if(field==='date'){value=value.replace('T',' ');if(value.length===16)value+=':00'}
+ bulkEditDraft.ops[field]={mode,value};renderBulkEditMain()
+}
+function clearBulkFieldOp(){
+ let sheet=document.querySelector('[data-bulkfieldeditor]');if(!sheet||!bulkEditDraft)return;
+ delete bulkEditDraft.ops[sheet.dataset.bulkfieldeditor];renderBulkEditMain()
+}
+function applyBulkOperation(record,field,op){
+ let next={...record},value=op.value??'';
+ if(field==='tags'){
+   let existing=tagParts(next.tags),incoming=String(value).split(/[,，]/).map(x=>x.trim()).filter(Boolean);
+   if(op.mode==='clear')next.tags='';
+   else if(op.mode==='append')next.tags=[...new Set([...existing,...incoming])].join(', ');
+   else if(op.mode==='remove'){let drop=new Set(incoming);next.tags=existing.filter(x=>!drop.has(x)).join(', ')}
+   else next.tags=[...new Set(incoming)].join(', ')
+ }else if(field==='note'&&op.mode==='append'){
+   next.note=[String(next.note||'').trim(),String(value).trim()].filter(Boolean).join(' ')
+ }else if(op.mode==='clear')next[field]='';
+ else next[field]=field==='amount'?String(Number(value)):value;
+ return next
 }
 async function applyBulkEditSelection(){
- let patch={};for(let cb of document.querySelectorAll('[data-bulk-enable]:checked')){let k=cb.dataset.bulkEnable,v=document.querySelector('[data-bulk-value="'+k+'"]')?.value??'';patch[k]=v}
- if(!Object.keys(patch).length){toast('请先勾选要统一修改的字段');return}
- let ids=new Set(selection),now=new Date().toISOString(),next=rows.map(r=>ids.has(r.id)?{...r,...patch,updated_at:now}:r);
- await localWrite('replaceLedger',null,null,{csv:csvWrite(next),mainName:prefs.mainName,allowEmpty:true});selection.clear();close();render();renderSelection();toast('已批量修改 '+ids.size+' 笔账单')
+ if(!bulkEditDraft||!Object.keys(bulkEditDraft.ops).length){toast('还没有设置修改内容');return}
+ let ids=new Set(bulkEditDraft.ids),ops=bulkEditDraft.ops,now=new Date().toISOString(),
+     next=rows.map(r=>{if(!ids.has(r.id))return r;let n={...r};for(let [field,op] of Object.entries(ops))n=applyBulkOperation(n,field,op);n.updated_at=now;return n});
+ await localWrite('replaceLedger',null,null,{csv:csvWrite(next),mainName:prefs.mainName,allowEmpty:true});
+ let count=ids.size;bulkEditDraft=null;selection.clear();close();render();renderSelection();toast('已批量修改 '+count+' 笔账单')
 }
 
 renderSelection=function(){
