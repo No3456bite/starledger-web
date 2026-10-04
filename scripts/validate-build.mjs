@@ -66,7 +66,7 @@ if (!ui.includes('web-v044-browser-tab-interactions')) fail('ui-runtime.js lost 
 if (!books.includes('function cleanBookName')) fail('books-stats.js lost the books/stats controller');
 if (!recognizer.includes('StarLedger')) fail('recognizer.js looks unexpectedly empty or replaced');
 
-for (const asset of ['./app.js','./ui-runtime.js','./books-stats.js','./recognizer.js']) {
+for (const asset of externalScripts) {
   if (!sw.includes(`'${asset}'`) && !sw.includes(`"${asset}"`)) {
     fail(`service worker precache is missing ${asset}`);
   }
