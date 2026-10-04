@@ -19,12 +19,14 @@ const ui = read('ui-runtime.js');
 const books = read('books-stats.js');
 const recognizer = read('recognizer.js');
 const sw = read('sw.js');
+const mobileCompat = read('mobile-compat.css');
 
 const externalScripts = [
   './recognizer.js?v=ocr1',
-  './app.js?v=midterm1',
+  './app.js?v=midterm2',
   './ui-runtime.js?v=midterm1',
-  './books-stats.js?v=midterm1'
+  './books-stats.js?v=midterm1',
+  './mobile-compat.css?v=css1'
 ];
 
 let last = -1;
@@ -72,13 +74,11 @@ for (const asset of externalScripts) {
   }
 }
 
-const safariGuards = [
-  'web-v051-safari-document-modal',
-  'web-v059a-safari-short-page-scroll-sentinel',
-  'web-v060-safari-filter-handoff'
-];
-for (const id of safariGuards) {
-  if (!index.includes(`id="${id}"`)) fail(`Safari compatibility style #${id} is missing`);
+if (!index.includes('id="web-v051-safari-document-modal"')) {
+  fail('Safari document-modal geometry style is missing from index.html');
+}
+for (const marker of ['--sl-browser-chrome-gap','browser-pager-filter-current','::-webkit-scrollbar']) {
+  if (!mobileCompat.includes(marker)) fail(`mobile-compat.css lost Safari guard: ${marker}`);
 }
 
 if (!process.exitCode) {
