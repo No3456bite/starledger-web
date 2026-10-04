@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"><meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><link rel="manifest" href="./manifest.webmanifest"><title>星账本 · 主账本</title>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"><meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><link rel="manifest" href="./manifest.webmanifest"><title>星账本 · 主账本</title><script id="display-mode-bootstrap">(()=>{const standalone=!!navigator.standalone||matchMedia('(display-mode: standalone)').matches||matchMedia('(display-mode: fullscreen)').matches;document.documentElement.classList.toggle('standalone-webapp',standalone);document.documentElement.classList.toggle('browser-tab',!standalone)})();</script>
 <style>
 :root{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Microsoft Yahei",sans-serif;color:#183029;background:#f6f7f4;--bg:#f6f7f4;--card:#fff;--ink:#183029;--muted:#738079;--line:#e5ebe5;--green:#176b50;--pale:#eaf4ed;--red:#b34e49;--shadow:0 8px 30px #1239250a}*{box-sizing:border-box}body{margin:0;background:var(--bg)}button,input,select,textarea{font:inherit}button{cursor:pointer}button:disabled{opacity:.45}.shell{display:flex;min-height:100dvh}.side{width:220px;flex:none;background:var(--card);border-right:1px solid var(--line);padding:32px 18px;position:sticky;top:0;height:100dvh}.brand{font-size:22px;font-weight:750;letter-spacing:-.5px;padding:0 15px 30px}.brand b{color:var(--green)}nav{display:grid;gap:7px}.navbtn{width:100%;border:0;background:transparent;color:var(--muted);border-radius:14px;padding:13px 16px;text-align:left;font-weight:650}.navbtn.active{background:var(--pale);color:var(--green)}.side small{position:absolute;bottom:30px;left:32px;color:var(--muted)}main{width:min(1120px,100%);margin:0 auto;padding:28px 36px 90px}.top{display:flex;align-items:center;gap:12px;justify-content:space-between;margin-bottom:24px}.eyebrow{color:var(--muted);font-size:13px}.top h1{font-size:29px;margin:2px 0;font-weight:740;letter-spacing:-.7px}.topactions{display:flex;gap:8px;align-items:center}.button{border:1px solid var(--line);border-radius:12px;background:var(--card);padding:10px 14px;color:var(--ink);font-weight:650}.button.primary{background:var(--green);border-color:var(--green);color:#fff}.button.quiet{background:transparent}.button.danger{color:var(--red)}.filters{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:19px}.filters select,.filters input,.field input,.field select,.field textarea{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:10px 12px;color:var(--ink);min-height:43px;min-width:0}.filters select{min-width:110px}.card{background:var(--card);border:1px solid var(--line);border-radius:21px;padding:20px;box-shadow:var(--shadow)}.hero{background:linear-gradient(115deg,#184e3f,#237758);color:#fff;border:0;padding:26px;min-height:156px}.hero .label{color:#cce6d7}.hero strong{display:block;font-size:36px;margin:18px 0 8px;font-variant-numeric:tabular-nums}.hero p{margin:0;color:#d8eee1;font-size:13px}.grid{display:grid;gap:14px}.cols3{grid-template-columns:repeat(3,1fr)}.cols2{grid-template-columns:1.3fr 1fr}.metric .label,.label{font-size:13px;color:var(--muted)}.metric strong{display:block;font-size:24px;margin:12px 0 3px;font-variant-numeric:tabular-nums}.metric small{color:var(--muted)}.negative{color:var(--red)}.positive{color:var(--green)}.section{margin-top:25px}.sectionhead{display:flex;justify-content:space-between;align-items:center;margin:0 2px 13px}.sectionhead h2{font-size:18px;margin:0}.sectionhead button{border:0;background:none;color:var(--green);font-weight:650}.row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}.row:last-child{border-bottom:0}.row button{background:none;border:0;text-align:left;color:inherit;padding:0;width:100%;display:flex;justify-content:space-between;align-items:center;gap:12px}.row .title{font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.row .subtitle{font-size:12px;color:var(--muted);margin-top:3px}.row .amount{font-variant-numeric:tabular-nums;white-space:nowrap;font-weight:650}.track{height:7px;border-radius:8px;background:var(--pale);margin-top:8px}.fill{height:100%;border-radius:8px;background:#67aa83}.category{padding:9px 0}.category button{background:transparent;border:0;width:100%;padding:0;text-align:left;color:inherit}.categoryline{display:flex;justify-content:space-between;gap:10px}.categoryline b{font-size:14px}.categoryline span{font-size:13px;color:var(--muted)}.monthbars{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:5px;align-items:end;height:176px;padding-top:22px}.barcol{height:100%;display:flex;flex-direction:column;justify-content:flex-end;gap:3px;min-width:0;cursor:pointer}.barpair{display:flex;align-items:end;gap:2px;height:150px}.bar{width:50%;border-radius:5px 5px 2px 2px;background:#8dbba4;min-height:2px}.bar.exp{background:#e0ae9b}.barcol small{text-align:center;font-size:10px;color:var(--muted)}.legend{font-size:12px;color:var(--muted);margin-top:12px}.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#8dbba4;margin-right:4px}.dot.exp{background:#e0ae9b;margin-left:13px}.calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}.dayname{text-align:center;font-size:12px;color:var(--muted);padding:6px}.day{border:1px solid transparent;border-radius:10px;background:#f6f9f5;min-height:59px;text-align:left;padding:6px}.day[disabled]{background:transparent}.day.has{background:var(--pale)}.day span{display:block;font-size:12px}.day small{display:block;font-size:10px;color:var(--green);margin-top:7px;white-space:nowrap;overflow:hidden}.search{width:100%;font-size:16px}.summary{background:var(--pale);color:var(--green);padding:13px 16px;border-radius:13px;font-size:14px;margin-bottom:12px}.muted{color:var(--muted);font-size:13px}.empty{padding:24px;text-align:center;color:var(--muted)}.listlimit{padding:12px;text-align:center;color:var(--muted)}.accountline{display:flex;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}.accountline:last-child{border:0}.notice{background:#fff8ed;border:1px solid #f0dfc4;border-radius:15px;padding:15px;color:#795b2e;font-size:13px;line-height:1.6}.pill{font-size:11px;border-radius:20px;padding:4px 8px;background:var(--pale);color:var(--green)}.modalback{position:fixed;inset:0;background:#11291da8;display:flex;justify-content:center;align-items:center;padding:18px;z-index:20}.modal{background:var(--card);width:min(540px,100%);max-height:90dvh;overflow:auto;border-radius:22px;padding:22px}.modal h2{margin:0 0 17px;font-size:20px}.formgrid{display:grid;grid-template-columns:1fr 1fr;gap:13px}.field{display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--muted)}.field input,.field select,.field textarea{width:100%;font-size:15px}.full{grid-column:1/-1}.modalfooter{display:flex;gap:8px;justify-content:flex-end;margin-top:20px}.toast{position:fixed;z-index:30;bottom:85px;left:50%;transform:translateX(-50%);background:#183029;color:white;padding:10px 16px;border-radius:12px;box-shadow:var(--shadow);max-width:90%;text-align:center}.mobilebar{display:none}.importarea{padding:18px;border:1px dashed #a7c5af;border-radius:15px;text-align:center}.importarea input{max-width:100%}@media(max-width:760px){.side{display:none}main{padding:19px 16px 104px}.top h1{font-size:25px}.topactions .desktoponly{display:none}.cols3{grid-template-columns:repeat(2,1fr)}.cols2{grid-template-columns:1fr}.hero{min-height:140px}.hero strong{font-size:32px}.metric strong{font-size:20px}.mobilebar{display:grid;position:fixed;bottom:0;left:0;right:0;grid-template-columns:repeat(5,1fr);background:var(--card);border-top:1px solid var(--line);padding:6px 6px calc(6px + env(safe-area-inset-bottom));z-index:10}.mobilebar button{border:0;background:none;color:var(--muted);font-size:11px;padding:6px 0}.mobilebar button.active{color:var(--green);font-weight:700}.mobilebar .icon{display:block;font-size:19px;margin-bottom:3px}.modalback{align-items:flex-end;padding:0}.modal{border-radius:22px 22px 0 0;max-height:92dvh;padding-bottom:calc(20px + env(safe-area-inset-bottom))}.filters select{flex:1}.day{min-height:54px;padding:4px}.day small{font-size:9px}}@media(prefers-color-scheme:dark){:root{--bg:#101a16;--card:#1c2923;--ink:#e9f0ea;--muted:#a3b0a8;--line:#34433a;--pale:#294436;--green:#8fd2a6;--red:#e69b96;--shadow:none}.hero{background:linear-gradient(115deg,#20553f,#246547)}.day{background:#24352b}.notice{background:#403421;border-color:#665333;color:#ead3a0}}
 
@@ -3401,7 +3401,91 @@ button.home-month-stat:active{background:var(--pale);border-radius:12px}
   }
 }
 </style>
-</head><body><div class="shell"><aside class="side" data-ui-level="1"><button type="button" id="sideToggle" class="side-toggle" aria-label="收起左侧栏">‹</button><div class="brand"><span class="brand-long">我的<b>账本</b></span><span class="brand-short">账</span></div><nav id="nav"></nav><small>星账本 · Web v0.4.1 · rc13.4</small></aside><main data-ui-level="2"><div id="pageViewport"><div id="content"><div id="safeFrame" aria-hidden="true"></div><div id="controlsFrame" aria-hidden="true"></div><div id="headerFrame"><header class="top"><div><div class="eyebrow" id="status">账本数据</div><h1 id="title">我的账本</h1></div><div class="topactions"><button class="button ledger-switch" id="ledgerSwitch" hidden aria-label="切换主账本"></button><button class="button iconbutton" id="settingsBtn" aria-label="设置">⚙</button><button class="button" id="refreshBill" hidden>↻ 重新载入</button><button class="button primary" id="addBtn">＋ 记一笔</button></div></header></div><div id="pageBody"></div></div></div><div id="floatingControls"></div></main></div><div class="mobilebar" id="mobileNav"></div><button type="button" class="back-to-top" id="backToTop" hidden aria-label="回到顶部">↑ 顶部</button><div id="overlay"></div><input hidden type="file" id="folderFile" accept=".csv,.json,text/csv,application/json" webkitdirectory directory multiple><input hidden type="file" id="deltaFile" accept=".csv,text/csv"><input hidden type="file" id="configFile" accept=".json,application/json"><script>
+<style id="web-v042-safari-document-scroll">
+@media(max-width:760px){
+  html.browser-tab,
+  html.browser-tab body{
+    width:100%!important;
+    height:auto!important;
+    min-height:100%!important;
+    margin:0!important;
+    overflow-x:hidden!important;
+    overflow-y:visible!important;
+    position:static!important;
+    inset:auto!important;
+    overscroll-behavior-y:auto!important;
+  }
+  html.browser-tab body{min-height:100dvh!important;background:var(--bg)!important}
+  html.browser-tab .shell{
+    position:relative!important;
+    inset:auto!important;
+    width:100%!important;
+    height:auto!important;
+    min-height:100dvh!important;
+    display:block!important;
+    overflow:visible!important;
+  }
+  html.browser-tab main{
+    display:block!important;
+    position:relative!important;
+    inset:auto!important;
+    width:100%!important;
+    height:auto!important;
+    min-height:100dvh!important;
+    margin:0!important;
+    padding:0!important;
+    overflow:visible!important;
+  }
+  html.browser-tab #pageViewport{
+    position:relative!important;
+    inset:auto!important;
+    width:100%!important;
+    height:auto!important;
+    min-height:100dvh!important;
+    overflow:visible!important;
+    contain:none!important;
+  }
+  html.browser-tab #content{
+    position:relative!important;
+    inset:auto!important;
+    width:100%!important;
+    height:auto!important;
+    min-height:100dvh!important;
+    overflow:visible!important;
+    transform:none!important;
+    padding:0 16px calc(118px + env(safe-area-inset-bottom,0px))!important;
+    box-sizing:border-box!important;
+    overscroll-behavior-y:auto!important;
+  }
+  html.browser-tab #safeFrame{display:none!important;height:0!important}
+  html.browser-tab #controlsFrame{
+    display:block!important;
+    position:sticky!important;
+    top:0!important;
+    z-index:900!important;
+    height:auto!important;
+    min-height:0!important;
+    margin:0 -16px 0!important;
+    padding:8px 16px 10px!important;
+    background:color-mix(in srgb,var(--bg) 86%,transparent)!important;
+    backdrop-filter:blur(18px) saturate(150%)!important;
+    -webkit-backdrop-filter:blur(18px) saturate(150%)!important;
+    pointer-events:auto!important;
+  }
+  html.browser-tab #controlsFrame[hidden]{display:none!important}
+  html.browser-tab #controlsFrame .date-filter-row{margin:0!important}
+  html.browser-tab #controlsFrame .active-filters{margin:8px 0 0!important}
+  html.browser-tab #headerFrame{
+    position:relative!important;
+    z-index:auto!important;
+    padding:10px 0 14px!important;
+    background:var(--bg)!important;
+  }
+  html.browser-tab #floatingControls{display:none!important}
+  html.browser-tab .rc27-page,
+  html.browser-tab .rc62-neighbor-scene{display:none!important}
+}
+</style></head><body><div class="shell"><aside class="side" data-ui-level="1"><button type="button" id="sideToggle" class="side-toggle" aria-label="收起左侧栏">‹</button><div class="brand"><span class="brand-long">我的<b>账本</b></span><span class="brand-short">账</span></div><nav id="nav"></nav><small>星账本 · Web v0.4.2 · rc13.4</small></aside><main data-ui-level="2"><div id="pageViewport"><div id="content"><div id="safeFrame" aria-hidden="true"></div><div id="controlsFrame" aria-hidden="true"></div><div id="headerFrame"><header class="top"><div><div class="eyebrow" id="status">账本数据</div><h1 id="title">我的账本</h1></div><div class="topactions"><button class="button ledger-switch" id="ledgerSwitch" hidden aria-label="切换主账本"></button><button class="button iconbutton" id="settingsBtn" aria-label="设置">⚙</button><button class="button" id="refreshBill" hidden>↻ 重新载入</button><button class="button primary" id="addBtn">＋ 记一笔</button></div></header></div><div id="pageBody"></div></div></div><div id="floatingControls"></div></main></div><div class="mobilebar" id="mobileNav"></div><button type="button" class="back-to-top" id="backToTop" hidden aria-label="回到顶部">↑ 顶部</button><div id="overlay"></div><input hidden type="file" id="folderFile" accept=".csv,.json,text/csv,application/json" webkitdirectory directory multiple><input hidden type="file" id="deltaFile" accept=".csv,text/csv"><input hidden type="file" id="configFile" accept=".json,application/json"><script>
 // Pure Web build. The legacy Scriptable bridge is archived in GitHub.
 const BOOT=/*__BOOT__*/null;
 const COLS=['id','date','type','category','subcategory','amount','account','account2','reimbursement','note','image','role','tags','currency','merchant','book','extras','created_at','updated_at'];
@@ -3414,14 +3498,15 @@ let rows=[],revision='',native=!!BOOT?.native,section='home',year=nowYear,month=
 const PRIMARY_PAGE_ORDER=['home','month','year','accounts','search'];
 const PAGE_ORDER=[...PRIMARY_PAGE_ORDER,'settings'];
 const compactViewport=()=>matchMedia('(max-width:760px)').matches;
+const browserTabScrollMode=()=>compactViewport()&&document.documentElement.classList.contains('browser-tab');
 let rc20TransitionDir=0,rc20TransitionTimer=0;
 let rc21SettingsReturn='home';
 let rc23OldPageHTML='',rc23OldScrollY=0;
 let rc55OldFloatingHTML='',rc55OldFloatingTop=0,rc55OldFloatingVisible=false;
 let rc27Animating=false,rc27QueuedPage='';
 const rc27PageScroll=Object.fromEntries(PAGE_ORDER.map(k=>[k,0]));let rc27TargetScroll=0;
-function getPageScroll(){let content=document.querySelector('#content');return compactViewport()?(content?.scrollTop||0):(window.scrollY||document.documentElement.scrollTop||0)}
-function setPageScroll(v){v=Math.max(0,Number(v)||0);let content=document.querySelector('#content');if(compactViewport()){if(content)content.scrollTop=v}else window.scrollTo(0,v)}
+function getPageScroll(){let content=document.querySelector('#content');return compactViewport()&&!browserTabScrollMode()?(content?.scrollTop||0):(window.scrollY||document.documentElement.scrollTop||0)}
+function setPageScroll(v){v=Math.max(0,Number(v)||0);let content=document.querySelector('#content');if(compactViewport()&&!browserTabScrollMode()){if(content)content.scrollTop=v}else window.scrollTo(0,v)}
 function rc55CaptureFloating(){
  const floating=document.querySelector('#floatingControls');
  if(!floating||floating.hidden||!floating.innerHTML.trim())return {visible:false,html:'',top:0};
@@ -3438,7 +3523,7 @@ function rc20SetPage(next){
  let fromPrimary=PRIMARY_PAGE_ORDER.indexOf(section),toPrimary=PRIMARY_PAGE_ORDER.indexOf(next),
      fromPage=PAGE_ORDER.indexOf(section),toPage=PAGE_ORDER.indexOf(next),
      content=document.querySelector('#content'),
-     canAnimate=compactViewport()&&fromPrimary>=0&&toPrimary>=0&&fromPrimary!==toPrimary;
+     canAnimate=compactViewport()&&!browserTabScrollMode()&&fromPrimary>=0&&toPrimary>=0&&fromPrimary!==toPrimary;
  rc20TransitionDir=canAnimate?(toPrimary>fromPrimary?1:-1):0;
  if(fromPage>=0)rc27PageScroll[section]=getPageScroll();
  if(canAnimate){
@@ -3466,8 +3551,9 @@ function rc20AnimatePage(){
   rc20TransitionDir=0;rc23OldPageHTML='';return;
  }
 
- // Desktop has no mobile snapshot engine. Switch the single real page directly.
- if(!compactViewport()){
+ // Desktop and normal mobile browser tabs use one real document scroller.
+ // Installed PWA mode keeps the mobile snapshot engine.
+ if(!compactViewport()||browserTabScrollMode()){
   viewport.querySelectorAll('.rc27-page,.rc62-neighbor-scene').forEach(n=>n.remove());
   live.style.visibility='';
   if(floatingLive)floatingLive.style.visibility='';
@@ -4455,17 +4541,17 @@ function toast(msg){let old=$('.toast');if(old)old.remove();let d=document.creat
 
 function visualAnchorCandidates(){
   let page=$('#content');if(!page)return[];
-  let pr=page.getBoundingClientRect(),center=pr.top+pr.height/2;
+  let pr=browserTabScrollMode()?{top:0,bottom:window.innerHeight,height:window.innerHeight}:page.getBoundingClientRect(),center=pr.top+pr.height/2;
   return [...$('#pageBody').querySelectorAll('.card')].map((el,index)=>{
     let r=el.getBoundingClientRect();
     return {el,index,top:r.top,visible:r.bottom>pr.top&&r.top<pr.bottom,distance:Math.abs(r.top-center)};
   }).filter(x=>x.visible);
 }
 function captureVisualAnchor(){
-  let page=$('#content'),items=visualAnchorCandidates();if(!page||!items.length)return{scrollTop:page?.scrollTop||0,anchor:null};
+  let page=$('#content'),items=visualAnchorCandidates(),scrollTop=getPageScroll();if(!page||!items.length)return{scrollTop,anchor:null};
   items.sort((a,b)=>a.distance-b.distance);
   let x=items[0],all=[...$('#pageBody').querySelectorAll('.card')],key=x.el.dataset.visualAnchor||'';
-  return{scrollTop:page.scrollTop,anchor:{key,index:all.indexOf(x.el),top:x.top}};
+  return{scrollTop,anchor:{key,index:all.indexOf(x.el),top:x.top}};
 }
 function restoreVisualAnchor(state){
   let page=$('#content');if(!page||!state)return;
@@ -4474,9 +4560,9 @@ function restoreVisualAnchor(state){
   if(!target&&a&&a.index>=0)target=$('#pageBody').querySelectorAll('.card')[a.index]||null;
   if(target){
     let delta=target.getBoundingClientRect().top-a.top;
-    if(Number.isFinite(delta)&&Math.abs(delta)>.25)page.scrollTop+=delta;
-  }else page.scrollTop=state.scrollTop||0;
-  rc27TargetScroll=page.scrollTop||0;
+    if(Number.isFinite(delta)&&Math.abs(delta)>.25)setPageScroll(getPageScroll()+delta);
+  }else setPageScroll(state.scrollTop||0);
+  rc27TargetScroll=getPageScroll();
 }
 function renderKeepingVisualAnchor(mutator){
   let state=captureVisualAnchor();
@@ -4512,12 +4598,17 @@ function render(){
  if(headerFrame)headerFrame.hidden=false;
 
  if(compactViewport()){
-  if(controls){
-   controls.innerHTML='';
-   controls.hidden=!hasTopFilters;
-   if(!hasTopFilters)controls.style.removeProperty('height');
+  if(browserTabScrollMode()){
+   if(controls){controls.hidden=!hasTopFilters;controls.innerHTML=hasTopFilters?filterHTML:'';controls.style.removeProperty('height')}
+   if(floating){floating.hidden=true;floating.innerHTML=''}
+  }else{
+   if(controls){
+    controls.innerHTML='';
+    controls.hidden=!hasTopFilters;
+    if(!hasTopFilters)controls.style.removeProperty('height');
+   }
+   if(floating){floating.hidden=!hasTopFilters;floating.innerHTML=filterHTML}
   }
-  if(floating){floating.hidden=!hasTopFilters;floating.innerHTML=filterHTML}
  }else{
   // Desktop keeps the same order in normal flow: filters first, title/actions second.
   if(controls){controls.hidden=!hasTopFilters;controls.innerHTML=filterHTML}
@@ -4536,7 +4627,7 @@ function render(){
  requestAnimationFrame(()=>{updateBackToTop();window.__rc51SyncFloating?.();if(compactViewport())window.__rc62AfterRender?.()});
 }
 
-function updateBackToTop(){let button=$('#backToTop'),page=$('#content');if(!button||!page)return;let scroll=page.scrollTop,height=page.scrollHeight,viewport=page.clientHeight;button.hidden=height<=viewport+300||scroll<720||!!$('.entryback,.modalback')}
+function updateBackToTop(){let button=$('#backToTop'),page=$('#content');if(!button||!page)return;let browser=browserTabScrollMode(),scroll=browser?getPageScroll():page.scrollTop,height=browser?Math.max(document.body.scrollHeight,document.documentElement.scrollHeight):page.scrollHeight,viewport=browser?window.innerHeight:page.clientHeight;button.hidden=height<=viewport+300||scroll<720||!!$('.entryback,.modalback')}
 window.addEventListener('scroll',updateBackToTop,{passive:true});
 $('#content')?.addEventListener('scroll',updateBackToTop,{passive:true});window.addEventListener('resize',updateBackToTop);
 
@@ -5210,6 +5301,7 @@ document.addEventListener('change',e=>{
 
 <script id="rc114-rc62-edge-overscroll-guard">
 (()=>{
+  if(document.documentElement.classList.contains('browser-tab'))return;
   const scroller=document.querySelector('#content');
   if(!scroller)return;
   let lastX=null,lastY=null;
@@ -5234,6 +5326,7 @@ document.addEventListener('change',e=>{
 
 <script id="rc114-rc62-interactive-swipe">
 (()=>{
+ if(document.documentElement.classList.contains('browser-tab'))return;
  const viewport=document.querySelector('#pageViewport');
  const live=document.querySelector('#content');
  const floatingLive=document.querySelector('#floatingControls');
