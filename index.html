@@ -3485,7 +3485,45 @@ button.home-month-stat:active{background:var(--pale);border-radius:12px}
   html.browser-tab .rc27-page,
   html.browser-tab .rc62-neighbor-scene{display:none!important}
 }
-</style></head><body><div class="shell"><aside class="side" data-ui-level="1"><button type="button" id="sideToggle" class="side-toggle" aria-label="收起左侧栏">‹</button><div class="brand"><span class="brand-long">我的<b>账本</b></span><span class="brand-short">账</span></div><nav id="nav"></nav><small>星账本 · Web v0.4.2 · rc13.4</small></aside><main data-ui-level="2"><div id="pageViewport"><div id="content"><div id="safeFrame" aria-hidden="true"></div><div id="controlsFrame" aria-hidden="true"></div><div id="headerFrame"><header class="top"><div><div class="eyebrow" id="status">账本数据</div><h1 id="title">我的账本</h1></div><div class="topactions"><button class="button ledger-switch" id="ledgerSwitch" hidden aria-label="切换主账本"></button><button class="button iconbutton" id="settingsBtn" aria-label="设置">⚙</button><button class="button" id="refreshBill" hidden>↻ 重新载入</button><button class="button primary" id="addBtn">＋ 记一笔</button></div></header></div><div id="pageBody"></div></div></div><div id="floatingControls"></div></main></div><div class="mobilebar" id="mobileNav"></div><button type="button" class="back-to-top" id="backToTop" hidden aria-label="回到顶部">↑ 顶部</button><div id="overlay"></div><input hidden type="file" id="folderFile" accept=".csv,.json,text/csv,application/json" webkitdirectory directory multiple><input hidden type="file" id="deltaFile" accept=".csv,text/csv"><input hidden type="file" id="configFile" accept=".json,application/json"><script>
+</style><style id="web-v043-safari-glass-edge">
+@media(max-width:760px){
+  /*
+   * Safari 26 samples viewport-edge constrained elements when painting its
+   * top chrome. Keep the sticky structural frame transparent and inset, and
+   * put the frosted material on its children instead.
+   */
+  html.browser-tab #controlsFrame{
+    top:8px!important;
+    background:transparent!important;
+    backdrop-filter:none!important;
+    -webkit-backdrop-filter:none!important;
+    padding:0 0 10px!important;
+    margin:0!important;
+  }
+  html.browser-tab #controlsFrame .date-filter-row{
+    margin:0!important;
+    padding:0!important;
+    border-radius:17px!important;
+    background:color-mix(in srgb,var(--card) 58%,transparent)!important;
+    box-shadow:0 8px 28px #0002!important;
+    backdrop-filter:blur(22px) saturate(175%)!important;
+    -webkit-backdrop-filter:blur(22px) saturate(175%)!important;
+  }
+  html.browser-tab #controlsFrame .date-banner,
+  html.browser-tab #controlsFrame .date-filter-book{
+    background:color-mix(in srgb,var(--card) 76%,transparent)!important;
+  }
+  html.browser-tab #controlsFrame .date-banner select{
+    background-color:transparent!important;
+  }
+  html.browser-tab #controlsFrame .active-filters{
+    margin:8px 0 0!important;
+    background:color-mix(in srgb,var(--card) 64%,transparent)!important;
+    backdrop-filter:blur(22px) saturate(175%)!important;
+    -webkit-backdrop-filter:blur(22px) saturate(175%)!important;
+  }
+}
+</style></head><body><div class="shell"><aside class="side" data-ui-level="1"><button type="button" id="sideToggle" class="side-toggle" aria-label="收起左侧栏">‹</button><div class="brand"><span class="brand-long">我的<b>账本</b></span><span class="brand-short">账</span></div><nav id="nav"></nav><small>星账本 · Web v0.4.3 · rc13.4</small></aside><main data-ui-level="2"><div id="pageViewport"><div id="content"><div id="safeFrame" aria-hidden="true"></div><div id="controlsFrame" aria-hidden="true"></div><div id="headerFrame"><header class="top"><div><div class="eyebrow" id="status">账本数据</div><h1 id="title">我的账本</h1></div><div class="topactions"><button class="button ledger-switch" id="ledgerSwitch" hidden aria-label="切换主账本"></button><button class="button iconbutton" id="settingsBtn" aria-label="设置">⚙</button><button class="button" id="refreshBill" hidden>↻ 重新载入</button><button class="button primary" id="addBtn">＋ 记一笔</button></div></header></div><div id="pageBody"></div></div></div><div id="floatingControls"></div></main></div><div class="mobilebar" id="mobileNav"></div><button type="button" class="back-to-top" id="backToTop" hidden aria-label="回到顶部">↑ 顶部</button><div id="overlay"></div><input hidden type="file" id="folderFile" accept=".csv,.json,text/csv,application/json" webkitdirectory directory multiple><input hidden type="file" id="deltaFile" accept=".csv,text/csv"><input hidden type="file" id="configFile" accept=".json,application/json"><script>
 // Pure Web build. The legacy Scriptable bridge is archived in GitHub.
 const BOOT=/*__BOOT__*/null;
 const COLS=['id','date','type','category','subcategory','amount','account','account2','reimbursement','note','image','role','tags','currency','merchant','book','extras','created_at','updated_at'];
