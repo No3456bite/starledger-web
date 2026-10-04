@@ -4173,7 +4173,7 @@ function ocrMerchantHistory(){
 }
 function ocrContext(){
  let now=new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,19).replace('T',' ');
- return {now,accounts:accountNames(),accountAliases:prefs.accountAliases||{},books:orderedBookNames(false),defaultBook:defaultBookName(),history:rows,rows,merchants:ocrMerchantHistory()}
+ return {now,accounts:accountNames(),accountAliases:prefs.accountAliases||{},books:orderedBookNames(false),defaultBook:recentBookName(),history:rows,rows,merchants:ocrMerchantHistory()}
 }
 function ocrSuggestionToRecord(suggestion={}){
  let existingAccounts=accountNames(),existingBooks=orderedBookNames(false),type=String(ocrFieldValue(suggestion.type)||'支出');
@@ -4181,7 +4181,7 @@ function ocrSuggestionToRecord(suggestion={}){
  let rawAmount=Number(ocrFieldValue(suggestion.amount)),account=String(ocrFieldValue(suggestion.account)||''),account2=String(ocrFieldValue(suggestion.account2)||''),suggestedBook=String(ocrFieldValue(suggestion.book)||'').trim();
  if(account&&!existingAccounts.includes(account))account='';
  if(account2&&!existingAccounts.includes(account2))account2='';
- if(!existingBooks.includes(suggestedBook))suggestedBook=defaultBookName();
+ if(!existingBooks.includes(suggestedBook))suggestedBook=recentBookName();
  return {
   type,
   amount:Number.isFinite(rawAmount)&&rawAmount>=0?String(Math.abs(rawAmount)):'',
@@ -4481,6 +4481,17 @@ function orderedBookNames(includeHidden=false){
  return includeHidden?names:names.filter(name=>!bookProfile(name).hidden)
 }
 function defaultBookName(){return orderedBookNames(false)[0]||orderedBookNames(true)[0]||'日常账本'}
+function recentBookName(){
+ let visible=new Set(orderedBookNames(false));
+ let latest=rows.filter(r=>visible.has(String(r.book||'').trim())).slice().sort((a,b)=>{
+  let byDate=String(b.date||'').localeCompare(String(a.date||''));
+  if(byDate)return byDate;
+  let byStamp=sourceStamp(b)-sourceStamp(a);
+  if(byStamp)return byStamp;
+  return String(b.id||'').localeCompare(String(a.id||''));
+ })[0];
+ return String(latest?.book||'').trim()||defaultBookName()
+}
 function unique(field){let options=BOOT?.options,source=field==='currency'?options?.currencies:null;if(field==='book')return orderedBookNames(false);return source?source.map(x=>x.name):[...new Set(rows.map(r=>r[field]).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'zh-CN'))}
 function accountNames(){let preferred=BOOT?.options?.accounts?.map(x=>x.name)||accountData().map(([k])=>k),names=[...new Set(preferred)].filter(v=>v&&!prefs.accountProfiles?.[v]?.hidden&&!(prefs.deletedAccounts||[]).includes(v));return orderedAccountNameList(names)}
 
@@ -4775,10 +4786,10 @@ function yearly(){let rs=filtered(rows,{yearOnly:true}),months=Array.from({lengt
 function statsPage(){return statsMode==='year'?yearly():monthly()}
 function bookPage(){
  let names=orderedBookNames(true),defaultName=defaultBookName(),total=names.reduce((n,name)=>n+rows.filter(r=>r.book===name).length,0);
- return `<div class="notice book-page-note">第一项可用账本是默认账本；OCR 和新建账单优先使用它。长按账本名称可拖动排序。</div>
+ return `<div class="notice book-page-note">第一项可用账本是普通新记账的默认账本；OCR 会沿用最近一笔账单使用的账本。长按账本名称可拖动排序。</div>
  <div class="card section book-list-card">
   <div class="sectionhead"><h2>账本 · ${names.length}</h2><span class="group-total">共 ${total} 笔账单</span></div>
-  <div class="book-list">${names.map((name,i)=>{let p=bookProfile(name),count=rows.filter(r=>r.book===name).length;return `<div class="book-entry ${p.hidden?'book-hidden':''}" data-bookentry="${esc(name)}"><button type="button" class="book-item book-name" data-bookname="${esc(name)}" aria-label="管理账本 ${esc(name)}"><span><b>${esc(name)}</b><small>${defaultName===name?'默认 · OCR / 新记账':''}${p.hidden?(defaultName===name?' · ':'')+'已隐藏':''}${p.note?' · '+esc(p.note):''}</small></span></button><button type="button" class="book-item book-count" data-bookname="${esc(name)}"><span><b>${count} 笔</b><small>管理　›</small></span></button></div>`}).join('')||'<div class="empty">还没有账本</div>'}</div>
+  <div class="book-list">${names.map((name,i)=>{let p=bookProfile(name),count=rows.filter(r=>r.book===name).length;return `<div class="book-entry ${p.hidden?'book-hidden':''}" data-bookentry="${esc(name)}"><button type="button" class="book-item book-name" data-bookname="${esc(name)}" aria-label="管理账本 ${esc(name)}"><span><b>${esc(name)}</b><small>${defaultName===name?'默认 · 新记账':''}${p.hidden?(defaultName===name?' · ':'')+'已隐藏':''}${p.note?' · '+esc(p.note):''}</small></span></button><button type="button" class="book-item book-count" data-bookname="${esc(name)}"><span><b>${count} 笔</b><small>管理　›</small></span></button></div>`}).join('')||'<div class="empty">还没有账本</div>'}</div>
  </div>
  <button class="button add-group" id="addInnerBook">＋ 新建账本</button>
  <p class="muted">隐藏只会从新记账和筛选选择器中移除，历史账单仍保留。删除有账单的账本时必须先迁移到其他账本。</p>`
@@ -4875,13 +4886,17 @@ function render(){
 
  if(compactViewport()){
   if(browserTabScrollMode()){
-   if(controls){controls.hidden=!hasTopFilters;controls.innerHTML=hasTopFilters?filterHTML:'';controls.style.removeProperty('height')}
+   if(controls){
+    controls.hidden=false;
+    controls.innerHTML=hasTopFilters?filterHTML:'';
+    controls.style.setProperty('height','62px','important');
+   }
    if(floating){floating.hidden=true;floating.innerHTML=''}
   }else{
    if(controls){
     controls.innerHTML='';
-    controls.hidden=!hasTopFilters;
-    if(!hasTopFilters)controls.style.removeProperty('height');
+    controls.hidden=false;
+    if(!hasTopFilters)controls.style.setProperty('height','62px','important');
    }
    if(floating){floating.hidden=!hasTopFilters;floating.innerHTML=filterHTML}
   }
@@ -5683,8 +5698,8 @@ document.addEventListener('change',e=>{
    if(previewHeader)previewHeader.hidden=false;
    if(slot){
     slot.innerHTML='';
-    slot.hidden=!hasTopFilters;
-    if(!hasTopFilters)slot.style.removeProperty('height');
+    slot.hidden=false;
+    slot.style.setProperty('height','62px','important');
    }
 
    const floatState=hasTopFilters
@@ -6682,7 +6697,7 @@ requestAnimationFrame(()=>{try{render()}catch(e){console.warn('rc12 initial rend
   function bookForm(name){
     name=cleanBookName(name);if(!name)return;
     let profile=bookProfile(name),count=rows.filter(r=>r.book===name).length,isDefault=defaultBookName()===name;
-    $('#overlay').innerHTML=`<div class="modalback account-dialog-back"><div class="modal account-config account-config-compact"><div class="account-config-head"><h2>${esc(name)}</h2><div class="account-head-actions">${isDefault?'':'<button type="button" data-bookdefault="'+esc(name)+'">设为默认</button>'}<button type="button" class="danger" data-bookdelete="${esc(name)}">删除</button></div></div><p class="muted account-summary">${count} 笔账单 · ${isDefault?'当前默认账本':'排序第 '+(orderedBookNames(true).indexOf(name)+1)+' 位'}</p><form id="bookProfileForm" data-book="${esc(name)}"><label class="field account-rename-full">账本名称<input name="name" maxlength="60" value="${esc(name)}" autocomplete="off"></label><label class="field include-toggle"><input type="checkbox" name="hidden" ${profile.hidden?'checked':''}>隐藏此账本</label><label class="field account-note-full">备注<input name="note" maxlength="160" value="${esc(profile.note)}" placeholder="可选"></label><p class="muted account-config-hint">列表第一项就是默认账本。隐藏后不会出现在新记账、OCR 默认值和筛选选项中；历史账单不会删除。</p><div class="modalfooter"><button type="button" class="button" id="closeBtn">取消</button><button type="submit" class="button primary">保存账本</button></div></form></div></div>`;
+    $('#overlay').innerHTML=`<div class="modalback account-dialog-back"><div class="modal account-config account-config-compact"><div class="account-config-head"><h2>${esc(name)}</h2><div class="account-head-actions">${isDefault?'':'<button type="button" data-bookdefault="'+esc(name)+'">设为默认</button>'}<button type="button" class="danger" data-bookdelete="${esc(name)}">删除</button></div></div><p class="muted account-summary">${count} 笔账单 · ${isDefault?'当前默认账本':'排序第 '+(orderedBookNames(true).indexOf(name)+1)+' 位'}</p><form id="bookProfileForm" data-book="${esc(name)}"><label class="field account-rename-full">账本名称<input name="name" maxlength="60" value="${esc(name)}" autocomplete="off"></label><label class="field include-toggle"><input type="checkbox" name="hidden" ${profile.hidden?'checked':''}>隐藏此账本</label><label class="field account-note-full">备注<input name="note" maxlength="160" value="${esc(profile.note)}" placeholder="可选"></label><p class="muted account-config-hint">列表第一项是普通新记账默认账本。OCR 优先沿用最近一笔账单的账本；若该账本被隐藏或删除，再退回第一项可用账本。隐藏不会删除历史账单。</p><div class="modalfooter"><button type="button" class="button" id="closeBtn">取消</button><button type="submit" class="button primary">保存账本</button></div></form></div></div>`;
     if(compactViewport())document.body.classList.add('dialog-open');activateAppTertiary('account')
   }
   function newInnerBookForm(){
@@ -6779,4 +6794,212 @@ requestAnimationFrame(()=>{try{render()}catch(e){console.warn('rc12 initial rend
   document.addEventListener('contextmenu',e=>{if(e.target.closest('.book-entry[data-bookentry]')){e.preventDefault();clearHold()}});
 })();
 </script>
+
+<style id="web-v055-stable-three-row-header">
+@media(max-width:760px){
+  /*
+   * Stable mobile header skeleton:
+   * row 1 = filter slot (always reserved)
+   * row 2 = narrow ledger/status line
+   * row 3 = page title + actions (fixed height)
+   */
+  #controlsFrame,
+  #controlsFrame[hidden]{
+    display:block!important;
+    min-height:62px!important;
+    height:62px!important;
+    margin:0!important;
+    padding:0!important;
+    background:transparent!important;
+    box-sizing:border-box!important;
+  }
+
+  #headerFrame{
+    display:block!important;
+    min-height:78px!important;
+    height:78px!important;
+    padding:0 16px 6px!important;
+    margin:0!important;
+    box-sizing:border-box!important;
+    background:var(--bg)!important;
+  }
+  #headerFrame .top{
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr) auto!important;
+    grid-template-rows:22px 50px!important;
+    column-gap:8px!important;
+    row-gap:0!important;
+    align-items:center!important;
+    width:100%!important;
+    height:72px!important;
+    min-height:72px!important;
+    margin:0!important;
+    padding:0!important;
+  }
+  #headerFrame .top>div:first-child{
+    display:contents!important;
+  }
+  #headerFrame .eyebrow{
+    grid-column:1/-1!important;
+    grid-row:1!important;
+    display:block!important;
+    width:100%!important;
+    min-width:0!important;
+    height:22px!important;
+    line-height:22px!important;
+    margin:0!important;
+    padding:0!important;
+    font-size:12px!important;
+    white-space:nowrap!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+    align-self:center!important;
+  }
+  #headerFrame .top h1{
+    grid-column:1!important;
+    grid-row:2!important;
+    display:flex!important;
+    align-items:center!important;
+    min-width:0!important;
+    width:auto!important;
+    height:50px!important;
+    min-height:50px!important;
+    margin:0!important;
+    padding:0!important;
+    line-height:50px!important;
+    font-size:25px!important;
+    box-sizing:border-box!important;
+  }
+  #headerFrame .topactions{
+    grid-column:2!important;
+    grid-row:2!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:flex-end!important;
+    align-self:center!important;
+    width:auto!important;
+    height:50px!important;
+    min-height:50px!important;
+    margin:0!important;
+    padding:0!important;
+    gap:6px!important;
+    flex-wrap:nowrap!important;
+  }
+  #headerFrame #settingsBtn,
+  #headerFrame #refreshBill,
+  #headerFrame #addBtn,
+  #headerFrame .ledger-switch{
+    height:40px!important;
+    min-height:40px!important;
+    max-height:40px!important;
+    box-sizing:border-box!important;
+  }
+  #headerFrame #settingsBtn{width:40px!important;min-width:40px!important;padding:0!important}
+  #headerFrame #refreshBill{padding:0 10px!important}
+  #headerFrame #addBtn{padding:0 12px!important}
+  #headerFrame .ledger-switch{max-width:86px!important}
+  .stats-title-switch{
+    display:inline-flex!important;
+    align-items:center!important;
+    height:40px!important;
+    min-height:40px!important;
+    max-height:40px!important;
+    padding:3px!important;
+    box-sizing:border-box!important;
+  }
+  .stats-title-switch button{
+    height:32px!important;
+    min-height:32px!important;
+    padding:0 9px!important;
+    line-height:32px!important;
+    box-sizing:border-box!important;
+  }
+
+  /* Normal Safari tabs: restore the sticky first row without the old
+     viewport-edge blur layer that caused the black-edge artifact. */
+  html.browser-tab #controlsFrame,
+  html.browser-tab #controlsFrame[hidden],
+  html.browser-tab.safari-sticky-ready #controlsFrame{
+    display:block!important;
+    position:sticky!important;
+    top:8px!important;
+    z-index:900!important;
+    min-height:62px!important;
+    height:62px!important;
+    margin:0!important;
+    padding:0 0 10px!important;
+    background:transparent!important;
+    backdrop-filter:none!important;
+    -webkit-backdrop-filter:none!important;
+    pointer-events:auto!important;
+    box-sizing:border-box!important;
+  }
+  html.browser-tab #controlsFrame:empty{
+    pointer-events:none!important;
+  }
+  html.browser-tab #controlsFrame .date-filter-row{
+    height:52px!important;
+    min-height:52px!important;
+    margin:0!important;
+  }
+  html.browser-tab #headerFrame{
+    min-height:78px!important;
+    height:78px!important;
+    padding:0 0 6px!important;
+  }
+
+  /* PWA/WebView keeps the floating filter, but row 1 still reserves 62px
+     on pages that do not have filters. */
+  html:not(.browser-tab) #controlsFrame{
+    min-height:62px!important;
+  }
+}
+
+/* Drag insertion indicator: same spindle paint as the monthly bill divider. */
+.book-entry[data-bookentry],
+.account-entry[data-accountentry]{
+  position:relative!important;
+}
+.book-entry.book-drop-before,
+.book-entry.book-drop-after,
+.account-entry.account-drop-before,
+.account-entry.account-drop-after{
+  box-shadow:none!important;
+}
+.book-entry.book-drop-before::after,
+.book-entry.book-drop-after::after,
+.account-entry.account-drop-before::after,
+.account-entry.account-drop-after::after{
+  content:""!important;
+  position:absolute!important;
+  z-index:12!important;
+  left:0!important;
+  right:0!important;
+  width:auto!important;
+  height:2.25px!important;
+  border:0!important;
+  border-radius:50%!important;
+  pointer-events:none!important;
+  background:var(--spindle-paint)!important;
+  filter:
+    drop-shadow(0 0 2px var(--spindle-glow))
+    drop-shadow(0 0 5px var(--spindle-glow-soft))!important;
+  opacity:0;
+  animation:slDropSpindleIn 100ms ease-out forwards!important;
+}
+.book-entry.book-drop-before::after,
+.account-entry.account-drop-before::after{
+  top:-1px!important;
+  bottom:auto!important;
+}
+.book-entry.book-drop-after::after,
+.account-entry.account-drop-after::after{
+  top:auto!important;
+  bottom:-1px!important;
+}
+@keyframes slDropSpindleIn{
+  from{opacity:0}
+  to{opacity:1}
+}
+</style>
 </body></html>
