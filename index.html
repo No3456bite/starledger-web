@@ -3580,12 +3580,13 @@ button.home-month-stat:active{background:var(--pale);border-radius:12px}
 
 
 
-<style id="web-v050-safari-modal-stable-chrome">
+
+
+<style id="web-v051-safari-document-modal">
 @media(max-width:760px){
   /*
-   * Keep the Safari document itself scrollable while a modal is open.
-   * Locking body overflow makes iOS Safari restore its solid top/bottom
-   * browser chrome and resize the visual viewport.
+   * Safari browser-tab modals are document-positioned, not viewport-fixed.
+   * JS places #overlay over the current visualViewport in document coords.
    */
   html.browser-tab body.dialog-open{
     overflow-y:visible!important;
@@ -3594,10 +3595,13 @@ button.home-month-stat:active{background:var(--pale);border-radius:12px}
     position:static!important;
   }
 
-  html.browser-tab #overlay:has(> .entryback),
-  html.browser-tab #overlay:has(> .account-dialog-back){
-    position:fixed!important;
-    inset:0!important;
+  html.browser-tab #overlay.safari-document-modal{
+    position:absolute!important;
+    inset:auto!important;
+    left:var(--sl-modal-left,0px)!important;
+    top:var(--sl-modal-top,0px)!important;
+    width:var(--sl-modal-width,100%)!important;
+    height:var(--sl-modal-height,100vh)!important;
     z-index:5000!important;
     pointer-events:auto!important;
     overflow:hidden!important;
@@ -3606,33 +3610,40 @@ button.home-month-stat:active{background:var(--pale);border-radius:12px}
     overscroll-behavior:contain!important;
   }
 
-  /*
-   * No 100dvh/100vw sizing here. inset:0 follows the existing visual
-   * viewport without forcing Safari to recalculate around browser chrome.
-   */
-  html.browser-tab .entryback,
-  html.browser-tab .account-dialog-back{
+  html.browser-tab #overlay.safari-document-modal>.entryback,
+  html.browser-tab #overlay.safari-document-modal>.account-dialog-back{
     position:absolute!important;
     inset:0!important;
+    width:auto!important;
+    height:auto!important;
     z-index:1!important;
     background:rgba(0,0,0,.64)!important;
     backdrop-filter:none!important;
     -webkit-backdrop-filter:none!important;
     isolation:auto!important;
+    overflow:hidden!important;
     overscroll-behavior:contain!important;
     touch-action:none!important;
   }
 
-  html.browser-tab .entryback>.entry,
-  html.browser-tab .account-dialog-back>.modal{
+  html.browser-tab #overlay.safari-document-modal>.entryback>.entry,
+  html.browser-tab #overlay.safari-document-modal>.account-dialog-back>.modal{
     position:relative!important;
     z-index:2!important;
     touch-action:pan-y!important;
     overscroll-behavior:contain!important;
   }
 
-  html.browser-tab .entryback::before,
-  html.browser-tab .account-dialog-back::before{
+  html.browser-tab #overlay.safari-document-modal>.entryback>.entry{
+    max-height:calc(var(--sl-modal-height,100vh) - 16px)!important;
+  }
+
+  html.browser-tab #overlay.safari-document-modal>.account-dialog-back>.modal{
+    max-height:min(calc(var(--sl-modal-height,100vh) - 32px),720px)!important;
+  }
+
+  html.browser-tab #overlay.safari-document-modal>.entryback::before,
+  html.browser-tab #overlay.safari-document-modal>.account-dialog-back::before{
     content:none!important;
     display:none!important;
   }
@@ -6328,6 +6339,59 @@ requestAnimationFrame(()=>{try{render()}catch(e){console.warn('rc12 initial rend
 </script>
 
 <script id="starledger-pwa-register">if('serviceWorker' in navigator&&location.protocol==='https:')window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));</script>
+
+<script id="web-v051-safari-document-modal-controller">
+(()=>{
+  const root=document.documentElement;
+  const overlay=document.getElementById('overlay');
+  if(!overlay||!root.classList.contains('browser-tab'))return;
+
+  let modalActive=false;
+  const isPhone=()=>matchMedia('(max-width:760px)').matches;
+  const hasPrimaryModal=()=>!!overlay.querySelector(':scope > .entryback, :scope > .account-dialog-back');
+
+  const place=()=>{
+    if(!modalActive||!isPhone())return;
+    const vv=window.visualViewport;
+    const scrollX=window.scrollX||document.documentElement.scrollLeft||0;
+    const scrollY=window.scrollY||document.documentElement.scrollTop||0;
+    const left=scrollX+(vv?.offsetLeft||0);
+    const top=scrollY+(vv?.offsetTop||0);
+    const width=vv?.width||document.documentElement.clientWidth||window.innerWidth;
+    const height=vv?.height||window.innerHeight;
+    overlay.style.setProperty('--sl-modal-left',left+'px');
+    overlay.style.setProperty('--sl-modal-top',top+'px');
+    overlay.style.setProperty('--sl-modal-width',width+'px');
+    overlay.style.setProperty('--sl-modal-height',height+'px');
+  };
+
+  const clear=()=>{
+    modalActive=false;
+    overlay.classList.remove('safari-document-modal');
+    for(const name of ['--sl-modal-left','--sl-modal-top','--sl-modal-width','--sl-modal-height']){
+      overlay.style.removeProperty(name);
+    }
+  };
+
+  const sync=()=>{
+    const active=isPhone()&&hasPrimaryModal();
+    if(active){
+      modalActive=true;
+      overlay.classList.add('safari-document-modal');
+      place();
+    }else if(modalActive){
+      clear();
+    }
+  };
+
+  new MutationObserver(sync).observe(overlay,{childList:true});
+  window.addEventListener('resize',place,{passive:true});
+  window.addEventListener('orientationchange',place,{passive:true});
+  window.visualViewport?.addEventListener('resize',place,{passive:true});
+  window.visualViewport?.addEventListener('scroll',place,{passive:true});
+  sync();
+})();
+</script>
 <script id="web-v044-browser-tab-interactions">
 (()=>{
   const root=document.documentElement;
