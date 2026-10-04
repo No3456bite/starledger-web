@@ -4484,10 +4484,13 @@ function defaultBookName(){return orderedBookNames(false)[0]||orderedBookNames(t
 function recentBookName(){
  let visible=new Set(orderedBookNames(false));
  let latest=rows.filter(r=>visible.has(String(r.book||'').trim())).slice().sort((a,b)=>{
-  let byDate=String(b.date||'').localeCompare(String(a.date||''));
-  if(byDate)return byDate;
+  let ac=Date.parse(String(a.created_at||'')),bc=Date.parse(String(b.created_at||''));
+  ac=Number.isFinite(ac)?ac:0;bc=Number.isFinite(bc)?bc:0;
+  if(bc!==ac)return bc-ac;
   let byStamp=sourceStamp(b)-sourceStamp(a);
   if(byStamp)return byStamp;
+  let byDate=String(b.date||'').localeCompare(String(a.date||''));
+  if(byDate)return byDate;
   return String(b.id||'').localeCompare(String(a.id||''));
  })[0];
  return String(latest?.book||'').trim()||defaultBookName()
