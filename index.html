@@ -6475,16 +6475,10 @@ requestAnimationFrame(()=>{try{render()}catch(e){console.warn('rc12 initial rend
   const floating=document.querySelector('#floatingControls');
   if(!live)return;
 
-  // Stable top-edge sampling anchor for Safari 26 chrome tint.
-  // Bottom is deliberately left to Safari's native glass treatment.
-  if(!document.getElementById('safariTintTop')){
-    const el=document.createElement('div');
-    el.id='safariTintTop';
-    el.className='safari-tint-anchor safari-tint-top';
-    el.setAttribute('aria-hidden','true');
-    document.body.appendChild(el);
-  }
-  document.getElementById('safariTintBottom')?.remove();
+  // The Safari tint-anchor experiment is intentionally disabled:
+  // transparent/off-screen anchors are not useful sampling targets, while
+  // visible anchors cause chrome tint blocks. Keep the page edge native.
+  document.querySelectorAll('.safari-tint-anchor').forEach(el=>el.remove());
 
   let gesture=null,busy=false,stage=null,currentFilter=null,targetFilter=null,settleTimer=0,suppressUntil=0,cacheToken=0;
   const pageCache=new Map();
@@ -6562,32 +6556,73 @@ requestAnimationFrame(()=>{try{render()}catch(e){console.warn('rc12 initial rend
     }
   }
 
+  let cacheStateKey='';
+
+  function stateKey(){
+    return [
+      revision,
+      year,month,book,query,kind,account,category,subcategory,currencyFilter,day,
+      statsMode,searchPeriod,searchDateMode,searchRangeStart,searchRangeEnd,
+      Number(prefs?._starConfigUpdatedAt||0)
+    ].join('|');
+  }
+
+  function captureCurrent(){
+    if(!PRIMARY_PAGE_ORDER.includes(section)||busy)return;
+    pageCache.set(section,{
+      html:currentSnapshot(),
+      filterHTML:hasFilters(section)
+        ?(floating&&!floating.hidden&&floating.innerHTML.trim()?floating.innerHTML:filterHTMLFor(section))
+        :'',
+      hasFilter:hasFilters(section),
+      retained:true
+    });
+  }
+
   function buildCache(){
+    const key=stateKey();
+    if(cacheStateKey&&cacheStateKey!==key){
+      pageCache.clear();
+    }
+    cacheStateKey=key;
+
+    // Always retain the real page exactly as the user last left it.
+    captureCurrent();
+
     const token=++cacheToken;
     const run=()=>{
       if(token!==cacheToken||busy)return;
-      const next=new Map();
       for(const target of PRIMARY_PAGE_ORDER){
-        next.set(target,{
+        if(pageCache.has(target))continue;
+        pageCache.set(target,{
           html:pageHTMLFor(target),
           filterHTML:filterHTMLFor(target),
-          hasFilter:hasFilters(target)
+          hasFilter:hasFilters(target),
+          retained:false
         });
       }
-      if(token!==cacheToken)return;
-      pageCache.clear();
-      for(const [k,v] of next)pageCache.set(k,v);
     };
     if('requestIdleCallback' in window)requestIdleCallback(run,{timeout:220});
     else setTimeout(run,45);
   }
+
   window.__browserPagerAfterRender=buildCache;
-  window.__browserPagerInvalidate=()=>{++cacheToken;pageCache.clear();buildCache()};
+  window.__browserPagerInvalidate=()=>{
+    ++cacheToken;
+    cacheStateKey='';
+    pageCache.clear();
+    buildCache();
+  };
 
   function dataFor(target){
     let data=pageCache.get(target);
     if(!data){
-      data={html:pageHTMLFor(target),filterHTML:filterHTMLFor(target),hasFilter:hasFilters(target)};
+      data={
+        html:pageHTMLFor(target),
+        filterHTML:filterHTMLFor(target),
+        hasFilter:hasFilters(target),
+        retained:false
+      };
       pageCache.set(target,data);
     }
     return data;
@@ -6622,6 +6657,8 @@ requestAnimationFrame(()=>{try{render()}catch(e){console.warn('rc12 initial rend
 
   function makeStage(target,dir){
     removeStage();
+    // Preserve the exact page being left before any filter snapshot is hidden.
+    captureCurrent();
     const box=viewportBox(),targetData=dataFor(target);
     const holder=document.createElement('div');
     holder.className='browser-pager-stage';
@@ -7556,32 +7593,8 @@ requestAnimationFrame(()=>{try{render()}catch(e){console.warn('rc12 initial rend
     font-size:11px!important;
   }
 }
-</style><style id="web-v060-safari-tint-filter-handoff">
+</style><style id="web-v060-safari-filter-handoff">
 @media(max-width:760px){
-  html.browser-tab .safari-tint-anchor{
-    display:block!important;
-    position:fixed!important;
-    left:0!important;
-    right:0!important;
-    width:100%!important;
-    height:2px!important;
-    z-index:2!important;
-    pointer-events:none!important;
-    background:#f7f7f5!important;
-    opacity:1!important;
-    transform:none!important;
-    filter:none!important;
-    backdrop-filter:none!important;
-    -webkit-backdrop-filter:none!important;
-    box-shadow:none!important;
-    contain:none!important;
-  }
-  html.browser-tab[data-mode="dark"] .safari-tint-anchor{
-    background:#1c1c1e!important;
-  }
-  html.browser-tab .safari-tint-top{top:0!important;bottom:auto!important}
-  html.browser-tab .safari-tint-bottom{display:none!important}
-
   html.browser-tab .browser-pager-filter-current,
   html.browser-tab .browser-pager-filter-target{
     display:block!important;
