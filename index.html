@@ -3867,7 +3867,26 @@ body.selecting #searchResults .selection-top-actions{
  border-radius:14px!important;
 }
 </style>
-</head><body><div class="shell"><aside class="side" data-ui-level="1"><button type="button" id="sideToggle" class="side-toggle" aria-label="收起左侧栏">‹</button><div class="brand"><span class="brand-long">我的<b>账本</b></span><span class="brand-short">账</span></div><nav id="nav"></nav><small>星账本 · Web v0.5.0 · OCR v1</small></aside><main data-ui-level="2"><div id="pageViewport"><div id="content"><div id="safeFrame" aria-hidden="true"></div><div id="controlsFrame" aria-hidden="true"></div><div id="headerFrame"><header class="top"><div><div class="eyebrow" id="status">账本数据</div><h1 id="title">我的账本</h1></div><div class="topactions"><button class="button ledger-switch" id="ledgerSwitch" hidden aria-label="切换主账本"></button><button class="button iconbutton" id="settingsBtn" aria-label="设置">⚙</button><button class="button" id="refreshBill" hidden>↻ 重新载入</button><button class="button primary" id="addBtn">＋ 记一笔</button></div></header></div><div id="pageBody"></div></div></div><div id="floatingControls"></div></main></div><div class="mobilebar" id="mobileNav"></div><button type="button" class="back-to-top" id="backToTop" hidden aria-label="回到顶部">↑ 顶部</button><div id="overlay"></div><input hidden type="file" id="folderFile" accept=".csv,.json,text/csv,application/json" webkitdirectory directory multiple><input hidden type="file" id="deltaFile" accept=".csv,text/csv"><input hidden type="file" id="configFile" accept=".json,application/json"><script src="./recognizer.js?v=ocr1"></script><script>
+<style id="rc-bulk-edit-primary-modal">
+.bulk-edit-back>.bulk-edit-sheet{
+ width:min(560px,calc(100vw - 20px))!important;
+ max-height:min(88dvh,760px)!important;
+ overflow:auto!important;
+ padding:18px!important;
+ border:1px solid var(--line)!important;
+ border-radius:22px!important;
+ background:var(--card)!important;
+ box-shadow:0 22px 65px rgba(0,0,0,.42)!important;
+}
+@media(max-width:760px){
+ .bulk-edit-back{align-items:center!important;padding:10px!important}
+ .bulk-edit-back>.bulk-edit-sheet{
+   width:100%!important;
+   max-height:calc(100dvh - 20px)!important;
+   margin:auto!important;
+ }
+}
+</style></head><body><div class="shell"><aside class="side" data-ui-level="1"><button type="button" id="sideToggle" class="side-toggle" aria-label="收起左侧栏">‹</button><div class="brand"><span class="brand-long">我的<b>账本</b></span><span class="brand-short">账</span></div><nav id="nav"></nav><small>星账本 · Web v0.5.0 · OCR v1</small></aside><main data-ui-level="2"><div id="pageViewport"><div id="content"><div id="safeFrame" aria-hidden="true"></div><div id="controlsFrame" aria-hidden="true"></div><div id="headerFrame"><header class="top"><div><div class="eyebrow" id="status">账本数据</div><h1 id="title">我的账本</h1></div><div class="topactions"><button class="button ledger-switch" id="ledgerSwitch" hidden aria-label="切换主账本"></button><button class="button iconbutton" id="settingsBtn" aria-label="设置">⚙</button><button class="button" id="refreshBill" hidden>↻ 重新载入</button><button class="button primary" id="addBtn">＋ 记一笔</button></div></header></div><div id="pageBody"></div></div></div><div id="floatingControls"></div></main></div><div class="mobilebar" id="mobileNav"></div><button type="button" class="back-to-top" id="backToTop" hidden aria-label="回到顶部">↑ 顶部</button><div id="overlay"></div><input hidden type="file" id="folderFile" accept=".csv,.json,text/csv,application/json" webkitdirectory directory multiple><input hidden type="file" id="deltaFile" accept=".csv,text/csv"><input hidden type="file" id="configFile" accept=".json,application/json"><script src="./recognizer.js?v=ocr1"></script><script>
 // Pure Web build. The legacy Scriptable bridge is archived in GitHub.
 const BOOT=/*__BOOT__*/null;
 const COLS=['id','date','type','category','subcategory','amount','account','account2','reimbursement','note','image','role','tags','currency','merchant','book','extras','created_at','updated_at'];
@@ -6391,11 +6410,12 @@ records=function(rs,limit=10){
 function openBulkEditSelection(){
  let ids=[...selection];if(!ids.length)return;
  let tagValues=[...new Set(rows.flatMap(r=>tagParts(r.tags)))].sort((a,b)=>a.localeCompare(b,'zh-CN'));
- $('#overlay').innerHTML=`<div class="modalback search-modalback"><div class="modal bulk-edit-sheet"><div class="sectionhead"><h2>修改 ${ids.length} 笔账单</h2><button type="button" id="closeBtn">取消</button></div>
+ $('#overlay').innerHTML=`<div class="modalback account-dialog-back bulk-edit-back"><div class="modal bulk-edit-sheet"><div class="sectionhead"><h2>修改 ${ids.length} 笔账单</h2><button type="button" id="closeBtn">取消</button></div>
  <p class="muted">只修改已勾选的字段；未勾选的内容保持原样。</p>
  ${[['type','类型'],['category','大类'],['subcategory','小类'],['account','账户'],['account2','账户2'],['book','账本'],['currency','币种'],['merchant','商家'],['note','备注'],['tags','标签'],['date','日期']].map(([k,l])=>`<label class="bulk-edit-row"><input type="checkbox" data-bulk-enable="${k}"><span>${l}</span>${k==='type'?'<select data-bulk-value="type"><option>支出</option><option>收入</option><option>转账</option><option>借贷</option></select>':k==='tags'?'<input data-bulk-value="tags" list="bulkTagList" placeholder="填写后将替换标签">':`<input data-bulk-value="${k}" placeholder="统一修改为…">`}</label>`).join('')}
  <datalist id="bulkTagList">${tagValues.map(v=>`<option value="${esc(v)}">`).join('')}</datalist>
  <div class="modalfooter"><button type="button" class="button primary" id="applyBulkEdit">应用修改</button></div></div></div>`;
+ document.body.classList.add('dialog-open');
 }
 async function applyBulkEditSelection(){
  let patch={};for(let cb of document.querySelectorAll('[data-bulk-enable]:checked')){let k=cb.dataset.bulkEnable,v=document.querySelector('[data-bulk-value="'+k+'"]')?.value??'';patch[k]=v}
