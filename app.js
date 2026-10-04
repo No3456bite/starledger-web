@@ -20,7 +20,8 @@ let rc55OldFloatingHTML='',rc55OldFloatingTop=0,rc55OldFloatingVisible=false;
 let rc27Animating=false,rc27QueuedPage='';
 const rc27PageScroll=Object.fromEntries(PAGE_ORDER.map(k=>[k,0]));let rc27TargetScroll=0;
 function getPageScroll(){let content=document.querySelector('#content');return compactViewport()&&!browserTabScrollMode()?(content?.scrollTop||0):(window.scrollY||document.documentElement.scrollTop||0)}
-function setPageScroll(v){v=Math.max(0,Number(v)||0);let content=document.querySelector('#content');if(compactViewport()&&!browserTabScrollMode()){if(content)content.scrollTop=v}else window.scrollTo(0,v)}
+function scrollPageTo(v,behavior='auto'){v=Math.max(0,Number(v)||0);let content=document.querySelector('#content'),options={top:v,behavior};if(compactViewport()&&!browserTabScrollMode()){if(content)content.scrollTo(options)}else window.scrollTo(options)}
+function setPageScroll(v){scrollPageTo(v,'auto')}
 function rc55CaptureFloating(){
  const floating=document.querySelector('#floatingControls');
  if(!floating||floating.hidden||!floating.innerHTML.trim())return {visible:false,html:'',top:0};
@@ -1675,7 +1676,7 @@ document.addEventListener('click',e=>{if(e.target.closest?.('.entry-date-action'
  else if(t.id==='newEntrySub'){t.outerHTML='<div class="entry-new-sub"><input id="newSubName" maxlength="40" placeholder="新小类名称"><button type="button" id="confirmNewSub">添加</button></div>';$('#newSubName').focus()}
  else if(t.id==='confirmNewSub'){let v=$('#newSubName')?.value.trim();if(!v){toast('请输入小类名称');return}let f=$('#entry');f.elements.category.value=['支出','收入'].includes(f.elements.type.value)?$('#categorySheet').dataset.category:'';f.elements.subcategory.value=v;updateEntryChips();rc21CloseAccountOverlay()}
  else if(t.id==='lookupFxRateSheet')lookupFxRate(true).then(syncCurrencySheet).catch(err=>{let node=$('#sheetFxPreview');if(node)node.textContent='获取失败：'+err.message+'；可手动填写'})
- else if(t.id==='backToTop'){t.hidden=true;$('#content')?.scrollTo({top:0,behavior:'smooth'})}
+ else if(t.id==='backToTop'){t.hidden=true;scrollPageTo(0,'smooth')}
  else if(t.id==='selectAllVisible'){document.querySelectorAll('#searchResults .rowcheck').forEach(input=>selection.add(input.dataset.check));renderSelection()}
  else if(t.id==='cancelSelection'){selection.clear();renderSelection()}
  else if(t.id==='openSearchDate')searchDateSheet()
