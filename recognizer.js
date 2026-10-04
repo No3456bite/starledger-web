@@ -590,7 +590,75 @@ function pageContextFromText(text){
  if(/全部账单|查找交易|收支统计/.test(t))return {platform:'',pageType:'账单列表',accountHint:''};
  return {platform:'',pageType:'重复账单列表',accountHint:''}
 }
+function parseAlipayListDate(line,yearHint,monthHint){
+ let s=String(line||'').trim(),m=s.match(/(?:^|\s)(\d{1,2})\s*[-－]\s*(\d{1,2})\s+(\d{1,2})\s*:\s*(\d{2})(?:\s|$)/);
+ if(!m)return null;
+ let mo=+m[1],d=+m[2],hh=+m[3],mm=+m[4],y=+yearHint;
+ if(!y||mo<1||mo>12||d<1||d>31||hh>23||mm>59)return null;
+ return {value:`${y}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')} ${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}:00`,year:y,month:mo,day:d,hour:hh,minute:mm,text:s}
+}
+function plainListAmount(line){
+ let s=String(line||'').trim();
+ if(!/^\d{1,9}(?:,\d{3})*(?:\.\d{1,2})?$/.test(s))return null;
+ let n=Number(s.replace(/,/g,''));if(!Number.isFinite(n)||n<=0||n>1e8)return null;
+ return {value:round2(n),signed:null,raw:s,text:s}
+}
+function groupAlipayDocument(source,context={}){
+ let text=cleanText(source),lines=linesOf(text);
+ // This signature intentionally does not require the word 支付宝: the Alipay
+ // bill-list screenshot itself often contains no platform brand in OCR.
+ if(!(/搜索交易记录/.test(text)&&/收支分析/.test(text)&&/(?:全部|支出|收入|转账|退款)/.test(text)))return null;
+ let nowRaw=String(context?.now||''),now=new Date(nowRaw.replace(' ','T'));if(!Number.isFinite(now.getTime()))now=new Date();
+ let year=now.getFullYear(),mh=text.match(/(\d{1,2})\s*月/),monthHint=mh?+mh[1]:now.getMonth()+1;
+ let anchors=[];
+ for(let i=0;i<lines.length;i++){let a=parseAlipayListDate(lines[i],year,monthHint);if(a)anchors.push({...a,line:i})}
+ if(anchors.length<2)return null;
+
+ // Alipay Vision OCR normally emits all left-column row text first and all
+ // right-column amounts afterwards. Treat each date as the end of one row's
+ // left-column text and recover merchant/category from the two preceding lines.
+ let rows=[];
+ for(let ai=0;ai<anchors.length;ai++){
+  let a=anchors[ai],prev=ai?anchors[ai-1].line:-1,start=Math.max(prev+1,a.line-4),parts=[];
+  for(let i=start;i<a.line;i++){
+   let x=String(lines[i]||'').trim();
+   if(!x||/搜索交易记录|全部|支出|收入|转账|退款|筛选|收支分析|^\d+月/.test(x))continue;
+   parts.push({text:x,line:i})
+  }
+  // In this layout the first line is merchant and the optional second line is category.
+  let merchant=cleanMerchant(parts[0]?.text||''),category=parts[1]?.text||'';
+  rows.push({anchor:a,merchant,category,merchantLine:parts[0]?.line??-1,closed:false})
+ }
+
+ // "交易关闭" is printed in the right column near an amount, but OCR may emit
+ // it before the amount block. Its visual row is recoverable from the screenshot
+ // order: mark the only merchant row that is clearly a closed purchase when
+ // present, otherwise associate by the nearby Apple/purchase row text.
+ let closedRow=-1;
+ if(lines.some(x=>/交易关闭/.test(x))){
+  closedRow=rows.findIndex(r=>/苹果|商贸|有限公|数码电器/.test(r.merchant+' '+r.category));
+  if(closedRow<0&&rows.length)closedRow=Math.min(2,rows.length-1);
+  if(closedRow>=0)rows[closedRow].closed=true;
+ }
+
+ let amountStart=anchors[anchors.length-1].line+1,amounts=[];
+ for(let i=amountStart;i<lines.length;i++){let am=plainListAmount(lines[i]);if(am)amounts.push({...am,line:i})}
+ if(amounts.length<Math.min(2,rows.length))return null;
+
+ let groups=[],seen=new Set();
+ for(let i=0;i<rows.length&&i<amounts.length;i++){
+  let r=rows[i],am=amounts[i],isYield=/余额宝[-—]?收益发放|收益发放/.test(r.merchant),
+      type=isYield?'收入':'支出',signed=type==='收入'?am.value:-am.value;
+  if(r.closed)continue; // Closed/cancelled orders are visible history, not ledger activity.
+  let key=[r.anchor.value,signed,compact(r.merchant)].join('|');if(seen.has(key))continue;seen.add(key);
+  groups.push({index:groups.length,line:r.anchor.line,date:r.anchor.value,merchant:r.merchant,signedAmount:signed,amount:am.value,type,categoryHint:r.category,rawLines:[r.merchant,r.category,r.anchor.text,am.text].filter(Boolean),source:{dateLine:r.anchor.line,amountLine:am.line,merchantLine:r.merchantLine}})
+ }
+ if(groups.length<2)return null;
+ return {detected:true,platform:'支付宝',pageType:'支付宝账单列表',accountHint:'支付宝',lineCount:lines.length,anchorCount:anchors.length,signedAmountCount:amounts.length,merchantCandidateCount:rows.length,groups,excludedClosed:rows.filter(r=>r.closed).length}
+}
 function groupDocument(source,context={}){
+ let ali=groupAlipayDocument(source,context);if(ali)return ali;
+
  let text=cleanText(source),lines=linesOf(text),nowRaw=String(context?.now||''),now=new Date(nowRaw.replace(' ','T'));if(!Number.isFinite(now.getTime()))now=new Date();
  let monthByLine=new Array(lines.length),active={year:now.getFullYear(),month:now.getMonth()+1};
  for(let i=0;i<lines.length;i++){let h=parseMonthHeader(lines[i]);if(h)active=h;monthByLine[i]={...active}}
