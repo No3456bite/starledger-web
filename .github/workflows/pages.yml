@@ -1,8 +1,8 @@
-name: Deploy StarLedger to GitHub Pages
+name: Validate and deploy StarLedger
 
 on:
   push:
-    branches: ["main"]
+  pull_request:
   workflow_dispatch:
 
 permissions:
@@ -11,11 +11,31 @@ permissions:
   id-token: write
 
 concurrency:
-  group: "pages"
+  group: "pages-${{ github.ref }}"
   cancel-in-progress: true
 
 jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Check JavaScript syntax
+        run: |
+          node --check app.js
+          node --check ui-runtime.js
+          node --check books-stats.js
+          node --check recognizer.js
+          node --check sw.js
+          node --check scripts/validate-build.mjs
+
+      - name: Check build invariants
+        run: node scripts/validate-build.mjs
+
   deploy:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: validate
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
