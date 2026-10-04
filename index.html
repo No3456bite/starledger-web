@@ -7636,6 +7636,61 @@ requestAnimationFrame(()=>{try{render()}catch(e){console.warn('rc12 initial rend
     font-size:11px!important;
   }
 }
+</style><style id="web-v059-filter-ghost-parity">
+@media(max-width:760px){
+  /* The pager filter ghost must be visually identical to the live
+     #floatingControls filter. It is only an opacity snapshot, not a second skin. */
+  html.browser-tab .browser-pager-filter-ghost .date-filter-row{
+    gap:6px!important;
+  }
+  html.browser-tab .browser-pager-filter-ghost .date-banner,
+  html.browser-tab .browser-pager-filter-ghost .date-filter-book{
+    border:.5px solid var(--sl-glass-rim)!important;
+    border-radius:15px!important;
+    background:
+      linear-gradient(180deg,rgba(255,255,255,.062),transparent 20%,transparent 82%,rgba(255,255,255,.015)),
+      var(--sl-glass-surface-compact)!important;
+    -webkit-backdrop-filter:blur(6px) saturate(108%)!important;
+    backdrop-filter:blur(6px) saturate(108%)!important;
+    box-shadow:
+      0 4px 12px rgba(27,38,57,.020),
+      inset 0 .4px 0 color-mix(in srgb,var(--sl-glass-top) 66%,transparent),
+      inset 0 -.28px 0 color-mix(in srgb,var(--sl-glass-bottom) 60%,transparent)!important;
+  }
+  html.browser-tab .browser-pager-filter-ghost .date-banner{
+    overflow:hidden!important;
+  }
+  html.browser-tab .browser-pager-filter-ghost .date-banner select{
+    height:40px!important;
+    min-height:40px!important;
+    padding:0 27px 0 10px!important;
+    font-size:16px!important;
+    line-height:40px!important;
+    background-color:transparent!important;
+    background-position:calc(100% - 13px) 18px,calc(100% - 9px) 18px!important;
+    background-size:4px 4px,4px 4px!important;
+    background-repeat:no-repeat!important;
+    box-sizing:border-box!important;
+  }
+  html.browser-tab .browser-pager-filter-ghost .date-filter-book{
+    height:42px!important;
+    min-height:42px!important;
+    padding:0 25px 0 10px!important;
+    color:var(--ink)!important;
+    font-size:16px!important;
+    line-height:40px!important;
+    box-sizing:border-box!important;
+  }
+  html.browser-tab .browser-pager-filter-ghost .date-banner select+select{
+    border-left-color:color-mix(in srgb,var(--line) 42%,transparent)!important;
+  }
+  @supports (corner-shape:squircle){
+    html.browser-tab .browser-pager-filter-ghost .date-banner,
+    html.browser-tab .browser-pager-filter-ghost .date-filter-book{
+      corner-shape:squircle!important;
+    }
+  }
+}
 </style><style id="web-v059a-safari-short-page-scroll-sentinel">
 @media(max-width:760px){
   /* Always leave enough document range for the 1px browser-chrome sentinel,
