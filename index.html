@@ -3575,7 +3575,7 @@ button.home-month-stat:active{background:var(--pale);border-radius:12px}
     top:auto!important;
   }
 }
-</style></head><body><div class="shell"><aside class="side" data-ui-level="1"><button type="button" id="sideToggle" class="side-toggle" aria-label="收起左侧栏">‹</button><div class="brand"><span class="brand-long">我的<b>账本</b></span><span class="brand-short">账</span></div><nav id="nav"></nav><small>星账本 · Web v0.4.6 · rc13.4</small></aside><main data-ui-level="2"><div id="pageViewport"><div id="content"><div id="safeFrame" aria-hidden="true"></div><div id="controlsFrame" aria-hidden="true"></div><div id="headerFrame"><header class="top"><div><div class="eyebrow" id="status">账本数据</div><h1 id="title">我的账本</h1></div><div class="topactions"><button class="button ledger-switch" id="ledgerSwitch" hidden aria-label="切换主账本"></button><button class="button iconbutton" id="settingsBtn" aria-label="设置">⚙</button><button class="button" id="refreshBill" hidden>↻ 重新载入</button><button class="button primary" id="addBtn">＋ 记一笔</button></div></header></div><div id="pageBody"></div></div></div><div id="floatingControls"></div></main></div><div class="mobilebar" id="mobileNav"></div><button type="button" class="back-to-top" id="backToTop" hidden aria-label="回到顶部">↑ 顶部</button><div id="overlay"></div><input hidden type="file" id="folderFile" accept=".csv,.json,text/csv,application/json" webkitdirectory directory multiple><input hidden type="file" id="deltaFile" accept=".csv,text/csv"><input hidden type="file" id="configFile" accept=".json,application/json"><script>
+</style></head><body><div class="shell"><aside class="side" data-ui-level="1"><button type="button" id="sideToggle" class="side-toggle" aria-label="收起左侧栏">‹</button><div class="brand"><span class="brand-long">我的<b>账本</b></span><span class="brand-short">账</span></div><nav id="nav"></nav><small>星账本 · Web v0.5.0 · OCR v1</small></aside><main data-ui-level="2"><div id="pageViewport"><div id="content"><div id="safeFrame" aria-hidden="true"></div><div id="controlsFrame" aria-hidden="true"></div><div id="headerFrame"><header class="top"><div><div class="eyebrow" id="status">账本数据</div><h1 id="title">我的账本</h1></div><div class="topactions"><button class="button ledger-switch" id="ledgerSwitch" hidden aria-label="切换主账本"></button><button class="button iconbutton" id="settingsBtn" aria-label="设置">⚙</button><button class="button" id="refreshBill" hidden>↻ 重新载入</button><button class="button primary" id="addBtn">＋ 记一笔</button></div></header></div><div id="pageBody"></div></div></div><div id="floatingControls"></div></main></div><div class="mobilebar" id="mobileNav"></div><button type="button" class="back-to-top" id="backToTop" hidden aria-label="回到顶部">↑ 顶部</button><div id="overlay"></div><input hidden type="file" id="folderFile" accept=".csv,.json,text/csv,application/json" webkitdirectory directory multiple><input hidden type="file" id="deltaFile" accept=".csv,text/csv"><input hidden type="file" id="configFile" accept=".json,application/json"><script src="./recognizer.js?v=ocr1"></script><script>
 // Pure Web build. The legacy Scriptable bridge is archived in GitHub.
 const BOOT=/*__BOOT__*/null;
 const COLS=['id','date','type','category','subcategory','amount','account','account2','reimbursement','note','image','role','tags','currency','merchant','book','extras','created_at','updated_at'];
@@ -4060,9 +4060,78 @@ function exportStatus(){
  if(!since||Date.now()>=due)return `<div class="backup-alert"><strong>建议导出一份完整 CSV 备份</strong>${since?`上次完整导出：${new Date(since).toLocaleDateString('zh-CN')}，已过 ${days} 天。`:'还没有确认保存过完整备份。'}当前账本主数据保存在这台设备的浏览器本地存储中；如果主动清除该网站的数据，本地账本也会被清除。<div class="backup-actions"><button class="button primary" id="exportCsv">导出完整 CSV</button><button class="button backup-snooze" id="dismissExportReminder">暂不备份</button><button class="button backup-never" id="disableExportReminder">永不提醒</button></div></div>`;
  return null
 }
-function parseOCR(input){let text=String(input||'').slice(0,12000),lines=text.split(/[\r\n]+/).map(x=>x.trim()).filter(Boolean),type=/收款成功|收入|已到账|到账金额|收款金额/.test(text)&&!/付款成功|支付成功/.test(text)?'收入':'支出';let candidates=[];for(let i=0;i<lines.length;i++){let line=lines[i];if(/余额|优惠|原价|券|手续费|订单号|单号|积分/.test(line))continue;for(let m of line.matchAll(/(?:[¥￥]\s*)?(-?\d{1,7}(?:,\d{3})*(?:\.\d{1,2})?)/g)){let n=Math.abs(Number(m[1].replace(/,/g,'')));if(n<=0||n>1e7||(!m[0].includes('¥')&&!m[0].includes('￥')&&!m[1].includes('.')))continue;let context=lines.slice(Math.max(0,i-1),i+1).join(' '),score=/(实付|支付金额|付款金额|交易金额|收款金额|到账金额|总计|合计)/.test(context)?10:/(¥|￥)/.test(m[0])?5:1;if(/余额|优惠|原价|券|手续费/.test(context))score-=8;candidates.push({n,score,i})}}candidates.sort((a,b)=>b.score-a.score||a.i-b.i);let dateMatch=text.match(/(20\d{2})[年\/-](\d{1,2})[月\/-](\d{1,2})日?\s*(\d{1,2}):(\d{2})/),date=dateMatch?`${dateMatch[1]}-${dateMatch[2].padStart(2,'0')}-${dateMatch[3].padStart(2,'0')} ${dateMatch[4].padStart(2,'0')}:${dateMatch[5]}:00`:'';let merchantLine=lines.find(x=>/^(?:收款方|交易对象|商家|商品说明|商品)[:：]/.test(x)),merchant=merchantLine?.replace(/^[^:：]+[:：]\s*/,'').slice(0,60)||'';return {type,amount:candidates[0]?.n?.toFixed(2)||'',date,merchant,note:merchant}}
-function consumeHashPrefill(){if(!location.hash.startsWith('#ocr='))return'';let raw=location.hash.slice(5),text='';try{text=decodeURIComponent(raw)}catch(e){}try{history.replaceState(null,'',location.pathname+location.search)}catch(e){}return text}
-function openPendingPrefill(){if(!prefs.mainName||!pendingPrefill)return;let text=pendingPrefill;pendingPrefill='';ocrReviewText=text;entryForm(parseOCR(text));toast('已预填识别结果，请核对金额、分类、账户和日期后保存')}
+function parseOCRLegacy(input){let text=String(input||'').slice(0,12000),lines=text.split(/[\r\n]+/).map(x=>x.trim()).filter(Boolean),type=/收款成功|收入|已到账|到账金额|收款金额/.test(text)&&!/付款成功|支付成功/.test(text)?'收入':'支出';let candidates=[];for(let i=0;i<lines.length;i++){let line=lines[i];if(/余额|优惠|原价|券|手续费|订单号|单号|积分/.test(line))continue;for(let m of line.matchAll(/(?:[¥￥]\s*)?(-?\d{1,7}(?:,\d{3})*(?:\.\d{1,2})?)/g)){let n=Math.abs(Number(m[1].replace(/,/g,'')));if(n<=0||n>1e7||(!m[0].includes('¥')&&!m[0].includes('￥')&&!m[1].includes('.')))continue;let context=lines.slice(Math.max(0,i-1),i+1).join(' '),score=/(实付|支付金额|付款金额|交易金额|收款金额|到账金额|总计|合计)/.test(context)?10:/(¥|￥)/.test(m[0])?5:1;if(/余额|优惠|原价|券|手续费/.test(context))score-=8;candidates.push({n,score,i})}}candidates.sort((a,b)=>b.score-a.score||a.i-b.i);let dateMatch=text.match(/(20\d{2})[年\/-](\d{1,2})[月\/-](\d{1,2})日?\s*(\d{1,2}):(\d{2})/),date=dateMatch?`${dateMatch[1]}-${dateMatch[2].padStart(2,'0')}-${dateMatch[3].padStart(2,'0')} ${dateMatch[4].padStart(2,'0')}:${dateMatch[5]}:00`:'';let merchantLine=lines.find(x=>/^(?:收款方|交易对象|商家|商品说明|商品)[:：]/.test(x)),merchant=merchantLine?.replace(/^[^:：]+[:：]\s*/,'').slice(0,60)||'';return {type,amount:candidates[0]?.n?.toFixed(2)||'',date,merchant,note:merchant}}
+
+function consumeHashPrefill(){
+ let hash=String(location.hash||''),payload=null;
+ try{
+  if(hash.startsWith('#ocr=')){
+   payload={v:1,action:'ocr',source:'ios-shortcuts',text:decodeURIComponent(hash.slice(5))};
+  }else if(hash.startsWith('#sl=')){
+   let raw=decodeURIComponent(hash.slice(4)),obj=JSON.parse(raw);
+   if(obj&&Number(obj.v||1)>=1&&obj.action==='ocr'&&typeof obj.text==='string')payload=obj;
+  }
+ }catch(e){console.warn('OCR payload decode failed',e)}
+ if(payload)try{history.replaceState(null,'',location.pathname+location.search)}catch(e){}
+ return payload||''
+}
+function ocrFieldValue(v){return v&&typeof v==='object'&&Object.prototype.hasOwnProperty.call(v,'value')?v.value:(v??'')}
+function ocrMerchantHistory(){
+ let counts=new Map();
+ for(let r of rows){let name=String(r.merchant||'').trim();if(name)counts.set(name,(counts.get(name)||0)+1)}
+ return [...counts].map(([name,count])=>({name,count})).sort((a,b)=>b.count-a.count).slice(0,800)
+}
+function ocrContext(){
+ let now=new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,19).replace('T',' ');
+ return {now,accounts:accountNames(),accountAliases:prefs.accountAliases||{},history:rows,rows,merchants:ocrMerchantHistory()}
+}
+function ocrSuggestionToRecord(suggestion={}){
+ let existingAccounts=accountNames(),type=String(ocrFieldValue(suggestion.type)||'支出');
+ if(!['支出','收入','转账','借贷'].includes(type))type='支出';
+ let rawAmount=Number(ocrFieldValue(suggestion.amount)),account=String(ocrFieldValue(suggestion.account)||''),account2=String(ocrFieldValue(suggestion.account2)||'');
+ if(account&&!existingAccounts.includes(account))account='';
+ if(account2&&!existingAccounts.includes(account2))account2='';
+ return {
+  type,
+  amount:Number.isFinite(rawAmount)&&rawAmount>=0?String(Math.abs(rawAmount)):'',
+  date:String(ocrFieldValue(suggestion.date)||''),
+  account,
+  account2,
+  book:unique('book')[0]||'日常账本',
+  currency:'人民币',
+  category:String(ocrFieldValue(suggestion.category)||''),
+  subcategory:String(ocrFieldValue(suggestion.subcategory)||''),
+  merchant:String(ocrFieldValue(suggestion.merchant)||''),
+  note:String(ocrFieldValue(suggestion.note)||''),
+  tags:'',
+  relationRole:String(suggestion.relationRole||'auto')
+ }
+}
+function recognizeOCRText(text){
+ text=String(text||'').slice(0,32000);
+ if(!text.trim())throw Error('OCR 没有提取到文字');
+ let engine=window.StarLedgerRecognizer;
+ if(!engine?.recognize)return {records:[parseOCRLegacy(text)],relationHints:[],warnings:['OCR 识别器未载入，已使用基础解析']};
+ let result=engine.recognize(text,ocrContext()),sourceRecords=Array.isArray(result.records)&&result.records.length?result.records:[result];
+ let records=sourceRecords.map(ocrSuggestionToRecord);
+ return {records,relationHints:Array.isArray(result.relationHints)?result.relationHints:[],warnings:result.warnings||[],result}
+}
+function openPendingPrefill(){
+ if(!prefs.mainName||!pendingPrefill)return;
+ let payload=typeof pendingPrefill==='string'?{v:1,action:'ocr',source:'legacy',text:pendingPrefill}:pendingPrefill;
+ pendingPrefill='';
+ if(payload?.action!=='ocr'||!payload?.text)return;
+ try{
+  let parsed=recognizeOCRText(payload.text);
+  ocrReviewText=payload.text;
+  if(window.entryTaskOpenFromOCR)window.entryTaskOpenFromOCR(parsed);
+  else entryForm(parsed.records[0]||{});
+  if(parsed.warnings?.length)console.info('StarLedger OCR warnings',parsed.warnings);
+ }catch(e){
+  toast('OCR 解析失败：'+(e.message||e));
+  console.warn(e)
+ }
+}
 function showExportConfirm(name){$('#overlay').innerHTML=`<div class="modalback"><div class="modal"><h2>备份是否已保存？</h2><p class="muted export-help">请确认 ${esc(name)} 已出现在“文件”App 或电脑下载目录。Safari 若只打开了预览，请先用共享菜单存储到“文件”。</p><div class="modalfooter"><button type="button" class="button" id="closeBtn">稍后确认</button><button type="button" class="button primary" id="confirmExport" data-exportname="${esc(name)}">已保存备份</button></div></div></div>`}
 async function exportLedger(){if(!prefs.mainName)throw Error('请先建立账本');let name=exportName(),csv=csvWrite(rows);if(native)throw Error('请在网页中导出主账本');if(folderHandle&&await permission(folderHandle,'readwrite')){await writeSharedPrefs({...prefs,mainName:prefs.mainName});await refreshDelta(false);await savePrefs({lastExportAt:Date.now(),lastExportName:folderNames(prefs.mainName).desktop});toast('工作区已同步');return}if(window.showSaveFilePicker){try{let fh=await showSaveFilePicker({suggestedName:name,types:[{description:'CSV 账单备份',accept:{'text/csv':['.csv']}}]}),w=await fh.createWritable();await w.write(csv);await w.close();await savePrefs({lastExportAt:Date.now(),lastExportName:name});toast('已保存备份：'+name);return}catch(e){if(e.name==='AbortError')return}}let blob=new Blob([csv],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);showExportConfirm(name)}
 function accountData(){let map=new Map();function ensure(k){if(k&&!map.has(k))map.set(k,{net:0,count:0,calibrated:false})}
