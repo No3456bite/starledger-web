@@ -394,24 +394,26 @@ function detectTransfer(text,lines,context,evidence){
 
 function detectUnionPayTransfer(text,lines,context,evidence){
  if(!/云闪付交易详情|云闪付/.test(text))return null;
- // Credit-card repayment is an internal movement: funding account -> credit-card account.
- let title=lines.find(x=>/还款[：:]?/.test(x))||'';
- let tm=title.match(/还款\s*[：:]?\s*(.+)$/);
+ let title=lines.find(x=>/还款\s*[：:]/.test(x))||'';
+ let tm=title.match(/还款\s*[：:]\s*(.+)$/);
  if(!tm)return null;
- let destinationRaw=String(tm[1]||'').trim();
- // Prefer explicit payment method as the source account.
- let sourceRaw='';
- for(let i=0;i<lines.length;i++){
-   if(/^付款方式\s*$/.test(lines[i])){sourceRaw=lines[i+1]||'';break}
-   let m=lines[i].match(/^付款方式\s*[：:]?\s*(.+)$/);if(m){sourceRaw=m[1];break}
- }
- // The destination may have a more precise card line than the title.
- for(let i=0;i<lines.length;i++){
-   if(/^信用卡号\s*$/.test(lines[i])){if(lines[i+1])destinationRaw=lines[i+1];break}
-   let m=lines[i].match(/^信用卡号\s*[：:]?\s*(.+)$/);if(m){destinationRaw=m[1];break}
- }
+ let destinationRaw=String(tm[1]||'').trim(),sourceRaw='';
+ const readField=(labelRe)=>{
+   for(let i=0;i<lines.length;i++){
+     let m=lines[i].match(labelRe);if(!m)continue;
+     let direct=String(m[1]||'').trim();
+     if(direct)return direct;
+     let next=String(lines[i+1]||'').trim();
+     if(next)return next;
+   }
+   return '';
+ };
+ sourceRaw=readField(/^付款方式\s*[：:]?\s*(.*)$/);
+ let preciseDest=readField(/^信用卡号\s*[：:]?\s*(.*)$/);if(preciseDest)destinationRaw=preciseDest;
+
+ // Match each leg independently. Never allow the whole screenshot to influence either side.
  let source=transferAccountMatch(sourceRaw,context),destination=transferAccountMatch(destinationRaw,context);
- let ev='云闪付信用卡还款：'+sourceRaw+' → '+destinationRaw;evidence.push(ev);
+ evidence.push('云闪付信用卡还款：'+sourceRaw+' → '+destinationRaw);
  return {
    type:field('转账',.995,'unionpay-credit-repayment',[title]),
    account:source?.matched?{...field(source.value,.995,'unionpay-repayment-source',[sourceRaw]),matched:true,suggested:source.raw,matchKind:source.matchKind,candidates:[]}:null,
