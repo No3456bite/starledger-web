@@ -3621,6 +3621,65 @@ button.home-month-stat:active{background:var(--pale);border-radius:12px}
   }
 }
 </style>
+
+<style id="web-v048-safari-modal-stacking-fix">
+@media(max-width:760px){
+  /* The app header/floating filters/mobile nav use z-index values up to 1000.
+     Modal tasks must sit above the whole app, not inside that old layer stack. */
+  html.browser-tab #overlay:has(> .entryback),
+  html.browser-tab #overlay:has(> .account-dialog-back){
+    position:fixed!important;
+    inset:0!important;
+    z-index:5000!important;
+    pointer-events:auto!important;
+    overflow:hidden!important;
+  }
+
+  html.browser-tab .entryback,
+  html.browser-tab .account-dialog-back{
+    z-index:1!important;
+    background:transparent!important;
+    backdrop-filter:none!important;
+    -webkit-backdrop-filter:none!important;
+    isolation:isolate!important;
+  }
+
+  /* Paint the dim/blur above the ledger, below the modal card.
+     Leave only a near-invisible 1px viewport edge for Safari chrome sampling. */
+  html.browser-tab .entryback::before,
+  html.browser-tab .account-dialog-back::before{
+    content:"";
+    position:fixed!important;
+    left:0!important;
+    right:0!important;
+    top:1px!important;
+    bottom:1px!important;
+    z-index:0!important;
+    pointer-events:none!important;
+    background:rgba(0,0,0,.58)!important;
+    backdrop-filter:blur(20px) saturate(108%)!important;
+    -webkit-backdrop-filter:blur(20px) saturate(108%)!important;
+  }
+
+  html.browser-tab .entryback>.entry,
+  html.browser-tab .account-dialog-back>.modal{
+    position:relative!important;
+    z-index:2!important;
+  }
+
+  /* Nothing from the underlying app should float over a modal task. */
+  html.browser-tab body:has(.entryback) #headerFrame,
+  html.browser-tab body:has(.entryback) #controlsFrame,
+  html.browser-tab body:has(.entryback) #floatingControls,
+  html.browser-tab body:has(.entryback) .mobilebar,
+  html.browser-tab body.dialog-open #headerFrame,
+  html.browser-tab body.dialog-open #controlsFrame,
+  html.browser-tab body.dialog-open #floatingControls,
+  html.browser-tab body.dialog-open .mobilebar{
+    z-index:auto!important;
+  }
+}
+</style>
 </head><body><div class="shell"><aside class="side" data-ui-level="1"><button type="button" id="sideToggle" class="side-toggle" aria-label="收起左侧栏">‹</button><div class="brand"><span class="brand-long">我的<b>账本</b></span><span class="brand-short">账</span></div><nav id="nav"></nav><small>星账本 · Web v0.5.0 · OCR v1</small></aside><main data-ui-level="2"><div id="pageViewport"><div id="content"><div id="safeFrame" aria-hidden="true"></div><div id="controlsFrame" aria-hidden="true"></div><div id="headerFrame"><header class="top"><div><div class="eyebrow" id="status">账本数据</div><h1 id="title">我的账本</h1></div><div class="topactions"><button class="button ledger-switch" id="ledgerSwitch" hidden aria-label="切换主账本"></button><button class="button iconbutton" id="settingsBtn" aria-label="设置">⚙</button><button class="button" id="refreshBill" hidden>↻ 重新载入</button><button class="button primary" id="addBtn">＋ 记一笔</button></div></header></div><div id="pageBody"></div></div></div><div id="floatingControls"></div></main></div><div class="mobilebar" id="mobileNav"></div><button type="button" class="back-to-top" id="backToTop" hidden aria-label="回到顶部">↑ 顶部</button><div id="overlay"></div><input hidden type="file" id="folderFile" accept=".csv,.json,text/csv,application/json" webkitdirectory directory multiple><input hidden type="file" id="deltaFile" accept=".csv,text/csv"><input hidden type="file" id="configFile" accept=".json,application/json"><script src="./recognizer.js?v=ocr1"></script><script>
 // Pure Web build. The legacy Scriptable bridge is archived in GitHub.
 const BOOT=/*__BOOT__*/null;
