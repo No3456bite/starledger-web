@@ -7474,7 +7474,7 @@ requestAnimationFrame(()=>{try{render()}catch(e){console.warn('rc12 initial rend
     width:100%!important;
     height:100%!important;
     overflow:visible!important;
-    background:transparent!important;
+    background:var(--bg)!important;
     transform:translate3d(var(--browser-pane-x,0px),0,0)!important;
     backface-visibility:hidden!important;
     box-sizing:border-box!important;
@@ -7487,7 +7487,8 @@ requestAnimationFrame(()=>{try{render()}catch(e){console.warn('rc12 initial rend
     left:0!important;
     right:0!important;
     top:-180px!important;
-    bottom:-280px!important;
+    height:180px!important;
+    bottom:auto!important;
     background:var(--bg)!important;
     pointer-events:none!important;
   }
