@@ -3649,6 +3649,19 @@ button.home-month-stat:active{background:var(--pale);border-radius:12px}
   }
 }
 </style>
+
+<style id="web-v052-safari-multibill-origin">
+@media(max-width:760px){
+  /*
+   * Multi-bill ghost cards are children of entryback.
+   * In Safari document-modal mode they must share entryback's top-left origin,
+   * not the browser viewport origin used by the old fixed implementation.
+   */
+  html.browser-tab #overlay.safari-document-modal .entryback>.rc123-stack-card{
+    position:absolute!important;
+  }
+}
+</style>
 </head><body><div class="shell"><aside class="side" data-ui-level="1"><button type="button" id="sideToggle" class="side-toggle" aria-label="收起左侧栏">‹</button><div class="brand"><span class="brand-long">我的<b>账本</b></span><span class="brand-short">账</span></div><nav id="nav"></nav><small>星账本 · Web v0.5.0 · OCR v1</small></aside><main data-ui-level="2"><div id="pageViewport"><div id="content"><div id="safeFrame" aria-hidden="true"></div><div id="controlsFrame" aria-hidden="true"></div><div id="headerFrame"><header class="top"><div><div class="eyebrow" id="status">账本数据</div><h1 id="title">我的账本</h1></div><div class="topactions"><button class="button ledger-switch" id="ledgerSwitch" hidden aria-label="切换主账本"></button><button class="button iconbutton" id="settingsBtn" aria-label="设置">⚙</button><button class="button" id="refreshBill" hidden>↻ 重新载入</button><button class="button primary" id="addBtn">＋ 记一笔</button></div></header></div><div id="pageBody"></div></div></div><div id="floatingControls"></div></main></div><div class="mobilebar" id="mobileNav"></div><button type="button" class="back-to-top" id="backToTop" hidden aria-label="回到顶部">↑ 顶部</button><div id="overlay"></div><input hidden type="file" id="folderFile" accept=".csv,.json,text/csv,application/json" webkitdirectory directory multiple><input hidden type="file" id="deltaFile" accept=".csv,text/csv"><input hidden type="file" id="configFile" accept=".json,application/json"><script src="./recognizer.js?v=ocr1"></script><script>
 // Pure Web build. The legacy Scriptable bridge is archived in GitHub.
 const BOOT=/*__BOOT__*/null;
@@ -6158,7 +6171,15 @@ function rc123MakeGhost(entry,index,kind){
  let clone=entry.cloneNode(true);clone.classList.remove('rc12-swipe-dragging','rc12-swipe-return','rc12-from-left','rc12-from-right','rc123-live-card');clone.classList.add('rc123-stack-card','rc123-'+kind);rc123GhostHydrate(clone,rc12Task.drafts[index],index);entry.parentElement.appendChild(clone);try{clone.scrollTop=entry.scrollTop}catch(_e){}return clone
 }
 function rc123SyncGeometry(pack){
- if(!pack?.entry?.isConnected)return;let r=pack.entry.getBoundingClientRect();for(let card of [pack.prev,pack.next,pack.next2].filter(Boolean)){card.style.left=r.left+'px';card.style.top=r.top+'px';card.style.width=r.width+'px';card.style.height=r.height+'px'}
+ if(!pack?.entry?.isConnected)return;
+ let r=pack.entry.getBoundingClientRect(),back=pack.back||pack.entry.closest('.entryback'),
+     documentModal=document.documentElement.classList.contains('browser-tab')&&back?.closest('#overlay')?.classList.contains('safari-document-modal'),
+     origin=documentModal&&back?back.getBoundingClientRect():null,
+     left=origin?r.left-origin.left:r.left,
+     top=origin?r.top-origin.top:r.top;
+ for(let card of [pack.prev,pack.next,pack.next2].filter(Boolean)){
+  card.style.left=left+'px';card.style.top=top+'px';card.style.width=r.width+'px';card.style.height=r.height+'px'
+ }
 }
 function rc123PrepareStack(entry){
  let back=entry?.closest('.entryback');if(!entry||!back)return null;
