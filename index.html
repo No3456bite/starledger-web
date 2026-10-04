@@ -7644,6 +7644,21 @@ requestAnimationFrame(()=>{try{render()}catch(e){console.warn('rc12 initial rend
     min-height:calc(100dvh + 2px)!important;
   }
 }
+</style><style id="web-v059b-hide-browser-scrollbar">
+@media(max-width:760px){
+  html.browser-tab,
+  html.browser-tab body{
+    scrollbar-width:none!important;
+    -ms-overflow-style:none!important;
+  }
+  html.browser-tab::-webkit-scrollbar,
+  html.browser-tab body::-webkit-scrollbar{
+    width:0!important;
+    height:0!important;
+    display:none!important;
+    background:transparent!important;
+  }
+}
 </style><style id="web-v060-safari-filter-handoff">
 @media(max-width:760px){
   html.browser-tab .browser-pager-filter-current,
