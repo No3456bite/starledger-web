@@ -591,7 +591,7 @@ function pageContextFromText(text){
  return {platform:'',pageType:'重复账单列表',accountHint:''}
 }
 function parseAlipayListDate(line,yearHint,monthHint){
- let s=String(line||'').trim(),m=s.match(/(\d{1,2})\s*[-－]\s*(\d{1,2})\s*(\d{1,2})\s*:\s*(\d{1,2})/);
+ let s=String(line||'').trim(),m=s.match(/(\d{1,2})\s*[-－]\s*(\d{2})(?:\s+)?(\d{2})\s*:\s*(\d{1,2})/);
  if(!m)return null;
  let mo=+m[1],d=+m[2],hh=+m[3],rawMin=String(m[4]||''),mm=rawMin.length>=2?+rawMin.slice(0,2):+(rawMin+'0'),y=+yearHint;
  if(!y||mo<1||mo>12||d<1||d>31||hh>23||mm>59)return null;
