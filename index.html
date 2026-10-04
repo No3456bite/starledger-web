@@ -3576,107 +3576,53 @@ button.home-month-stat:active{background:var(--pale);border-radius:12px}
   }
 }
 </style>
-<style id="web-v047-safari-modal-edge-glass">
+
+
+
+
+<style id="web-v049-safari-modal-no-blur">
 @media(max-width:760px){
   /*
-   * Safari browser tabs derive their top/bottom chrome from viewport-edge
-   * compositing. Full-screen dim/blur layers made those bars collapse to
-   * solid black. Keep the structural overlay itself transparent at the
-   * viewport edge, then paint the dimmer slightly inset.
+   * Stable Safari modal experiment:
+   * no backdrop-filter, no pseudo blur layer, no body/theme mutation.
+   * A single full-viewport translucent scrim prevents the page underneath
+   * from changing appearance when a bill/account modal opens.
    */
-  html.browser-tab .entryback,
-  html.browser-tab .account-dialog-back{
-    background:transparent!important;
-    backdrop-filter:none!important;
-    -webkit-backdrop-filter:none!important;
-    isolation:isolate!important;
-  }
-
-  html.browser-tab .entryback::before,
-  html.browser-tab .account-dialog-back::before{
-    content:"";
-    position:fixed;
-    left:0;
-    right:0;
-    top:8px;
-    bottom:8px;
-    z-index:-1;
-    pointer-events:none;
-    background:color-mix(in srgb,#000 52%,transparent);
-    backdrop-filter:blur(16px) saturate(112%);
-    -webkit-backdrop-filter:blur(16px) saturate(112%);
-  }
-
-  html.browser-tab .entryback>.entry,
-  html.browser-tab .account-dialog-back>.modal{
-    position:relative!important;
-    z-index:1!important;
-  }
-
-  /* Preserve the neutral page edge Safari already renders correctly on
-     home/month/year instead of exposing the ledger's pure-black --bg. */
-  html.browser-tab[data-mode="dark"] body:has(.entryback),
-  html.browser-tab[data-mode="dark"] body.dialog-open{
-    background:#1c1c1e!important;
-  }
-}
-</style>
-
-<style id="web-v048-safari-modal-stacking-fix">
-@media(max-width:760px){
-  /* The app header/floating filters/mobile nav use z-index values up to 1000.
-     Modal tasks must sit above the whole app, not inside that old layer stack. */
   html.browser-tab #overlay:has(> .entryback),
   html.browser-tab #overlay:has(> .account-dialog-back){
     position:fixed!important;
     inset:0!important;
+    width:100vw!important;
+    height:100dvh!important;
     z-index:5000!important;
     pointer-events:auto!important;
     overflow:hidden!important;
+    background:transparent!important;
   }
 
   html.browser-tab .entryback,
   html.browser-tab .account-dialog-back{
+    position:fixed!important;
+    inset:0!important;
+    width:100vw!important;
+    height:100dvh!important;
     z-index:1!important;
-    background:transparent!important;
+    background:rgba(0,0,0,.64)!important;
     backdrop-filter:none!important;
     -webkit-backdrop-filter:none!important;
-    isolation:isolate!important;
+    isolation:auto!important;
   }
 
-  /* Paint the dim/blur above the ledger, below the modal card.
-     Leave only a near-invisible 1px viewport edge for Safari chrome sampling. */
   html.browser-tab .entryback::before,
   html.browser-tab .account-dialog-back::before{
-    content:"";
-    position:fixed!important;
-    left:0!important;
-    right:0!important;
-    top:1px!important;
-    bottom:1px!important;
-    z-index:0!important;
-    pointer-events:none!important;
-    background:rgba(0,0,0,.58)!important;
-    backdrop-filter:blur(20px) saturate(108%)!important;
-    -webkit-backdrop-filter:blur(20px) saturate(108%)!important;
+    content:none!important;
+    display:none!important;
   }
 
   html.browser-tab .entryback>.entry,
   html.browser-tab .account-dialog-back>.modal{
     position:relative!important;
     z-index:2!important;
-  }
-
-  /* Nothing from the underlying app should float over a modal task. */
-  html.browser-tab body:has(.entryback) #headerFrame,
-  html.browser-tab body:has(.entryback) #controlsFrame,
-  html.browser-tab body:has(.entryback) #floatingControls,
-  html.browser-tab body:has(.entryback) .mobilebar,
-  html.browser-tab body.dialog-open #headerFrame,
-  html.browser-tab body.dialog-open #controlsFrame,
-  html.browser-tab body.dialog-open #floatingControls,
-  html.browser-tab body.dialog-open .mobilebar{
-    z-index:auto!important;
   }
 }
 </style>
