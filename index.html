@@ -163,6 +163,8 @@ body.dialog-open{overflow:hidden;touch-action:none}body.dialog-open .account-dia
 .record-amount{display:flex;flex:none;flex-direction:column;align-items:flex-end;gap:2px;max-width:45%;min-width:0}.record-amount .amount{max-width:100%;white-space:nowrap}.amount-converted{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);font-size:11px;font-weight:400}
 .fx-preview{display:block;color:var(--muted);font-size:12px;min-height:0}.fx-preview[hidden]{display:none!important}
 @media(max-width:760px){
+ body:has(#overlay>.entryback) .mobilebar{opacity:0!important;visibility:hidden!important;pointer-events:none!important;transform:translateY(12px)!important}
+ body:has(#overlay>.entryback) #backToTop{display:none!important}
  #content>.filters,.search-page>.filters:nth-child(2){position:sticky;top:10px;z-index:11;align-self:start;margin-inline:-5px!important;padding:8px;border:1px solid var(--line);border-radius:17px;background:var(--glass);box-shadow:0 8px 28px #0002;backdrop-filter:blur(22px) saturate(160%);-webkit-backdrop-filter:blur(22px) saturate(160%)}
  :root.scriptable #content>.filters,:root.scriptable .search-page>.filters:nth-child(2){top:max(84px,calc(env(safe-area-inset-top) + 58px))}
  .entryback{overflow:hidden;overscroll-behavior:none}.entryback .entry{height:100dvh;max-width:540px;display:flex;flex-direction:column;padding:12px 15px calc(12px + env(safe-area-inset-bottom))!important;overflow:hidden}
