@@ -35,6 +35,7 @@ function rc55SceneHTML(contentHTML,scrollY,floatState){
  return scroll+floating;
 }
 function rc20SetPage(next){
+ if(!prefs.mainName&&next!=='settings')next='home';
  let fromPrimary=PRIMARY_PAGE_ORDER.indexOf(section),toPrimary=PRIMARY_PAGE_ORDER.indexOf(next),
      fromPage=PAGE_ORDER.indexOf(section),toPage=PAGE_ORDER.indexOf(next),
      content=document.querySelector('#content'),
@@ -672,6 +673,14 @@ function continuousBillRows(){let end=cycleRange(year,month)[1];return filtered(
 function homeFinancialCard(f){return renderMetricBanner('homeAssets',assetBannerMetrics(f))}
 function homeMonthSummary(rs){let s=stats(rs),banner=renderMetricBanner('homeMonth',monthBannerMetrics(rs),{sectionClass:true});return `${banner}${s.other?`<p class="muted">另有 ${s.other} 笔外币流水未折算，以上金额只统计已换算流水。</p>`:''}`}
 function homeV2(){let rs=filtered(rows,{monthOnly:true}),listRs=continuousBillRows(),f=financial();return `${homeFinancialCard(f)}${homeMonthSummary(rs)}<div class="grid cols2 section"><div class="card">${categoryPanel(rs,'home')}</div><div class="card"><div class="sectionhead"><h2>最近账单</h2></div>${records(listRs,8)}<button class="record-link" data-viewall="home">查看全部 →</button></div></div>`}
+function firstUsePage(){return `<div class="card importarea first-use-card">
+ <div class="first-use-intro"><span class="first-use-kicker">第一次使用</span><h2>开始使用星账本</h2><p>选择适合你的开始方式。账单默认保存在当前浏览器，不会上传到服务器。</p></div>
+ <div class="first-use-options">
+  <button type="button" class="first-use-option first-use-option-primary" id="newBook"><span class="first-use-icon" aria-hidden="true">＋</span><span><b>创建新账本</b><small>从空白账本开始，稍后再添加账户和账单</small></span><span class="first-use-arrow" aria-hidden="true">→</span></button>
+  <button type="button" class="first-use-option" id="importFolder"><span class="first-use-icon" aria-hidden="true">↗</span><span><b>打开已有数据</b><small>选择包含 StarLedger CSV 与设置文件的工作区文件夹</small></span><span class="first-use-arrow" aria-hidden="true">→</span></button>
+ </div>
+ <div class="first-use-assurance"><span><b>本地优先</b><small>数据留在你的设备</small></span><span><b>可随时备份</b><small>支持导出完整 CSV</small></span></div>
+</div>`}
 async function savePrefs(changes){
  let next={...prefs,...changes};
  if(native){
@@ -1224,13 +1233,13 @@ function renderKeepingVisualAnchor(mutator){
 }
 
 function render(){
- let nav=Object.entries(labels).map(([k,v])=>`<button class="navbtn ${section===k?'active':''}" data-go="${k}"><span class="nav-icon">${icons[k]}</span><span class="nav-label">${v}</span></button>`).join('');
+ let nav=Object.entries(labels).map(([k,v])=>`<button class="navbtn ${section===k?'active':''}" data-go="${k}" ${!prefs.mainName&&k!=='home'?'disabled aria-disabled="true"':''}><span class="nav-icon">${icons[k]}</span><span class="nav-label">${v}</span></button>`).join('');
  $('#nav').innerHTML=nav;
- $('#mobileNav').innerHTML=Object.entries(labels).map(([k,v])=>`<button class="${section===k?'active':''}" data-go="${k}"><span class="icon">${icons[k]}</span>${v}</button>`).join('');
+ $('#mobileNav').innerHTML=Object.entries(labels).map(([k,v])=>`<button class="${section===k?'active':''}" data-go="${k}" ${!prefs.mainName&&k!=='home'?'disabled aria-disabled="true"':''}><span class="icon">${icons[k]}</span>${v}</button>`).join('');
  let titleNode=$('#title');if(titleNode){if(section==='stats')titleNode.innerHTML=`<span class="stats-title-switch"><button type="button" data-statsmode="month" class="${statsMode==='month'?'active':''}">月度</button><button type="button" data-statsmode="year" class="${statsMode==='year'?'active':''}">年度</button></span>`;else titleNode.textContent=section==='settings'?'设置':labels[section]}
  let settingsButton=$('#settingsBtn');if(settingsButton){settingsButton.textContent=section==='settings'?'←':'⚙';settingsButton.setAttribute('aria-label',section==='settings'?'返回上一页':'设置')}
  let ledgerSwitch=$('#ledgerSwitch');if(ledgerSwitch){ledgerSwitch.hidden=section==='settings'||workspace.names.length<2;ledgerSwitch.textContent=(prefs.mainName||'主账本')+'　⌄'}
- let statusNode=$('#status');if(statusNode)statusNode.textContent=prefs.mainName?`${prefs.mainName} · ${rows.length.toLocaleString()} 笔 · ${workspace.readWrite?'工作区已连接':workspace.mode==='snapshot'?'文件夹快照':'浏览器本地'}`:'首次使用 · 选择工作区';
+ let statusNode=$('#status');if(statusNode)statusNode.textContent=prefs.mainName?`${prefs.mainName} · ${rows.length.toLocaleString()} 笔 · ${workspace.readWrite?'工作区已连接':workspace.mode==='snapshot'?'文件夹快照':'浏览器本地'}`:'首次使用 · 数据默认保存在本机';
  $('#addBtn').hidden=section==='settings'||!prefs.mainName;
  $('#addBtn').disabled=!!(native&&BOOT?.ledgerReady===false);
  $('#refreshBill').hidden=section==='settings'||!prefs.mainName||native;
@@ -1265,9 +1274,8 @@ function render(){
 
  const prefix=(volatileDeletion?'<div class="backup-alert">当前仅显示已导出的删除结果。手机原 CSV 未改变；请保存导出的 CSV，并重新导入后再继续记账。</div>':'')
   +(prefs.mainName&&section!=='settings'&&exportStatus()?exportStatus():'');
- const emptyPage=`<div class="card importarea"><h2>打开星账本</h2><p>选择一个 StarLedger 工作区文件夹。网页会同时读取其中的账单 CSV、配置和关联数据；其他文件会被忽略。</p><button class="button primary" id="importFolder">选择 StarLedger 工作区文件夹</button> <button class="button" id="newBook">新建主账本</button></div>`;
  const renderers={home:homeV2,stats:statsPage,books:bookPage,accounts:accountPage,search:searchPage,settings:settingsPage};
- $('#pageBody').innerHTML=prefix+(section==='settings'?settingsPage():!prefs.mainName?emptyPage:(renderers[section]?.()||''));
+ $('#pageBody').innerHTML=prefix+(section==='settings'?settingsPage():!prefs.mainName?firstUsePage():(renderers[section]?.()||''));
  [...$('#pageBody').querySelectorAll('.card')].forEach((el,i)=>{el.dataset.visualAnchor=section+':'+i});
 
  renderSelection();

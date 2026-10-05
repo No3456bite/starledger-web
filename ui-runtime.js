@@ -167,7 +167,7 @@ document.addEventListener('change',e=>{
     :'')+
    (prefs.mainName&&exportStatus()?exportStatus():'');
   if(!prefs.mainName){
-   return prefix+'<div class="card importarea"><h2>打开星账本</h2><p>选择一个 StarLedger 工作区文件夹。网页会同时读取其中的账单 CSV、配置和关联数据；其他文件会被忽略。</p><button class="button primary" id="importFolder">选择 StarLedger 工作区文件夹</button> <button class="button" id="newBook">新建主账本</button></div>';
+   return prefix+firstUsePage();
   }
   const fn={home:homeV2,stats:statsPage,books:bookPage,accounts:accountPage,search:searchPage}[target];
   return prefix+(fn?fn():'');
@@ -1170,7 +1170,7 @@ if('serviceWorker' in navigator&&location.protocol==='https:')window.addEventLis
             :'')+
           (prefs.mainName&&exportStatus()?exportStatus():'');
         if(!prefs.mainName){
-          body.innerHTML=prefix+'<div class="card importarea"><h2>打开星账本</h2><p>选择一个 StarLedger 工作区文件夹。网页会同时读取其中的账单 CSV、配置和关联数据；其他文件会被忽略。</p><button class="button primary" id="importFolder">选择 StarLedger 工作区文件夹</button> <button class="button" id="newBook">新建主账本</button></div>';
+          body.innerHTML=prefix+firstUsePage();
         }else{
           const fn={home:homeV2,stats:statsPage,books:bookPage,accounts:accountPage,search:searchPage}[target];
           body.innerHTML=prefix+(fn?fn():'');
