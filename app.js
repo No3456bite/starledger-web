@@ -4,6 +4,8 @@ const BOOT=/*__BOOT__*/null;
 const COLS=['id','date','type','category','subcategory','amount','account','account2','reimbursement','note','image','role','tags','currency','merchant','book','extras','created_at','updated_at'];
 const labels={home:'首页',stats:'月/年',books:'账本',accounts:'账户',search:'查账'};
 const icons={home:'⌂',stats:'▦',books:'▥',accounts:'▤',search:'⌕'};
+const SETTINGS_ICON='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.86 2.86-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21H9.6v-.1A1.7 1.7 0 0 0 8.5 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.86-2.86.06-.06A1.7 1.7 0 0 0 4.1 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1.1-.4H2V9.6h.4A1.7 1.7 0 0 0 4.1 8.5a1.7 1.7 0 0 0-.34-1.88l-.06-.06L6.56 3.7l.06.06A1.7 1.7 0 0 0 8.5 4.1a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1.1V2h4v.4A1.7 1.7 0 0 0 15 4.1a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.86 2.86-.06.06A1.7 1.7 0 0 0 19.4 8.5a1.7 1.7 0 0 0 .6 1 1.7 1.7 0 0 0 1.1.4h.4v4h-.4a1.7 1.7 0 0 0-1.7 1.1Z"></path></svg>';
+const BACK_ICON='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"></path></svg>';
 const today=new Date(),cycleToday=new Date(today.getFullYear(),today.getMonth()-(today.getDate()<Number(BOOT?.settings?.monthStartDay||1)?1:0),1),nowYear=cycleToday.getFullYear(),nowMonth=cycleToday.getMonth()+1;
 let entryInstantRender=false;
 let rows=[],revision='',native=!!BOOT?.native,section='home',year=nowYear,month=nowMonth,book='全部账本',query='',kind='全部类型',account='全部账户',category='全部分类',subcategory='全部小类',currencyFilter='全部币种',day='',page=0,pending=new Map(),seq=0,configured={};
@@ -672,7 +674,7 @@ function accountPage(){let data=accountViewData(),f=financial(),groups=accountGr
 function continuousBillRows(){let end=cycleRange(year,month)[1];return filtered(rows).filter(r=>dateOf(r)<end).sort((a,b)=>b.date.localeCompare(a.date)||b.id.localeCompare(a.id))}
 function homeFinancialCard(f){return renderMetricBanner('homeAssets',assetBannerMetrics(f))}
 function homeMonthSummary(rs){let s=stats(rs),banner=renderMetricBanner('homeMonth',monthBannerMetrics(rs),{sectionClass:true});return `${banner}${s.other?`<p class="muted">另有 ${s.other} 笔外币流水未折算，以上金额只统计已换算流水。</p>`:''}`}
-function homeV2(){let rs=filtered(rows,{monthOnly:true}),listRs=continuousBillRows(),f=financial();return `${homeFinancialCard(f)}${homeMonthSummary(rs)}<div class="grid cols2 section"><div class="card">${categoryPanel(rs,'home')}</div><div class="card"><div class="sectionhead"><h2>最近账单</h2></div>${records(listRs,8)}<button class="record-link" data-viewall="home">查看全部 →</button></div></div>`}
+function homeV2(){let rs=filtered(rows,{monthOnly:true}),listRs=continuousBillRows(),f=financial();return `${homeFinancialCard(f)}${homeMonthSummary(rs)}<div class="grid cols2 section home-overview-grid"><div class="card">${categoryPanel(rs,'home')}</div><div class="card"><div class="sectionhead"><h2>最近账单</h2></div>${records(listRs,8)}<button class="record-link" data-viewall="home">查看全部 →</button></div></div>`}
 function firstUsePage(){return `<div class="card importarea first-use-card">
  <div class="first-use-intro"><span class="first-use-kicker">第一次使用</span><h2>开始使用星账本</h2><p>选择适合你的开始方式。账单默认保存在当前浏览器，不会上传到服务器。</p></div>
  <div class="first-use-options">
@@ -1237,7 +1239,7 @@ function render(){
  $('#nav').innerHTML=nav;
  $('#mobileNav').innerHTML=Object.entries(labels).map(([k,v])=>`<button class="${section===k?'active':''}" data-go="${k}" ${!prefs.mainName&&k!=='home'?'disabled aria-disabled="true"':''}><span class="icon">${icons[k]}</span>${v}</button>`).join('');
  let titleNode=$('#title');if(titleNode){if(section==='stats')titleNode.innerHTML=`<span class="stats-title-switch"><button type="button" data-statsmode="month" class="${statsMode==='month'?'active':''}">月度</button><button type="button" data-statsmode="year" class="${statsMode==='year'?'active':''}">年度</button></span>`;else titleNode.textContent=section==='settings'?'设置':labels[section]}
- let settingsButton=$('#settingsBtn');if(settingsButton){settingsButton.textContent=section==='settings'?'←':'⚙';settingsButton.setAttribute('aria-label',section==='settings'?'返回上一页':'设置')}
+ let settingsButton=$('#settingsBtn');if(settingsButton){settingsButton.innerHTML=section==='settings'?BACK_ICON:SETTINGS_ICON;settingsButton.setAttribute('aria-label',section==='settings'?'返回上一页':'设置')}
  let ledgerSwitch=$('#ledgerSwitch');if(ledgerSwitch){ledgerSwitch.hidden=section==='settings'||workspace.names.length<2;ledgerSwitch.textContent=(prefs.mainName||'主账本')+'　⌄'}
  let statusNode=$('#status');if(statusNode)statusNode.textContent=prefs.mainName?`${prefs.mainName} · ${rows.length.toLocaleString()} 笔 · ${workspace.readWrite?'工作区已连接':workspace.mode==='snapshot'?'文件夹快照':'浏览器本地'}`:'首次使用 · 数据默认保存在本机';
  $('#addBtn').hidden=section==='settings'||!prefs.mainName;
