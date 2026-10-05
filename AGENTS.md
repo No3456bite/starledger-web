@@ -1,7 +1,7 @@
 # StarLedger Project Rules
 
 > This file is the operating contract for any AI assistant or coding agent working on StarLedger.
-> Read this file **before changing code**. Then read `docs/ARCHITECTURE.md` for the current module boundaries.
+> Read this file **before changing code**. Then read `docs/CODEX_HANDOFF.md` and `docs/ARCHITECTURE.md` for the handoff protocol and current module boundaries. Read `docs/DATA_MODEL.md` / `docs/PRODUCT_RULES.md` before changing persistence or product semantics, and `docs/OCR_RULES.md` for OCR work.
 >
 > 本文件优先级高于“顺手优化”“看起来更漂亮”“一次多修几个问题”等临时冲动。
 > 项目的首要目标不是追求最漂亮的代码，而是：**保持现有功能稳定，让每次改动局部、可验证、可回退。**
