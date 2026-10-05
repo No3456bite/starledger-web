@@ -1,6 +1,6 @@
 # StarLedger Web
 
-> AI / coding agent：开始修改本项目之前，必须先阅读根目录 [AGENTS.md](./AGENTS.md)，再阅读 [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)。
+> AI / coding agent：开始修改本项目之前，必须先阅读根目录 [AGENTS.md](./AGENTS.md)，再阅读 [docs/CODEX_HANDOFF.md](./docs/CODEX_HANDOFF.md) 与 [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)。涉及数据语义时继续阅读 [docs/DATA_MODEL.md](./docs/DATA_MODEL.md) / [docs/PRODUCT_RULES.md](./docs/PRODUCT_RULES.md)，OCR 工作阅读 [docs/OCR_RULES.md](./docs/OCR_RULES.md)。
 
 当前主线：纯 Web App（local-first）。当前网页版本：Web v0.4 · rc13.4。
 
