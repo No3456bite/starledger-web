@@ -40,6 +40,9 @@ jobs:
       - name: Check build invariants
         run: node scripts/validate-build.mjs
 
+      - name: Check complete backup ZIP codec
+        run: node scripts/test-backup-zip.cjs
+
   authorize-production:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: validate

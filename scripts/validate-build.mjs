@@ -16,6 +16,7 @@ const read = path => {
 const index = read('index.html');
 const app = read('app.js');
 const ui = read('ui-runtime.js');
+const backupZip = read('backup-zip.js');
 const books = read('books-stats.js');
 const recognizer = read('recognizer.js');
 const sw = read('sw.js');
@@ -26,6 +27,7 @@ const externalScripts = [
   './recognizer.js?v=ocr1',
   './app.js?v=midterm2',
   './ui-runtime.js?v=midterm1',
+  './backup-zip.js?v=zip1',
   './books-stats.js?v=midterm1'
 ];
 const precacheAssets = [...externalScripts,'./mobile-compat.css?v=css1'];
@@ -47,7 +49,8 @@ const requiredIds = [
   'pageBody',
   'floatingControls',
   'mobileNav',
-  'overlay'
+  'overlay',
+  'backupZip'
 ];
 
 for (const id of requiredIds) {
@@ -62,9 +65,11 @@ if (unexpectedInline.length) {
 }
 
 if (!app.includes('function render()')) fail('app.js lost the primary render() function');
+if (!app.includes('async function exportCompleteBackup()') || !app.includes('async function importCompleteBackup(file)')) fail('app.js lost complete backup import/export');
 if (!app.includes("scrollPageTo(0,'smooth')")) fail('back-to-top no longer uses the unified page scroller');
 if (!app.includes("const COLS=['id','date','type'")) fail('app.js lost the ledger column schema');
 if (!ui.includes('rc14-search-filter-behavior')) fail('ui-runtime.js lost the search filter controller');
+if (!backupZip.includes('global.StarLedgerZip=api')) fail('backup-zip.js lost the ZIP codec export');
 if (!ui.includes('web-v051-safari-document-modal-controller')) fail('ui-runtime.js lost Safari modal placement');
 if (!ui.includes('web-v044-browser-tab-interactions')) fail('ui-runtime.js lost browser-tab paging behavior');
 if (!books.includes('function cleanBookName')) fail('books-stats.js lost the books/stats controller');

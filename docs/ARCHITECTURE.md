@@ -36,6 +36,10 @@ This document is the maintenance boundary for the current single-page Web build.
    - Every new runtime file loaded by index.html must be added to the precache list.
    - Bump the cache key when the runtime file set changes.
 
+8. **backup-zip.js — complete backup container**
+   - Owns ZIP container creation, reading and CRC validation only.
+   - The meaning and validation of ledger CSV/config/relations remain in `app.js` and reuse the workspace parser.
+
 ## Change rules
 
 - A refactor should preserve behavior first. Structural moves and behavior changes should be separate commits.

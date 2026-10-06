@@ -1,4 +1,4 @@
-const CACHE='starledger-web-v050-ocr1-midterm2';
+const CACHE='starledger-web-v050-ocr1-backupzip1';
 const ASSETS=[
   './',
   './index.html',
@@ -6,6 +6,7 @@ const ASSETS=[
   './recognizer.js?v=ocr1',
   './app.js?v=midterm2',
   './ui-runtime.js?v=midterm1',
+  './backup-zip.js?v=zip1',
   './books-stats.js?v=midterm1',
   './mobile-compat.css?v=css1'
 ];
