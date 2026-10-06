@@ -20,6 +20,7 @@ const backupZip = read('backup-zip.js');
 const books = read('books-stats.js');
 const recognizer = read('recognizer.js');
 const sw = read('sw.js');
+const uiFoundation = read('ui-foundation.css');
 const mobileCompat = read('mobile-compat.css');
 const pagesWorkflow = read('.github/workflows/pages.yml');
 
@@ -30,7 +31,7 @@ const externalScripts = [
   './backup-zip.js?v=zip1',
   './books-stats.js?v=midterm1'
 ];
-const precacheAssets = [...externalScripts,'./mobile-compat.css?v=css1'];
+const precacheAssets = [...externalScripts,'./ui-foundation.css?v=modern1','./mobile-compat.css?v=css1'];
 
 let last = -1;
 for (const src of externalScripts) {
@@ -82,6 +83,9 @@ for (const asset of precacheAssets) {
 }
 
 if (!index.includes('href="./mobile-compat.css?v=css1"')) fail('index.html does not load mobile-compat.css');
+if (!index.includes('href="./ui-foundation.css?v=modern1"')) fail('index.html does not load ui-foundation.css');
+if (!uiFoundation.includes('StarLedger modern UI foundation')) fail('ui-foundation.css lost its ownership marker');
+if (index.lastIndexOf('href="./ui-foundation.css?v=modern1"') > index.lastIndexOf('href="./mobile-compat.css?v=css1"')) fail('ui-foundation.css must load before mobile-compat.css');
 if (index.lastIndexOf('href="./mobile-compat.css?v=css1"') < index.lastIndexOf('</style>')) fail('mobile-compat.css must load after inline style layers');
 
 if (!index.includes('id="web-v051-safari-document-modal"')) {

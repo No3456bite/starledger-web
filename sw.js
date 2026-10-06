@@ -1,4 +1,4 @@
-const CACHE='starledger-web-v050-ocr1-backupzip1';
+const CACHE='starledger-web-v051-modern1';
 const ASSETS=[
   './',
   './index.html',
@@ -8,6 +8,7 @@ const ASSETS=[
   './ui-runtime.js?v=midterm1',
   './backup-zip.js?v=zip1',
   './books-stats.js?v=midterm1',
+  './ui-foundation.css?v=modern1',
   './mobile-compat.css?v=css1'
 ];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting())));

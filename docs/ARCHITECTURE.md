@@ -27,16 +27,21 @@ This document is the maintenance boundary for the current single-page Web build.
    - Owns the later books and statistics header behavior that depends on styles loaded near the end of index.html.
    - It remains a separate file to preserve its execution position relative to those styles.
 
-6. **mobile-compat.css — final mobile browser compatibility**
+6. **ui-foundation.css — shared visual foundation**
+   - Owns the modern visual tokens, shared page chrome, cards, navigation and page-level responsive presentation.
+   - Loads after the historical inline CSS so migrated components have one explicit owner.
+   - Must load before `mobile-compat.css`; Safari/browser-tab geometry does not belong here.
+
+7. **mobile-compat.css — final mobile browser compatibility**
    - Loads after all historical inline styles and owns the last-word Safari browser-tab overrides.
    - Owns browser-chrome clearance, document-scrollbar suppression, short-page scroll sentinels and pager hand-off guards.
    - Do not put normal component styling here. This file is for browser/runtime compatibility only.
 
-7. **sw.js — offline cache**
+8. **sw.js — offline cache**
    - Every new runtime file loaded by index.html must be added to the precache list.
    - Bump the cache key when the runtime file set changes.
 
-8. **backup-zip.js — complete backup container**
+9. **backup-zip.js — complete backup container**
    - Owns ZIP container creation, reading and CRC validation only.
    - The meaning and validation of ledger CSV/config/relations remain in `app.js` and reuse the workspace parser.
 
