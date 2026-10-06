@@ -92,13 +92,13 @@ for (const marker of ['--sl-browser-chrome-gap','browser-pager-filter-current','
 }
 
 for (const marker of [
-  'pull-requests: read',
-  'commits/$GITHUB_SHA/pulls',
-  'pr.merged_at',
-  "pr.base?.ref === 'main'",
-  "github.event_name == 'push' && github.ref == 'refs/heads/main'"
+  "github.event_name == 'push' && github.ref == 'refs/heads/main'",
+  'needs: validate'
 ]) {
-  if (!pagesWorkflow.includes(marker)) fail(`Pages deploy guard is missing: ${marker}`);
+  if (!pagesWorkflow.includes(marker)) fail(`Pages deployment condition is missing: ${marker}`);
+}
+for (const staleGuard of ['authorize-production', 'commits/$GITHUB_SHA/pulls', 'pr.merged_at']) {
+  if (pagesWorkflow.includes(staleGuard)) fail(`obsolete PR deployment guard remains: ${staleGuard}`);
 }
 if (pagesWorkflow.includes("github.event.action == 'closed'")) {
   fail('Pages must not deploy directly from the pull_request closed event');

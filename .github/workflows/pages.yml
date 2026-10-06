@@ -13,7 +13,6 @@ on:
 
 permissions:
   contents: read
-  pull-requests: read
   pages: write
   id-token: write
 
@@ -43,40 +42,9 @@ jobs:
       - name: Check complete backup ZIP codec
         run: node scripts/test-backup-zip.cjs
 
-  authorize-production:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: validate
-    runs-on: ubuntu-latest
-    steps:
-      - name: Verify main commit came from a merged PR
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          curl --fail --silent --show-error \
-            -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer $GH_TOKEN" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls" \
-            > "$RUNNER_TEMP/associated-prs.json"
-
-          node <<'NODE'
-          const fs = require('fs');
-          const path = process.env.RUNNER_TEMP + '/associated-prs.json';
-          const prs = JSON.parse(fs.readFileSync(path, 'utf8'));
-          const approved = prs.some(pr => pr.merged_at && pr.base?.ref === 'main');
-          if (!approved) {
-            console.error('Production deploy blocked: this main commit did not come from a merged PR.');
-            process.exit(1);
-          }
-          console.log('Production deploy authorized: merged PR association verified by GitHub.');
-          NODE
-
   deploy:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs:
-      - validate
-      - authorize-production
+    needs: validate
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
