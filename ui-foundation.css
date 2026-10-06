@@ -30,25 +30,26 @@
 }
 
 :root[data-mode="dark"] {
-  --bg: #111512;
-  --card: #191f1b;
-  --ink: #edf2ee;
-  --muted: #9ca7a0;
-  --line: #303832;
-  --green: #61d3a4;
-  --pale: #1d3d30;
+  /* Neutral charcoal surfaces, close to ChatGPT's dark palette. */
+  --bg: #212121;
+  --card: #2f2f2f;
+  --ink: #ececec;
+  --muted: #b4b4b4;
+  --line: #424242;
+  --green: #10a37f;
+  --pale: #383838;
   --red: #ff7b81;
-  --up: #61d3a4;
+  --up: #34d399;
   --down: #ff7b81;
-  --glass: #191f1bf0;
-  --shadow: 0 1px 2px #0005, 0 14px 34px #0003;
-  --shadow-raised: 0 18px 55px #0008;
+  --glass: #2b2b2bf2;
+  --shadow: 0 1px 2px #0006, 0 14px 34px #0003;
+  --shadow-raised: 0 18px 55px #0007;
   color-scheme: dark;
 }
 
-html {
+:root {
   background: var(--bg);
-  font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 }
@@ -64,7 +65,12 @@ button,
 input,
 select,
 textarea {
-  letter-spacing: -.01em;
+  letter-spacing: 0;
+}
+
+:root[data-mode="dark"] body {
+  /* Dark mode intentionally has no green wash behind the content. */
+  background: var(--bg);
 }
 
 button:focus-visible,
@@ -464,6 +470,7 @@ main {
   align-items: center;
   justify-content: center;
   gap: 7px;
+  width: auto;
   min-width: 102px;
   min-height: 45px;
   padding: 0 15px;
@@ -471,8 +478,17 @@ main {
   border-radius: 14px;
   background: var(--card);
   color: var(--ink);
+  font-size: 14px;
   font-weight: 650;
+  line-height: 1;
+  white-space: nowrap;
+  word-break: keep-all;
+  writing-mode: horizontal-tb;
   box-shadow: var(--shadow);
+}
+
+.filter-plus span {
+  white-space: nowrap;
 }
 
 .filter-plus svg {
@@ -726,7 +742,7 @@ main {
   }
 }
 
-@media (max-width: 390px) {
+@media (max-width: 460px) {
   .metric-banner-subs[data-count="3"] {
     --sub-value-size: 14px;
   }
