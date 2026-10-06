@@ -167,7 +167,7 @@ document.addEventListener('change',e=>{
     :'')+
    (prefs.mainName&&exportStatus()?exportStatus():'');
   if(!prefs.mainName){
-   return prefix+'<div class="card importarea"><h2>打开星账本</h2><p>选择一个 StarLedger 工作区文件夹。网页会同时读取其中的账单 CSV、配置和关联数据；其他文件会被忽略。</p><button class="button primary" id="importFolder">选择 StarLedger 工作区文件夹</button> <button class="button" id="newBook">新建主账本</button></div>';
+   return prefix+firstUsePage();
   }
   const fn={home:homeV2,stats:statsPage,books:bookPage,accounts:accountPage,search:searchPage}[target];
   return prefix+(fn?fn():'');
@@ -809,11 +809,12 @@ function rc12RecordForSave(draft,index){
 }
 function rc12AugmentEntry(direction=0){
  let f=$('#entry'),entry=f?.closest('.entry'),back=f?.closest('.entryback');if(!f||!entry||!back||!rc12Task)return;back.classList.toggle('rc12-multi',rc12Task.drafts.length>1);entry.classList.remove('rc12-from-left','rc12-from-right');if(direction)entry.classList.add(direction>0?'rc12-from-right':'rc12-from-left');let draft=rc12Task.drafts[rc12Task.active],group=rc12TaskGroupForKey(draft.key),gb=group?rc12TaskGroupBudget(group):null,summary=group?`关联 · ${group.members.length} 笔${gb&&!gb.unknown?' · 实际预算 '+money(gb.total):''}`:'',mobile=matchMedia('(max-width:760px)').matches;
+ entry.setAttribute('role','dialog');entry.setAttribute('aria-modal','true');entry.setAttribute('aria-label',draft.existingId?'编辑账单':'记一笔');
  let old=entry.querySelector('.rc12-taskbar');if(old)old.remove();let bar=document.createElement('div');bar.className='rc12-taskbar';let relationLabel=group?`关联·${group.members.length}`:'关联',deleteLabel=draft.existingId?'移出':'删除';bar.innerHTML=`<div class="rc12-tasknav"><button type="button" id="rc12PrevDraft" aria-label="上一笔" ${rc12Task.active<=0?'disabled':''}>‹</button><b>${rc12Task.active+1}/${rc12Task.drafts.length}</b><button type="button" id="rc12NextDraft" aria-label="下一笔" ${rc12Task.active>=rc12Task.drafts.length-1?'disabled':''}>›</button>${!mobile&&summary?`<span class="rc12-current-relation">${summary}</span>`:''}</div><div class="rc12-taskactions"><button type="button" id="rc12AddDraft">＋新增</button><button type="button" id="rc12ManageRelations" ${summary?`title="${esc(summary)}"`:''}>${relationLabel}</button><button type="button" id="rc12DeleteDraft" ${rc12Task.drafts.length<=1?'disabled':''}>${deleteLabel}</button></div>`;
  let head=entry.querySelector('.entryhead'),right=head?.querySelector('.entryhead-right'),tag=f.querySelector('.entry-tag-row'),note=f.querySelector('.entry-note-card');if(head)head.insertBefore(bar,right||null);else if(tag)tag.after(bar);else if(note)note.before(bar);else f.prepend(bar);
  let h=entry.querySelector('.entryhead h2');if(h){h.hidden=mobile;h.textContent=mobile?'':(rc12Task.source==='compound'?'复合账单':'记一笔')+` · ${rc12Task.active+1}/${rc12Task.drafts.length}`}
  let ledgerBtn=entry.querySelector('#switchMain');if(ledgerBtn&&mobile){ledgerBtn.textContent=prefs.mainName||'账本';ledgerBtn.title='切换账本';ledgerBtn.setAttribute('aria-label','切换账本')}
- let submit=f.querySelector('button[type=submit]');if(submit)submit.textContent=`确认保存（${rc12Task.drafts.length}笔）`;let keySave=f.querySelector('[data-key="保存账单"]');if(keySave)keySave.textContent='确认任务';
+ let submit=f.querySelector('button[type=submit]');if(submit)submit.textContent=`确认保存（${rc12Task.drafts.length}笔）`;let keySave=f.querySelector('[data-key="保存账单"]');if(keySave)keySave.textContent=`保存 ${rc12Task.drafts.length} 笔`;
  entry.dataset.rc12Task='1';
  rc12BindMobileSwipe(entry)
 }
@@ -839,7 +840,7 @@ function rc123GhostHydrate(clone,draft,index){
  let del=clone.querySelector('#rc12DeleteDraft');if(del)del.textContent=draft?.existingId?'移出':'删除';
  let ledger=clone.querySelector('#switchMain');if(ledger)ledger.textContent=prefs.mainName||'账本';
  let submit=clone.querySelector('button[type=submit]');if(submit)submit.textContent=`确认保存（${rc12Task?.drafts?.length||1}笔）`;
- let keySave=clone.querySelector('[data-key="保存账单"]');if(keySave)keySave.textContent='确认任务';
+ let keySave=clone.querySelector('[data-key="保存账单"]');if(keySave)keySave.textContent=`保存 ${rc12Task?.drafts?.length||1} 笔`;
  return clone
 }
 function rc123MakeGhost(entry,index,kind){
@@ -879,7 +880,7 @@ function rc124RefreshStackAfterInsert(entry,previousCount){
  if(!entry||!rc12Task)return;let back=entry.closest('.entryback');if(!back)return;back.classList.toggle('rc12-multi',rc12Task.drafts.length>1);
  let nav=entry.querySelector('.rc12-tasknav>b'),prevBtn=entry.querySelector('#rc12PrevDraft'),nextBtn=entry.querySelector('#rc12NextDraft'),delBtn=entry.querySelector('#rc12DeleteDraft');
  if(nav)nav.textContent=`${rc12Task.active+1}/${rc12Task.drafts.length}`;if(prevBtn)prevBtn.disabled=rc12Task.active<=0;if(nextBtn)nextBtn.disabled=rc12Task.active>=rc12Task.drafts.length-1;if(delBtn)delBtn.disabled=rc12Task.drafts.length<=1;
- let submit=entry.querySelector('button[type=submit]');if(submit)submit.textContent=`确认保存（${rc12Task.drafts.length}笔）`;let keySave=entry.querySelector('[data-key="保存账单"]');if(keySave)keySave.textContent='确认任务';
+ let submit=entry.querySelector('button[type=submit]');if(submit)submit.textContent=`确认保存（${rc12Task.drafts.length}笔）`;let keySave=entry.querySelector('[data-key="保存账单"]');if(keySave)keySave.textContent=`保存 ${rc12Task.drafts.length} 笔`;
  rc123StopMotion();rc123Swipe=null;rc123Scalar=0;
  // A one-card task had no swipe listeners yet. Once the inserted card makes it a stack,
  // bind the existing gesture system in place instead of rebuilding the live form.
@@ -1170,7 +1171,7 @@ if('serviceWorker' in navigator&&location.protocol==='https:')window.addEventLis
             :'')+
           (prefs.mainName&&exportStatus()?exportStatus():'');
         if(!prefs.mainName){
-          body.innerHTML=prefix+'<div class="card importarea"><h2>打开星账本</h2><p>选择一个 StarLedger 工作区文件夹。网页会同时读取其中的账单 CSV、配置和关联数据；其他文件会被忽略。</p><button class="button primary" id="importFolder">选择 StarLedger 工作区文件夹</button> <button class="button" id="newBook">新建主账本</button></div>';
+          body.innerHTML=prefix+firstUsePage();
         }else{
           const fn={home:homeV2,stats:statsPage,books:bookPage,accounts:accountPage,search:searchPage}[target];
           body.innerHTML=prefix+(fn?fn():'');
