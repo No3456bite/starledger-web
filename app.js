@@ -1650,8 +1650,15 @@ async function mergeSelected(ids){let selected=new Set(ids),records=(pendingDelt
 
 function form(record){entryForm(record)}
 let ocrOpenGeneration=0;
+function closeSearchOverlay(){
+ let overlay=$('#overlay'),back=overlay?.querySelector(':scope > .search-modalback');if(!back)return false;
+ overlay.innerHTML='';overlay.classList.remove('safari-document-modal');
+ for(let name of ['--sl-modal-left','--sl-modal-top','--sl-modal-width','--sl-modal-height'])overlay.style.removeProperty(name);
+ document.body.classList.remove('dialog-open');return true
+}
 function close(){
  if(closeAppTertiary())return;
+ if(closeSearchOverlay())return;
  let overlay=$('#overlay'),back=overlay?.querySelector('.entryback,.modalback'),generation=ocrOpenGeneration;
  if(!back){if(overlay)overlay.innerHTML='';document.body.classList.remove('dialog-open');ocrReviewText='';return}
  if(back.classList.contains('rc21-closing'))return;
@@ -1904,5 +1911,5 @@ pendingPrefill=pendingPrefill||consumeHashPrefill();if(BOOT?.native){try{if(BOOT
 
 
 document.addEventListener('click',e=>{
- if(e.target?.classList?.contains('search-modalback')){e.target.parentElement.innerHTML=''}
+ if(e.target?.classList?.contains('search-modalback'))closeSearchOverlay()
 },true);

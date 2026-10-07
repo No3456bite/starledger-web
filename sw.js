@@ -1,15 +1,15 @@
-const CACHE='starledger-web-v057-stable-live-navigation';
+const CACHE='starledger-web-v058-search-overlay-cleanup';
 const ASSETS=[
   './',
   './index.html',
   './manifest.webmanifest',
   './recognizer.js?v=ocr1',
-  './app.js?v=midterm5',
-  './ui-runtime.js?v=midterm2',
+  './app.js?v=midterm6',
+  './ui-runtime.js?v=midterm3',
   './backup-zip.js?v=zip1',
   './books-stats.js?v=midterm2',
   './ui-foundation.css?v=modern6',
-  './mobile-compat.css?v=css1'
+  './mobile-compat.css?v=css2'
 ];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));

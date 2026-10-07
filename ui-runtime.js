@@ -1057,7 +1057,7 @@ if('serviceWorker' in navigator&&location.protocol==='https:')window.addEventLis
 
   let modalActive=false;
   const isPhone=()=>matchMedia('(max-width:760px)').matches;
-  const hasPrimaryModal=()=>!!overlay.querySelector(':scope > .entryback, :scope > .account-dialog-back');
+  const hasPrimaryModal=()=>!!overlay.querySelector(':scope > .entryback, :scope > .account-dialog-back, :scope > .search-modalback');
 
   const place=()=>{
     if(!modalActive||!isPhone())return;
