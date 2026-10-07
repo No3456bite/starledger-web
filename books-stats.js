@@ -29,18 +29,18 @@
   function bookForm(name){
     name=cleanBookName(name);if(!name)return;
     let profile=bookProfile(name),count=rows.filter(r=>r.book===name).length,isDefault=defaultBookName()===name;
-    $('#overlay').innerHTML=`<div class="modalback account-dialog-back"><div class="modal account-config account-config-compact"><div class="account-config-head"><h2>${esc(name)}</h2><div class="account-head-actions">${isDefault?'':'<button type="button" data-bookdefault="'+esc(name)+'">设为默认</button>'}<button type="button" class="danger" data-bookdelete="${esc(name)}">删除</button></div></div><p class="muted account-summary">${count} 笔账单 · ${isDefault?'当前默认账本':'排序第 '+(orderedBookNames(true).indexOf(name)+1)+' 位'}</p><form id="bookProfileForm" data-book="${esc(name)}"><label class="field account-rename-full">账本名称<input name="name" maxlength="60" value="${esc(name)}" autocomplete="off"></label><label class="field include-toggle"><input type="checkbox" name="hidden" ${profile.hidden?'checked':''}>隐藏此账本</label><label class="field account-note-full">备注<input name="note" maxlength="160" value="${esc(profile.note)}" placeholder="可选"></label><p class="muted account-config-hint">列表第一项是普通新记账默认账本。OCR 优先沿用最近一笔账单的账本；若该账本被隐藏或删除，再退回第一项可用账本。隐藏不会删除历史账单。</p><div class="modalfooter"><button type="button" class="button" id="closeBtn">取消</button><button type="submit" class="button primary">保存账本</button></div></form></div></div>`;
+    $('#overlay').innerHTML=`<div class="modalback account-dialog-back"><div class="modal account-config account-config-compact"><div class="account-config-head"><h2>${esc(name)}</h2><div class="account-head-actions">${isDefault?'':'<button type="button" data-bookdefault="'+esc(name)+'">设为默认</button>'}<button type="button" class="danger" data-bookdelete="${esc(name)}">删除</button></div></div><p class="muted account-summary">${count} 笔账单 · ${isDefault?'当前默认账本':'排序第 '+(orderedBookNames(true).indexOf(name)+1)+' 位'}</p><form id="bookProfileForm" data-book="${esc(name)}"><div class="book-profile-main"><label class="field book-icon-field">图标<input name="icon" maxlength="16" value="${esc(profile.icon)}" placeholder="${esc(bookDisplayIcon(name))}" autocomplete="off" aria-label="账本图标，可输入 Emoji"></label><label class="field">账本名称<input name="name" maxlength="60" value="${esc(name)}" autocomplete="off"></label></div><label class="field include-toggle"><input type="checkbox" name="hidden" ${profile.hidden?'checked':''}>隐藏此账本</label><label class="field account-note-full">备注<input name="note" maxlength="160" value="${esc(profile.note)}" placeholder="可选"></label><p class="muted account-config-hint">图标可输入一个 Emoji 或短字符；留空时显示账本名称首字。隐藏不会删除历史账单。</p><div class="modalfooter"><button type="button" class="button" id="closeBtn">取消</button><button type="submit" class="button primary">保存账本</button></div></form></div></div>`;
     if(compactViewport())document.body.classList.add('dialog-open');activateAppTertiary('account')
   }
   function newInnerBookForm(){
-    $('#overlay').innerHTML='<div class="modalback account-dialog-back"><div class="modal account-config"><h2>新建账本</h2><form id="newInnerBookForm"><label class="field">账本名称<input name="name" maxlength="60" required placeholder="例如：日常账本"></label><label class="field">备注<input name="note" maxlength="160" placeholder="可选"></label><div class="modalfooter"><button type="button" class="button" id="closeBtn">取消</button><button type="submit" class="button primary">创建账本</button></div></form></div></div>';
+    $('#overlay').innerHTML='<div class="modalback account-dialog-back"><div class="modal account-config"><h2>新建账本</h2><form id="newInnerBookForm"><div class="book-profile-main"><label class="field book-icon-field">图标<input name="icon" maxlength="16" placeholder="📒" autocomplete="off" aria-label="账本图标，可输入 Emoji"></label><label class="field">账本名称<input name="name" maxlength="60" required placeholder="例如：日常账本"></label></div><label class="field">备注<input name="note" maxlength="160" placeholder="可选"></label><div class="modalfooter"><button type="button" class="button" id="closeBtn">取消</button><button type="submit" class="button primary">创建账本</button></div></form></div></div>';
     if(compactViewport())document.body.classList.add('dialog-open');activateAppTertiary('account')
   }
   async function createInnerBook(form){
-    let data=new FormData(form),name=cleanBookName(data.get('name')),note=cleanBookName(data.get('note'));
+    let data=new FormData(form),name=cleanBookName(data.get('name')),note=cleanBookName(data.get('note')),icon=normalizeBookIcon(data.get('icon'));
     if(!validBookName(name))throw Error('账本名称无效');
     if(bookExists(name))throw Error('已存在同名账本');
-    let profiles={...(prefs.bookProfiles||{}),[name]:{hidden:false,note}},deleted=(prefs.deletedBooks||[]).filter(x=>x!==name),order=[...orderedBookNames(true),name];
+    let profiles={...(prefs.bookProfiles||{}),[name]:{hidden:false,note,icon}},deleted=(prefs.deletedBooks||[]).filter(x=>x!==name),order=[...orderedBookNames(true),name];
     await persistBookMeta({bookProfiles:profiles,deletedBooks:deleted,bookOrder:order});
     close();bookForm(name)
   }
@@ -52,14 +52,14 @@
     close();render();toast('已设为默认账本：'+name)
   }
   async function saveBookProfile(form){
-    let old=cleanBookName(form.dataset.book),data=new FormData(form),dest=cleanBookName(data.get('name')),hidden=data.get('hidden')==='on',note=cleanBookName(data.get('note'));
+    let old=cleanBookName(form.dataset.book),data=new FormData(form),dest=cleanBookName(data.get('name')),hidden=data.get('hidden')==='on',note=cleanBookName(data.get('note')),icon=normalizeBookIcon(data.get('icon'));
     if(!validBookName(dest))throw Error('账本名称无效');
     if(hidden&&orderedBookNames(false).filter(x=>x!==old).length===0)throw Error('至少保留一个可用账本');
     if(dest!==old&&bookExists(dest))throw Error('已存在同名账本；请先删除或改用其他名称');
     if(dest!==old)await replaceBookInRows(old,dest);
     if(hidden&&book===old)book='全部账本';
     let profiles={...(prefs.bookProfiles||{})},oldProfile=profiles[old]||bookProfile(old);
-    delete profiles[old];profiles[dest]={...oldProfile,hidden,note};
+    delete profiles[old];profiles[dest]={...oldProfile,hidden,note,icon};
     let order=normalizeBookOrder((prefs.bookOrder||[]).map(x=>x===old?dest:x));
     if(!order.includes(dest))order.push(dest);
     let deleted=(prefs.deletedBooks||[]).filter(x=>x!==dest);if(dest!==old&&!deleted.includes(old))deleted.push(old);

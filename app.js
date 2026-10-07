@@ -857,7 +857,13 @@ async function localWriteLegacy(action,record,id,extra={}){
 }
 async function localWrite(action,record,id,extra={}){return folderHandle?folderWrite(action,record,id,extra):localWriteLegacy(action,record,id,extra)}
 async function sendV2(action,record,id,extra={}){if(!native)return localWrite(action,record,id,extra);let result=await nativeCommand(action,record,id,extra);volatileDeletion=false;if(result.csv!==undefined){let scrollY=window.scrollY||document.documentElement.scrollTop||0;prefs={...prefs,...result.settings};takeCsv(result.csv);window.scrollTo(0,scrollY);requestAnimationFrame(()=>window.scrollTo(0,scrollY));applyTheme()}if(!['add','update'].includes(action))close();if(!['add','update'].includes(action))toast('已保存在本机账本');openPendingPrefill();return result}
-function bookProfile(name){let p=prefs.bookProfiles?.[name]||{};return {hidden:!!p.hidden,note:String(p.note||'')}}
+function normalizeBookIcon(value){
+ let text=String(value||'').trim();if(!text)return '';
+ try{return [...new Intl.Segmenter('zh-CN',{granularity:'grapheme'}).segment(text)].slice(0,2).map(x=>x.segment).join('')}
+ catch(_){return Array.from(text).slice(0,4).join('')}
+}
+function bookProfile(name){let p=prefs.bookProfiles?.[name]||{};return {hidden:!!p.hidden,note:String(p.note||''),icon:normalizeBookIcon(p.icon)}}
+function bookDisplayIcon(name){let icon=bookProfile(name).icon;return icon||Array.from(String(name||''))[0]||'账'}
 function allBookNames(){
  let deleted=new Set(prefs.deletedBooks||[]),out=[],seen=new Set(),push=name=>{name=String(name||'').trim();if(!name||deleted.has(name)||seen.has(name))return;seen.add(name);out.push(name)};
  for(let name of prefs.bookOrder||[])push(name);
@@ -1182,7 +1188,7 @@ function bookPage(){
  let names=orderedBookNames(true),defaultName=defaultBookName(),total=names.reduce((n,name)=>n+rows.filter(r=>r.book===name).length,0);
  return `<div class="card section book-list-card">
   <div class="sectionhead"><h2>账本 · ${names.length}</h2><span class="group-total">共 ${total} 笔账单</span></div>
-  <div class="book-list">${names.map((name,i)=>{let p=bookProfile(name),count=rows.filter(r=>r.book===name).length;return `<div class="book-entry ${p.hidden?'book-hidden':''}" data-bookentry="${esc(name)}"><button type="button" class="book-item book-name" data-bookname="${esc(name)}" aria-label="管理账本 ${esc(name)}"><span class="book-avatar" aria-hidden="true">${esc(Array.from(name)[0]||'账')}</span><span><b>${esc(name)}</b><small>${defaultName===name?'默认 · 新记账':''}${p.hidden?(defaultName===name?' · ':'')+'已隐藏':''}${p.note?' · '+esc(p.note):''}</small></span></button><button type="button" class="book-item book-count" data-bookname="${esc(name)}"><span><b>${count} 笔</b><small>管理　›</small></span></button></div>`}).join('')||'<div class="empty">还没有账本</div>'}</div>
+  <div class="book-list">${names.map((name,i)=>{let p=bookProfile(name),count=rows.filter(r=>r.book===name).length;return `<div class="book-entry ${p.hidden?'book-hidden':''}" data-bookentry="${esc(name)}"><button type="button" class="book-item book-name" data-bookname="${esc(name)}" aria-label="管理账本 ${esc(name)}"><span class="book-avatar ${p.icon?'book-avatar-custom':'book-avatar-fallback'}" aria-hidden="true">${esc(bookDisplayIcon(name))}</span><span><b>${esc(name)}</b><small>${defaultName===name?'默认 · 新记账':''}${p.hidden?(defaultName===name?' · ':'')+'已隐藏':''}${p.note?' · '+esc(p.note):''}</small></span></button><button type="button" class="book-item book-count" data-bookname="${esc(name)}"><span><b>${count} 笔</b><small>编辑　›</small></span></button></div>`}).join('')||'<div class="empty">还没有账本</div>'}</div>
  </div>
  <button class="button add-group" id="addInnerBook">＋ 新建账本</button>
  <p class="muted">隐藏只会从新记账和筛选选择器中移除，历史账单仍保留。删除有账单的账本时必须先迁移到其他账本。</p>`

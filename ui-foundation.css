@@ -30,22 +30,22 @@
 }
 
 :root[data-mode="dark"] {
-  /* Neutral charcoal surfaces, close to ChatGPT's dark palette. */
+  /* Near-black neutral surfaces, close to ChatGPT's dark palette. */
   --bg: #000000;
-  --card: #2f2f2f;
+  --card: #171717;
   --ink: #ececec;
-  --muted: #b4b4b4;
-  --line: #424242;
+  --muted: #a8a8a8;
+  --line: #303030;
   --green: #10a37f;
-  --pale: #383838;
+  --pale: #262626;
   --red: #ff7b81;
   --up: #34d399;
   --down: #ff7b81;
-  --glass: #2b2b2bf2;
+  --glass: #171717f2;
   --shadow: 0 1px 2px #0006, 0 14px 34px #0003;
   --shadow-raised: 0 18px 55px #0007;
   --sl-glass-surface: var(--card);
-  --sl-glass-surface-compact: #2b2b2b;
+  --sl-glass-surface-compact: #1f1f1f;
   --sl-glass-rim: var(--line);
   --sl-glass-top: transparent;
   --sl-glass-bottom: transparent;
@@ -399,6 +399,10 @@ main {
   overflow: hidden;
 }
 
+#pageBody[data-page="books"] .book-list-card {
+  padding: 14px 16px !important;
+}
+
 .book-list-card .sectionhead,
 .account-group .sectionhead {
   margin-bottom: 10px;
@@ -438,6 +442,30 @@ main {
   color: var(--green);
   font-size: 14px;
   font-weight: 750;
+}
+
+.book-avatar-custom {
+  background: transparent;
+  color: var(--ink);
+  font-size: 23px;
+  font-weight: 500;
+}
+
+.book-avatar-fallback {
+  background: var(--pale);
+  color: var(--muted);
+}
+
+.book-profile-main {
+  display: grid;
+  grid-template-columns: 74px minmax(0, 1fr);
+  gap: 10px;
+}
+
+.book-icon-field input {
+  padding-inline: 8px;
+  text-align: center;
+  font-size: 23px !important;
 }
 
 .account-type-mark {

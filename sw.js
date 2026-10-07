@@ -1,14 +1,14 @@
-const CACHE='starledger-web-v054-black-account-grid';
+const CACHE='starledger-web-v055-book-icons-dark';
 const ASSETS=[
   './',
   './index.html',
   './manifest.webmanifest',
   './recognizer.js?v=ocr1',
-  './app.js?v=midterm3',
+  './app.js?v=midterm4',
   './ui-runtime.js?v=midterm1',
   './backup-zip.js?v=zip1',
-  './books-stats.js?v=midterm1',
-  './ui-foundation.css?v=modern4',
+  './books-stats.js?v=midterm2',
+  './ui-foundation.css?v=modern5',
   './mobile-compat.css?v=css1'
 ];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting())));
