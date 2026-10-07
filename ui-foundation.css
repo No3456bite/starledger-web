@@ -308,6 +308,10 @@ main {
   gap: var(--card-gap);
 }
 
+.home-metrics > .metric-banner {
+  margin: 0 !important;
+}
+
 .metric-banner {
   min-height: 184px;
   padding: 24px;
@@ -378,12 +382,13 @@ main {
   border-radius: 11px;
 }
 
-.calendar-card .day:not(.has):not([disabled]) {
-  background: color-mix(in srgb, var(--bg) 84%, var(--card));
-}
-
 .calendar-card .day.has {
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--green) 8%, transparent);
+}
+
+:root[data-mode="dark"] .calendar-card .day:not([disabled]) {
+  border-color: var(--line);
+  background: #242424;
 }
 
 .trendwrap {

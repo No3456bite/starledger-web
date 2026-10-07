@@ -26,12 +26,12 @@ const pagesWorkflow = read('.github/workflows/pages.yml');
 
 const externalScripts = [
   './recognizer.js?v=ocr1',
-  './app.js?v=midterm4',
+  './app.js?v=midterm5',
   './ui-runtime.js?v=midterm1',
   './backup-zip.js?v=zip1',
   './books-stats.js?v=midterm2'
 ];
-const precacheAssets = [...externalScripts,'./ui-foundation.css?v=modern5','./mobile-compat.css?v=css1'];
+const precacheAssets = [...externalScripts,'./ui-foundation.css?v=modern6','./mobile-compat.css?v=css1'];
 
 let last = -1;
 for (const src of externalScripts) {
@@ -84,13 +84,14 @@ for (const asset of precacheAssets) {
 }
 
 if (!index.includes('href="./mobile-compat.css?v=css1"')) fail('index.html does not load mobile-compat.css');
-if (!index.includes('href="./ui-foundation.css?v=modern5"')) fail('index.html does not load ui-foundation.css');
+if (!index.includes('href="./ui-foundation.css?v=modern6"')) fail('index.html does not load ui-foundation.css');
 if (!uiFoundation.includes('StarLedger modern UI foundation')) fail('ui-foundation.css lost its ownership marker');
 if (!uiFoundation.includes('--bg: #000000') || !uiFoundation.includes('--card: #171717')) fail('dark mode lost its full-black canvas and near-black cards');
 if (!uiFoundation.includes('ChatGPT-like dark mode uses flat, neutral surfaces')) fail('flat dark surface ownership marker is missing');
+if (!uiFoundation.includes('background: #242424') || !uiFoundation.includes('.home-metrics > .metric-banner')) fail('calendar surface or home banner spacing fix is missing');
 if (!app.includes('group-account-option-wide') || !uiFoundation.includes('.group-choice > div') || !uiFoundation.includes('.group-choice .group-account-option-wide')) fail('compact group account selector is missing');
 if (!uiFoundation.includes('writing-mode: horizontal-tb') || !uiFoundation.includes('@media (max-width: 460px)')) fail('mobile search filter wrapping guard is missing');
-if (index.lastIndexOf('href="./ui-foundation.css?v=modern5"') > index.lastIndexOf('href="./mobile-compat.css?v=css1"')) fail('ui-foundation.css must load before mobile-compat.css');
+if (index.lastIndexOf('href="./ui-foundation.css?v=modern6"') > index.lastIndexOf('href="./mobile-compat.css?v=css1"')) fail('ui-foundation.css must load before mobile-compat.css');
 if (index.lastIndexOf('href="./mobile-compat.css?v=css1"') < index.lastIndexOf('</style>')) fail('mobile-compat.css must load after inline style layers');
 
 if (!index.includes('id="web-v051-safari-document-modal"')) {
