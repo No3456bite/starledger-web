@@ -31,7 +31,7 @@
 
 :root[data-mode="dark"] {
   /* Neutral charcoal surfaces, close to ChatGPT's dark palette. */
-  --bg: #212121;
+  --bg: #000000;
   --card: #2f2f2f;
   --ink: #ececec;
   --muted: #b4b4b4;
@@ -406,7 +406,7 @@ main {
 
 .book-entry,
 .account-entry {
-  min-height: 72px;
+  min-height: 64px;
   border-color: var(--line);
 }
 
@@ -419,7 +419,11 @@ main {
 .account-name {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
+}
+
+.account-name {
+  justify-content: flex-start;
 }
 
 .book-avatar,
@@ -434,6 +438,13 @@ main {
   color: var(--green);
   font-size: 14px;
   font-weight: 750;
+}
+
+.account-type-mark {
+  width: 34px;
+  height: 34px;
+  flex-basis: 34px;
+  border-radius: 10px;
 }
 
 .account-type-mark::before {
@@ -463,21 +474,94 @@ main {
   font-size: 15px;
 }
 
+.account-name b {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .book-name small,
 .account-name small {
   margin-top: 4px;
   line-height: 1.45;
 }
 
-.book-count,
-.account-value {
+.book-count {
   padding-inline: 14px;
+}
+
+.account-value {
+  padding: 10px 0 10px 8px;
+}
+
+.account-entry .account-name {
+  padding: 10px 0;
+}
+
+.account-entry .account-value {
+  max-width: none;
+  min-width: 104px;
+}
+
+.account-entry .account-balance {
+  font-size: 16px;
+  line-height: 1.25;
+}
+
+.account-entry .account-value small,
+.account-entry .account-name small {
+  margin-top: 2px;
 }
 
 .account-summary-strip {
   padding: 0 4px;
   color: var(--muted);
   font-size: 12px;
+}
+
+.group-choice > div {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  max-height: min(30dvh, 260px);
+  margin: 10px 0;
+  overflow-y: auto;
+}
+
+.group-choice .group-account-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--card) 82%, var(--bg));
+}
+
+.group-choice .group-account-option-wide {
+  grid-column: 1 / -1;
+}
+
+.group-choice .group-account-option:has(input:checked) {
+  border-color: var(--green);
+}
+
+.group-choice .group-account-option input {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  margin: 0;
+  accent-color: var(--green);
+}
+
+.group-choice .group-account-option span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .account-page-actions {
@@ -777,9 +861,31 @@ main {
     flex-basis: 36px;
   }
 
+  .account-type-mark {
+    width: 34px;
+    height: 34px;
+    flex-basis: 34px;
+  }
+
   .book-entry,
   .account-entry {
-    min-height: 70px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    min-height: 64px;
+  }
+
+  #pageBody[data-page="accounts"] .account-group {
+    padding: 16px 18px;
+  }
+
+  #pageBody[data-page="accounts"] .account-group .sectionhead {
+    align-items: center;
+  }
+
+  #pageBody[data-page="accounts"] .account-group .group-total {
+    flex: 0 1 auto;
+    max-width: 58%;
+    white-space: nowrap;
   }
 
   .account-page-actions {
