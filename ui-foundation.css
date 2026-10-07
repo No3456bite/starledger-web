@@ -44,6 +44,12 @@
   --glass: #2b2b2bf2;
   --shadow: 0 1px 2px #0006, 0 14px 34px #0003;
   --shadow-raised: 0 18px 55px #0007;
+  --sl-glass-surface: var(--card);
+  --sl-glass-surface-compact: #2b2b2b;
+  --sl-glass-rim: var(--line);
+  --sl-glass-top: transparent;
+  --sl-glass-bottom: transparent;
+  --sl-glass-shadow: none;
   color-scheme: dark;
 }
 
@@ -223,9 +229,35 @@ main {
 
 .card {
   border-color: color-mix(in srgb, var(--line) 92%, transparent);
-  border-radius: var(--radius-lg);
+  border-radius: 18px;
   padding: 22px;
   box-shadow: var(--shadow);
+}
+
+/* ChatGPT-like dark mode uses flat, neutral surfaces instead of tinted glass. */
+:root[data-mode="dark"] .card:not(.hero),
+:root[data-mode="dark"] .metric-banner {
+  border: 1px solid var(--line) !important;
+  background: var(--card) !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  box-shadow: none !important;
+}
+
+:root[data-mode="dark"] .card:not(.hero)::before,
+:root[data-mode="dark"] .metric-banner::before {
+  content: none !important;
+}
+
+:root[data-mode="dark"] .date-banner,
+:root[data-mode="dark"] .date-filter-book,
+:root[data-mode="dark"] #floatingControls .date-banner,
+:root[data-mode="dark"] #floatingControls .date-filter-book {
+  border: 1px solid var(--line) !important;
+  background: #2b2b2b !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  box-shadow: none !important;
 }
 
 .sectionhead {
@@ -245,6 +277,29 @@ main {
   margin: 2px 0 0;
   color: var(--muted);
   font-size: 12px;
+}
+
+.category-controls {
+  gap: 6px;
+}
+
+.category-switch {
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
+  background: color-mix(in srgb, var(--bg) 76%, var(--card));
+}
+
+.category-switch button {
+  min-height: 30px;
+  padding: 0 10px;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.category-switch button.active {
+  background: var(--card);
+  box-shadow: none;
 }
 
 .home-metrics {
@@ -516,6 +571,16 @@ main {
   padding: 13px 0;
 }
 
+#searchResults .record-first .title {
+  font-size: 14px;
+}
+
+#searchResults .record-note,
+#searchResults .record-time,
+#searchResults .record-wallet {
+  line-height: 1.45;
+}
+
 #pageBody[data-page="settings"] {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -636,7 +701,11 @@ main {
 
   .card {
     padding: 20px;
-    border-radius: 19px;
+    border-radius: 16px;
+  }
+
+  :root[data-mode="dark"] .metric-banner {
+    border-radius: 16px !important;
   }
 
   .home-metrics,
@@ -728,6 +797,32 @@ main {
 
   #searchResults > .card {
     padding: 8px 20px;
+  }
+
+  .category-controls {
+    gap: 5px;
+  }
+
+  .category-switch {
+    gap: 2px;
+    padding: 3px;
+  }
+
+  .category-switch button {
+    min-height: 30px;
+    padding-inline: 8px;
+    font-size: 11px;
+  }
+
+  #pageBody[data-page="settings"] .sectionhead {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  #pageBody[data-page="settings"] .sectionhead p {
+    flex: 0 0 100%;
+    margin-top: -8px;
+    line-height: 1.5;
   }
 
   .workspace-actions {

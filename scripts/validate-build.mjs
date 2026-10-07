@@ -31,7 +31,7 @@ const externalScripts = [
   './backup-zip.js?v=zip1',
   './books-stats.js?v=midterm1'
 ];
-const precacheAssets = [...externalScripts,'./ui-foundation.css?v=modern2','./mobile-compat.css?v=css1'];
+const precacheAssets = [...externalScripts,'./ui-foundation.css?v=modern3','./mobile-compat.css?v=css1'];
 
 let last = -1;
 for (const src of externalScripts) {
@@ -83,11 +83,12 @@ for (const asset of precacheAssets) {
 }
 
 if (!index.includes('href="./mobile-compat.css?v=css1"')) fail('index.html does not load mobile-compat.css');
-if (!index.includes('href="./ui-foundation.css?v=modern2"')) fail('index.html does not load ui-foundation.css');
+if (!index.includes('href="./ui-foundation.css?v=modern3"')) fail('index.html does not load ui-foundation.css');
 if (!uiFoundation.includes('StarLedger modern UI foundation')) fail('ui-foundation.css lost its ownership marker');
 if (!uiFoundation.includes('--bg: #212121') || !uiFoundation.includes('--card: #2f2f2f')) fail('dark mode lost its neutral charcoal palette');
+if (!uiFoundation.includes('ChatGPT-like dark mode uses flat, neutral surfaces')) fail('flat dark surface ownership marker is missing');
 if (!uiFoundation.includes('writing-mode: horizontal-tb') || !uiFoundation.includes('@media (max-width: 460px)')) fail('mobile search filter wrapping guard is missing');
-if (index.lastIndexOf('href="./ui-foundation.css?v=modern2"') > index.lastIndexOf('href="./mobile-compat.css?v=css1"')) fail('ui-foundation.css must load before mobile-compat.css');
+if (index.lastIndexOf('href="./ui-foundation.css?v=modern3"') > index.lastIndexOf('href="./mobile-compat.css?v=css1"')) fail('ui-foundation.css must load before mobile-compat.css');
 if (index.lastIndexOf('href="./mobile-compat.css?v=css1"') < index.lastIndexOf('</style>')) fail('mobile-compat.css must load after inline style layers');
 
 if (!index.includes('id="web-v051-safari-document-modal"')) {
