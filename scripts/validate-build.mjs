@@ -31,7 +31,7 @@ const externalScripts = [
   './backup-zip.js?v=zip1',
   './books-stats.js?v=midterm2'
 ];
-const precacheAssets = [...externalScripts,'./ui-foundation.css?v=modern6','./mobile-compat.css?v=css2'];
+const precacheAssets = [...externalScripts,'./ui-foundation.css?v=modern6','./mobile-compat.css?v=css3'];
 
 let last = -1;
 for (const src of externalScripts) {
@@ -75,6 +75,8 @@ if (!ui.includes('web-v051-safari-document-modal-controller')) fail('ui-runtime.
 if (!ui.includes('web-v044-browser-tab-interactions')) fail('ui-runtime.js lost browser-tab paging behavior');
 if (!ui.includes("stableLiveTarget=target==='books'||target==='accounts'")) fail('Safari live navigation guard for books/accounts is missing');
 if (!app.includes('function closeSearchOverlay') || !mobileCompat.includes('Search filters must not leave a fixed blurred compositor')) fail('Safari search overlay cleanup is missing');
+if (!mobileCompat.includes('html.browser-tab #overlay.safari-document-modal>.search-modalback') || !mobileCompat.includes('background:transparent!important')) fail('Safari search overlay must keep a transparent backdrop');
+if (!/style id="rc-filter-stable-unified"[\s\S]*?\.search-modalback\{[\s\S]*?background:transparent!important;[\s\S]*?backdrop-filter:none!important;/.test(index)) fail('Search filter overlay must use the shared transparent backdrop');
 if (!books.includes('function cleanBookName')) fail('books-stats.js lost the books/stats controller');
 if (!app.includes('function normalizeBookIcon') || !app.includes('function bookDisplayIcon') || !books.includes('name="icon"')) fail('editable book icons are missing');
 if (!recognizer.includes('StarLedger')) fail('recognizer.js looks unexpectedly empty or replaced');
@@ -85,7 +87,7 @@ for (const asset of precacheAssets) {
   }
 }
 
-if (!index.includes('href="./mobile-compat.css?v=css2"')) fail('index.html does not load mobile-compat.css');
+if (!index.includes('href="./mobile-compat.css?v=css3"')) fail('index.html does not load mobile-compat.css');
 if (!index.includes('href="./ui-foundation.css?v=modern6"')) fail('index.html does not load ui-foundation.css');
 if (!uiFoundation.includes('StarLedger modern UI foundation')) fail('ui-foundation.css lost its ownership marker');
 if (!uiFoundation.includes('--bg: #000000') || !uiFoundation.includes('--card: #171717')) fail('dark mode lost its full-black canvas and near-black cards');
@@ -93,8 +95,8 @@ if (!uiFoundation.includes('ChatGPT-like dark mode uses flat, neutral surfaces')
 if (!uiFoundation.includes('background: #242424') || !uiFoundation.includes('.home-metrics > .metric-banner')) fail('calendar surface or home banner spacing fix is missing');
 if (!app.includes('group-account-option-wide') || !uiFoundation.includes('.group-choice > div') || !uiFoundation.includes('.group-choice .group-account-option-wide')) fail('compact group account selector is missing');
 if (!uiFoundation.includes('writing-mode: horizontal-tb') || !uiFoundation.includes('@media (max-width: 460px)')) fail('mobile search filter wrapping guard is missing');
-if (index.lastIndexOf('href="./ui-foundation.css?v=modern6"') > index.lastIndexOf('href="./mobile-compat.css?v=css2"')) fail('ui-foundation.css must load before mobile-compat.css');
-if (index.lastIndexOf('href="./mobile-compat.css?v=css2"') < index.lastIndexOf('</style>')) fail('mobile-compat.css must load after inline style layers');
+if (index.lastIndexOf('href="./ui-foundation.css?v=modern6"') > index.lastIndexOf('href="./mobile-compat.css?v=css3"')) fail('ui-foundation.css must load before mobile-compat.css');
+if (index.lastIndexOf('href="./mobile-compat.css?v=css3"') < index.lastIndexOf('</style>')) fail('mobile-compat.css must load after inline style layers');
 
 if (!index.includes('id="web-v051-safari-document-modal"')) {
   fail('Safari document-modal geometry style is missing from index.html');

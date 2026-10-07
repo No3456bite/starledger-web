@@ -1,4 +1,4 @@
-const CACHE='starledger-web-v058-search-overlay-cleanup';
+const CACHE='starledger-web-v059-transparent-search-overlay';
 const ASSETS=[
   './',
   './index.html',
@@ -9,7 +9,7 @@ const ASSETS=[
   './backup-zip.js?v=zip1',
   './books-stats.js?v=midterm2',
   './ui-foundation.css?v=modern6',
-  './mobile-compat.css?v=css2'
+  './mobile-compat.css?v=css3'
 ];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
