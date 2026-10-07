@@ -1,11 +1,11 @@
-const CACHE='starledger-web-v056-calendar-banner-gap';
+const CACHE='starledger-web-v057-stable-live-navigation';
 const ASSETS=[
   './',
   './index.html',
   './manifest.webmanifest',
   './recognizer.js?v=ocr1',
   './app.js?v=midterm5',
-  './ui-runtime.js?v=midterm1',
+  './ui-runtime.js?v=midterm2',
   './backup-zip.js?v=zip1',
   './books-stats.js?v=midterm2',
   './ui-foundation.css?v=modern6',

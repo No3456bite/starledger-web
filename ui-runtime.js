@@ -1463,7 +1463,11 @@ if('serviceWorker' in navigator&&location.protocol==='https:')window.addEventLis
   }
 
   window.__browserPagerNavigate=target=>{
-    if(!compactViewport()||!PRIMARY_PAGE_ORDER.includes(target)||target===section){
+    // Safari can briefly resample translucent banner contents when a tap moves
+    // them through the translated snapshot layer. Books/accounts have no top
+    // filter to mask that handoff, so use the live DOM for those destinations.
+    const stableLiveTarget=target==='books'||target==='accounts';
+    if(!compactViewport()||!PRIMARY_PAGE_ORDER.includes(target)||target===section||stableLiveTarget){
       if(target!==section)rc6Navigate(target);
       return;
     }

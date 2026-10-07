@@ -27,7 +27,7 @@ const pagesWorkflow = read('.github/workflows/pages.yml');
 const externalScripts = [
   './recognizer.js?v=ocr1',
   './app.js?v=midterm5',
-  './ui-runtime.js?v=midterm1',
+  './ui-runtime.js?v=midterm2',
   './backup-zip.js?v=zip1',
   './books-stats.js?v=midterm2'
 ];
@@ -73,6 +73,7 @@ if (!ui.includes('rc14-search-filter-behavior')) fail('ui-runtime.js lost the se
 if (!backupZip.includes('global.StarLedgerZip=api')) fail('backup-zip.js lost the ZIP codec export');
 if (!ui.includes('web-v051-safari-document-modal-controller')) fail('ui-runtime.js lost Safari modal placement');
 if (!ui.includes('web-v044-browser-tab-interactions')) fail('ui-runtime.js lost browser-tab paging behavior');
+if (!ui.includes("stableLiveTarget=target==='books'||target==='accounts'")) fail('Safari live navigation guard for books/accounts is missing');
 if (!books.includes('function cleanBookName')) fail('books-stats.js lost the books/stats controller');
 if (!app.includes('function normalizeBookIcon') || !app.includes('function bookDisplayIcon') || !books.includes('name="icon"')) fail('editable book icons are missing');
 if (!recognizer.includes('StarLedger')) fail('recognizer.js looks unexpectedly empty or replaced');
