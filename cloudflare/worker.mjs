@@ -48,7 +48,7 @@ export default {
     if (upstream.status === 404 && method === 'HEAD') return reply(JSON.stringify({ exists: false }), 200, { 'Content-Type': 'application/json' });
     if (!upstream.ok) return reply(`WebDAV returned ${upstream.status}`, 502);
     if (method === 'HEAD' || method === 'PUT') {
-      return reply(JSON.stringify({ exists: true, updatedAt: upstream.headers.get('Last-Modified') || '', bytes: Number(upstream.headers.get('Content-Length')) || null }), 200, { 'Content-Type': 'application/json' });
+      return reply(JSON.stringify({ exists: true, updatedAt: upstream.headers.get('Last-Modified') || '', etag: upstream.headers.get('ETag') || '', bytes: Number(upstream.headers.get('Content-Length')) || null }), 200, { 'Content-Type': 'application/json' });
     }
     return reply(upstream.body, 200, { 'Content-Type': 'application/zip', 'Content-Disposition': 'attachment; filename="StarLedger-cloud-backup.zip"' });
   }

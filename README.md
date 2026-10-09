@@ -1,6 +1,6 @@
 # StarLedger Web
 
-一个本地优先的个人账单 Web App，面向手机与桌面浏览器使用。核心记账无需后端；可选的坚果云手动同步需要自行部署 Cloudflare Worker 中转。
+一个本地优先的个人账单 Web App，面向手机与桌面浏览器使用。核心记账无需后端；可选的坚果云备份需要自行部署 Cloudflare Worker 中转。
 
 > **这是一个全 Codex 开发项目。** 从需求拆解、产品与交互设计、UI 实现、功能开发、Safari 兼容性修复，到自动化校验和文档维护，均由 OpenAI Codex 在用户的方向指导与实际验收下完成。StarLedger 是独立项目，并非 OpenAI 官方产品。
 
@@ -42,21 +42,23 @@
 - 同一浏览器内可保存并切换多个主账本。
 - 桌面 Chrome／Edge 可通过 File System Access API 连接 StarLedger 工作区文件夹。
 - 可导出单个账本 CSV，也可导出包含所有本地主账本、配置、关联关系和备份摘要的完整 ZIP。摘要记录备份设备、时间及各主账本笔数。
-- 可把 ZIP 手动存入 WebDAV 客户端或网盘同步的文件夹，再在另一台设备读取；也可以使用自行部署的 Cloudflare Worker，一键手动上传或读取坚果云上的 ZIP。网页不直接连接 WebDAV 服务器。
+- 可把 ZIP 手动存入 WebDAV 客户端或网盘同步的文件夹，再在另一台设备读取；也可以使用自行部署的 Cloudflare Worker，手动或自动备份、读取坚果云上的 ZIP。网页不直接连接 WebDAV 服务器。
 - 导入前可查看备份内容，选择合并导入或覆盖恢复。已有本机数据时会先在当前浏览器建立一个恢复点；设置页可恢复导入前数据。
 - 导入会检查 ZIP 文件结构、CRC、账单格式及摘要一致性；旧版无摘要的完整 ZIP 仍可读取。
 
 手动跨设备流程：在设备 A 的“设置 → 数据与备份”填写设备名称，点击“导出完整备份 ZIP”。浏览器会先把文件下载到本机；随后由你放进网盘或 WebDAV 同步文件夹。在设备 B 下载该 ZIP 后用“读取完整备份 ZIP”打开，检查设备、时间、账本和笔数，再选择合并或覆盖。两台设备有同名账本时，合并按账单 ID 和更新时间保留较新的账单；时间相同则以导入文件为准。同名账本的设置以导入文件为准，关联关系按更新时间选取。若曾在两端分别删除同一账单，建议先核对再导入，因为完整 ZIP 只包含当前可见账单。
 
-### 可选：坚果云 + Cloudflare Worker 手动同步
+### 可选：坚果云 + Cloudflare Worker 备份
 
-这是一条额外的手动路径，不会自动同步，也不会更换 GitHub Pages 网站地址。远端固定保存一份 `StarLedger-backup.zip`；再次上传会覆盖它。建议仍定期下载一份 ZIP 留在本机。百度网盘和 iCloud 不适用于这个坚果云专用的 WebDAV 中转程序。
+这是一条额外的备份路径，不会更换 GitHub Pages 网站地址。远端固定保存一份 `StarLedger-backup.zip`；再次上传会覆盖它。开启自动备份后，网页打开时会先比较云端版本，再决定载入或上传；两端都有修改时不会自动合并。建议仍定期下载一份 ZIP 留在本机。百度网盘和 iCloud 不适用于这个坚果云专用的 WebDAV 中转程序。设置页的“图文帮助”包含注册和配置步骤。
 
 1. 在坚果云新建 `StarLedger` 文件夹，并在坚果云的“安全选项”中创建第三方应用密码。不要使用坚果云登录密码，也不要把任何密码提交到 GitHub。
 2. 在 Cloudflare 的 Workers 页面通过 GitHub 导入本仓库，使用根目录的 `wrangler.jsonc` 部署 Worker。它只部署 `cloudflare/worker.mjs`；现有网页继续由 GitHub Pages 提供。如果使用手动创建 Worker，也可将该文件内容作为 Worker 代码部署。
 3. 在 Worker 的设置中添加以下四个加密 Secret，并重新部署：`DAV_FILE_URL` = `https://dav.jianguoyun.com/dav/StarLedger/StarLedger-backup.zip`；`DAV_USERNAME` = 坚果云账号邮箱；`DAV_PASSWORD` = 第 1 步的应用密码；`SYNC_TOKEN` = 自行生成的长随机令牌（建议至少 32 个随机字节）。**不要**把这些值写入仓库、公开环境变量或聊天消息。
-4. 复制 Worker 提供的 `https://…workers.dev/` 地址。在每台设备的“设置 → 坚果云手动同步”分别填入该地址和相同的 `SYNC_TOKEN`，保存并点“测试连接”。连接地址与令牌只保存在该设备浏览器，不会放进备份 ZIP。
+4. 复制 Worker 提供的 `https://…workers.dev/` 地址。在每台设备的“设置 → 坚果云备份”分别填入该地址和相同的 `SYNC_TOKEN`，保存并点“测试连接”。连接地址与令牌只保存在该设备浏览器，不会放进备份 ZIP。
 5. 设备 A 点“备份到坚果云”；设备 B 点“读取坚果云备份”。读取后仍会先展示 ZIP 摘要，再由你选择合并或覆盖；已有本机数据时会先建立本机恢复点。
+
+可在连接保存后打开“自动备份”。网页打开时先用 WebDAV 的 ETag 或最后修改时间比较云端版本：云端较新且本机没有待上传修改时，先建立本机恢复点，再自动载入完整 ZIP；首次连接且本机已有账本时先展示 ZIP 摘要，供你选择合并或覆盖；空白设备可直接自动载入。两端都有修改、云端不提供版本信息，或检查期间数据改变时会暂停自动覆盖，提示手动读取并合并。账单、设置或关联发生本机保存后，等待至少 1 分钟合并连续修改，且距离上次成功上传至少 1 小时才再次上传。失败会保留待备份状态，并在 5 分钟后或下次打开网页时重试；关闭网页后不会后台运行。自动备份只在当前浏览器启用，不会写进 ZIP。上传或下载约 1 MB ZIP 会使用手机当前的 Wi-Fi 或蜂窝流量；正常打开时的版本检查只传少量状态数据。
 
 “测试连接”会先确认 Worker 可达，再检查坚果云，并在按钮下方保留每一步结果。`401` 通常是星账本中填写的 `SYNC_TOKEN` 与 Worker Secret 不一致；`503` 表示 Worker 的四个 Secret 尚未配置齐全；`502` 且提示 WebDAV `401` 时，应核对坚果云邮箱和第三方应用密码。若第一步超时，检查 Worker 的 Production `workers.dev` 开关、完整 HTTPS 地址及网络；若第二步返回 `504`，则是 Worker 已连接、坚果云在 12 秒内未响应。
 
@@ -150,6 +152,7 @@ node --check sw.js
 node scripts/validate-build.mjs
 node scripts/test-backup-zip.cjs
 node scripts/test-cloudflare-worker.mjs
+node scripts/test-auto-backup.cjs
 ```
 
 ## 部署与版本保护

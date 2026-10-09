@@ -13,9 +13,10 @@ const headers = { Origin: origin, Authorization: 'Bearer test-secret' };
 const originalFetch = globalThis.fetch;
 const originalSetTimeout = globalThis.setTimeout;
 let call;
+let headExists = false;
 globalThis.fetch = async (url, options) => {
   call = { url: String(url), ...options };
-  if (options.method === 'HEAD') return new Response(null, { status: 404 });
+  if (options.method === 'HEAD') return headExists ? new Response(null, { status: 200, headers: { ETag: '"backup-v1"', 'Last-Modified': 'Thu, 08 Oct 2026 10:00:00 GMT', 'Content-Length': '1024' } }) : new Response(null, { status: 404 });
   if (options.method === 'PUT') return new Response(null, { status: 201 });
   return new Response(new Uint8Array([0x50, 0x4b]), { status: 200 });
 };
@@ -34,6 +35,9 @@ try {
   assert.deepEqual(await response.json(), { exists: false });
   assert.equal(call.url, env.DAV_FILE_URL);
   assert.equal(call.method, 'HEAD');
+  headExists = true;
+  response = await worker.fetch(new Request(base + '/status', { headers }), env);
+  assert.deepEqual(await response.json(), { exists: true, updatedAt: 'Thu, 08 Oct 2026 10:00:00 GMT', etag: '"backup-v1"', bytes: 1024 });
   response = await worker.fetch(new Request(base + '/backup', { method: 'PUT', headers: { ...headers, 'Content-Type': 'application/zip' }, body: new Uint8Array([0x50, 0x4b]) }), env);
   assert.equal(response.status, 200);
   assert.equal(call.method, 'PUT');
