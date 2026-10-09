@@ -484,6 +484,10 @@ main {
   content: "¥";
 }
 
+.account-type-stored .account-type-mark::before {
+  content: attr(data-symbol);
+}
+
 .account-type-credit .account-type-mark {
   background: color-mix(in srgb, var(--down) 11%, var(--card));
   color: var(--down);
@@ -535,6 +539,14 @@ main {
 .account-entry .account-value {
   max-width: none;
   min-width: 104px;
+}
+
+.account-entry .account-name small {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .account-entry .account-balance {
@@ -700,19 +712,33 @@ main {
 
 #pageBody[data-page="settings"] {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 16px;
+  width: min(100%, 820px);
+  margin-inline: auto;
+}
+
+#pageBody[data-page="settings"] > * {
+  grid-column: 1;
+}
+
+#pageBody[data-page="settings"] > .grid.cols2 {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+#pageBody[data-page="settings"] > .grid {
   align-items: start;
 }
 
-#pageBody[data-page="settings"] > .grid,
-#pageBody[data-page="settings"] > .workspace-settings,
-#pageBody[data-page="settings"] > .advanced-settings {
-  grid-column: 1 / -1;
+.account-cny-rate small {
+  display: block;
+  line-height: 1.3;
+  margin-top: 4px;
 }
 
-.settings-basics,
-.banner-settings-card {
-  height: 100%;
+#overlay .account-config-compact .account-compact-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .setting-row {

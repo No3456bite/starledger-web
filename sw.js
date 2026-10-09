@@ -1,14 +1,14 @@
-const CACHE='starledger-web-v060-manual-zip-snapshots';
+const CACHE='starledger-web-v061-account-currency-settings';
 const ASSETS=[
   './',
   './index.html',
   './manifest.webmanifest',
   './recognizer.js?v=ocr1',
-  './app.js?v=midterm7',
+  './app.js?v=midterm8',
   './ui-runtime.js?v=midterm3',
   './backup-zip.js?v=zip1',
   './books-stats.js?v=midterm2',
-  './ui-foundation.css?v=modern7',
+  './ui-foundation.css?v=modern8',
   './mobile-compat.css?v=css3'
 ];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting())));
