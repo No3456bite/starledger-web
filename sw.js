@@ -1,14 +1,14 @@
-const CACHE='starledger-web-v062-cloud-sync';
+const CACHE='starledger-web-v063-account-zero-collapse';
 const ASSETS=[
   './',
   './index.html',
   './manifest.webmanifest',
   './recognizer.js?v=ocr1',
-  './app.js?v=cloudsync1',
+  './app.js?v=accountzero1',
   './ui-runtime.js?v=midterm3',
   './backup-zip.js?v=zip1',
   './books-stats.js?v=midterm2',
-  './ui-foundation.css?v=modern8',
+  './ui-foundation.css?v=modern9',
   './mobile-compat.css?v=css3'
 ];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting())));
