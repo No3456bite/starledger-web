@@ -758,6 +758,104 @@ main {
   margin-left: auto;
 }
 
+.backup-device-field {
+  margin: 16px 0;
+}
+
+.backup-device-field input {
+  width: 100%;
+  margin-top: 7px;
+}
+
+.backup-device-field small {
+  line-height: 1.45;
+}
+
+.backup-import-modal {
+  width: min(560px, 100%);
+}
+
+.backup-import-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 2px 0 16px;
+}
+
+.backup-import-summary > span {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--pale) 42%, transparent);
+}
+
+.backup-import-summary small,
+.backup-import-actions small {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.backup-import-summary b {
+  overflow-wrap: anywhere;
+  font-size: 13px;
+}
+
+.backup-ledger-list {
+  display: grid;
+  gap: 0;
+  max-height: 190px;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+  border-block: 1px solid var(--line);
+}
+
+.backup-ledger-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 11px 2px;
+  border-bottom: 1px solid var(--line);
+}
+
+.backup-ledger-list li:last-child {
+  border-bottom: 0;
+}
+
+.backup-ledger-list b {
+  flex: none;
+  font-size: 13px;
+}
+
+.backup-import-note {
+  margin: 15px 0;
+  line-height: 1.6;
+}
+
+.backup-import-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 9px;
+}
+
+.backup-import-actions .button {
+  display: grid;
+  gap: 4px;
+  align-content: center;
+  min-height: 72px;
+  margin: 0;
+  text-align: left;
+}
+
+.backup-import-actions .primary small {
+  color: color-mix(in srgb, #fff 76%, transparent);
+}
+
 @media (max-width: 980px) and (min-width: 761px) {
   .side {
     width: 190px;
@@ -786,6 +884,14 @@ main {
 
   #content {
     --card-gap: 16px;
+  }
+
+  .backup-import-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .backup-import-actions {
+    grid-template-columns: 1fr;
   }
 
   .top {

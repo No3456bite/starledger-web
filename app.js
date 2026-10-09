@@ -354,8 +354,11 @@ function budgetCard(){let {spent,has,value,left}=budgetState();return `<button t
 function homeBudgetBanner(){let {has,left}=budgetState();return `<button type="button" class="card metric budget-action" id="setBudget" aria-label="${has?'修改':'设置'}每月预算"><div class="label">剩余预算</div><strong class="${has?(left<0?'negative':'positive'):''}">${has?money(left):'未设置'}</strong></button>`}
 function trendChart(months){let max=Math.max(1,...months.flatMap(m=>[m.income,m.expense])),x=i=>62+i*25.5,y=v=>155-(Number(v)||0)/max*128;let path=k=>{let p=months.map((m,i)=>[x(i),y(m[k])]),d=`M ${p[0][0]} ${p[0][1]}`;for(let i=1;i<p.length;i++){let a=p[i-1],b=p[i],dx=(b[0]-a[0])*.35;d+=` C ${a[0]+dx} ${a[1]}, ${b[0]-dx} ${b[1]}, ${b[0]} ${b[1]}`}return d};let values=months.flatMap((m,i)=>[{i,k:'income',v:m.income},{i,k:'expense',v:m.expense}]),high=values.reduce((a,b)=>b.v>a.v?b:a),low=values.reduce((a,b)=>b.v<a.v?b:a);let annotation=(p,cls)=>`<circle cx="${x(p.i)}" cy="${y(p.v)}" r="4" fill="${p.k==='income'?'var(--up)':'var(--down)'}" stroke="var(--card)" stroke-width="2"/><text class="extreme-label ${cls}" x="${x(p.i)}" y="${cls==='high'?Math.max(13,y(p.v)-9):Math.min(169,y(p.v)+14)}" text-anchor="${p.i>8?'end':p.i<3?'start':'middle'}">${cls==='high'?'最高':'最低'} ${calendarAmount(p.v)}</text>`;return `<div class="trendwrap"><svg class="trend" viewBox="0 0 360 193" role="img" aria-label="年度收入和支出趋势及最大最小值">${[.75,.5,.25].map(n=>`<line class="guide" x1="59" x2="348" y1="${y(max*n)}" y2="${y(max*n)}"/><text class="guide-label" x="55" y="${y(max*n)+3}" text-anchor="end">${calendarAmount(max*n)}</text>`).join('')}<line class="gridline" x1="39" y1="155" x2="349" y2="155"/><path class="income-line" d="${path('income')}" fill="none" stroke-width="2.7"/><path class="expense-line" d="${path('expense')}" fill="none" stroke-width="2.7"/>${months.map((m,i)=>`<text x="${x(i)}" y="187" text-anchor="middle">${i+1}</text><circle class="income-line" cx="${x(i)}" cy="${y(m.income)}" r="2.5"/><circle class="expense-line" cx="${x(i)}" cy="${y(m.expense)}" r="2.5"/><rect class="month-hit" x="${x(i)-12}" y="12" width="24" height="150" data-month="${i+1}"><title>${i+1} 月 收入 ${money(m.income)} 支出 ${money(m.expense)}</title></rect>`).join('')}${annotation(high,'high')}${high.i===low.i&&high.k===low.k?'':annotation(low,'low')}</svg><div class="legend"><span class="dot"></span>收入<span class="dot exp"></span>支出</div></div>`}
 
-const DEFAULT_PREFS={mainName:'',theme:'slate',appearance:'system',exportDays:7,lastExportAt:0,lastExportName:'',lastChangeAt:0,monthStartDay:1,budgets:{},accountTypes:{},accountProfiles:{},accountGroups:[{id:'default',name:'默认分组'}],recordTitle:'both',accountOrder:{},bookProfiles:{},bookOrder:[],deletedBooks:[],bookHintDismissed:false,searchFilterOrder:['book','kind','currencyFilter','account','category','subcategory'],bannerConfigs:{},deletedAccounts:[]};
+const DEFAULT_PREFS={mainName:'',theme:'slate',appearance:'system',exportDays:7,lastExportAt:0,lastExportName:'',backupDeviceName:'',lastChangeAt:0,monthStartDay:1,budgets:{},accountTypes:{},accountProfiles:{},accountGroups:[{id:'default',name:'默认分组'}],recordTitle:'both',accountOrder:{},bookProfiles:{},bookOrder:[],deletedBooks:[],bookHintDismissed:false,searchFilterOrder:['book','kind','currencyFilter','account','category','subcategory'],bannerConfigs:{},deletedAccounts:[]};
 const SHARED_CONFIG_FILE='StarLedgerConfig.json';
+const BACKUP_MANIFEST_FILE='StarLedgerBackup.json';
+const COMPLETE_IMPORT_RECOVERY_KEY='complete-import-recovery-v1';
+const COMPLETE_IMPORT_RECOVERY_META_KEY='complete-import-recovery-meta-v1';
 const SHARED_PREF_KEYS=['accountGroups','accountProfiles','accountTypes','accountAliases','recordTitle','accountOrder','bookProfiles','bookOrder','deletedBooks','bookHintDismissed','recordBlockOrder','searchFilterOrder','bannerConfigs','deletedAccounts','budgets','monthStartDay','theme','appearance','fxRates','exportDays'];
 function sharedPrefSubset(source){
  let out={};
@@ -383,7 +386,7 @@ function normalizeWorkspace(value){
  if(active&&!names.includes(active))names.unshift(active);
  return {names,active:active||names[0]||'',folderName:String(value?.folderName||''),mode:String(value?.mode||'local'),readWrite:!!value?.readWrite,updatedAt:Number(value?.updatedAt||0)};
 }
-let workspace=normalizeWorkspace(null);
+let workspace=normalizeWorkspace(null),pendingCompleteBackup=null,importRecoveryMeta=null;
 let prefs={...DEFAULT_PREFS,...(BOOT?.settings||{}),...(BOOT?.mainName?{mainName:BOOT.mainName}:{})},folderHandle=null,entryKind='支出',entryCategory='',busy=false,ocrReviewText='',pendingPrefill=BOOT?.prefillText||'';
 const systemScheme=matchMedia('(prefers-color-scheme: dark)');
 function applyTheme(){let mode=prefs.appearance==='system'?(systemScheme.matches?'dark':'light'):prefs.appearance;document.documentElement.dataset.mode=mode;document.documentElement.dataset.theme='neutral';document.documentElement.style.colorScheme=mode;document.documentElement.style.backgroundColor=mode==='dark'?'#000000':'#f7f7f5';document.querySelectorAll('meta[name="theme-color"]').forEach(meta=>meta.content=mode==='dark'?'#000000':'#f7f7f5')}
@@ -426,6 +429,7 @@ function initLocal(){return (async()=>{
  if(native)return;
  await ensurePersistentStorage();
  workspace=normalizeWorkspace(await get(WORKSPACE_KEY));
+ importRecoveryMeta=await get(COMPLETE_IMPORT_RECOVERY_META_KEY);
  let legacyPrefs=await get('prefs'),legacyCsv=await get('csv');
  if(!workspace.names.length&&legacyPrefs?.mainName){
   workspace=normalizeWorkspace({names:[legacyPrefs.mainName],active:legacyPrefs.mainName,mode:'local',updatedAt:Date.now()});
@@ -486,7 +490,10 @@ async function clearLocalLedger(){
 }
 function filenameDate(name){let m=[...String(name||'').matchAll(/(20\d{2})[-_]?(0[1-9]|1[0-2])[-_]?(0[1-9]|[12]\d|3[01])(?:[_ -]?(\d{2})[:_-]?(\d{2})[:_-]?(\d{2}))?/g)].at(-1);if(!m)return 0;let d=new Date(+m[1],+m[2]-1,+m[3],+(m[4]||0),+(m[5]||0),+(m[6]||0));return d.getFullYear()===+m[1]&&d.getMonth()===+m[2]-1&&d.getDate()===+m[3]&&d.getTime()<=Date.now()?d.getTime():0}
 function exportName(){let d=new Date(),pad=n=>String(n).padStart(2,'0');return `${prefs.mainName||'账本'}_${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}.csv`}
-function backupExportName(){let d=new Date(),pad=n=>String(n).padStart(2,'0');return `StarLedger_完整备份_${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}.zip`}
+function detectedBackupDeviceName(){let ua=String(typeof navigator!=='undefined'?navigator.userAgent:''),platform=String(typeof navigator!=='undefined'?(navigator.userAgentData?.platform||navigator.platform||''):'');if(/iPad/i.test(ua)||/Mac/i.test(platform)&&typeof navigator!=='undefined'&&navigator.maxTouchPoints>1)return'iPad';if(/iPhone/i.test(ua))return'iPhone';if(/Android/i.test(ua))return'Android';if(/Mac/i.test(platform))return'Mac';if(/Win/i.test(platform))return'Windows';if(/Linux/i.test(platform))return'Linux';return'设备'}
+function cleanBackupDeviceName(value){return String(value||'').trim().replace(/[\\/:*?"<>|\r\n]+/g,'-').replace(/\s+/g,' ').slice(0,32)}
+function backupDeviceName(){return cleanBackupDeviceName(prefs.backupDeviceName)||detectedBackupDeviceName()}
+function backupExportName(kind='完整备份'){let d=new Date(),pad=n=>String(n).padStart(2,'0');return `StarLedger_${backupDeviceName()}_${kind}_${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}.zip`}
 let exportReminderDismissed=false;
 function exportStatus(){
  if(native||workspace.readWrite||!prefs.mainName||!prefs.exportDays||exportReminderDismissed)return null;
@@ -585,24 +592,53 @@ async function completeBackupEntries(){
  if(native)throw Error('请在网页浏览器中导出完整 ZIP');if(!prefs.mainName)throw Error('请先建立账本');if(!window.StarLedgerZip)throw Error('ZIP 组件没有载入');
  let sourceNames=[...new Set([...workspace.names,prefs.mainName].map(x=>String(x||'').trim()).filter(Boolean))],mapped=new Map(),used=new Set();
  for(let name of sourceNames){let archive=archiveLedgerName(name);if(used.has(archive))throw Error('有两个主账本在 ZIP 中会使用相同文件名，请先改名');used.add(archive);mapped.set(name,archive)}
- let config={format:'star-ledger-config',version:2,mainName:mapped.get(prefs.mainName),activeLedger:mapped.get(prefs.mainName),ledgers:{},_starConfigUpdatedAt:Date.now()},relations={format:'star-ledger-relations',version:1,updatedAt:new Date().toISOString(),ledgers:{}},entries=[];
- for(let name of sourceNames){let archive=mapped.get(name),ledgerPrefs=name===prefs.mainName?prefs:await get(ledgerPrefsKey(name)),csv=name===prefs.mainName?csvWrite(rows):await get(ledgerCsvKey(name)),relation=await get('relations:'+name);ledgerPrefs={...DEFAULT_PREFS,...(ledgerPrefs||{}),mainName:archive};config.ledgers[archive]={...sharedPrefSubset(ledgerPrefs),mainName:archive};relations.ledgers[archive]=relation&&typeof relation==='object'?relation:{groups:[],suppressedLegacy:[],updatedAt:''};entries.push({name:archive+'_desktop.csv',data:csv||csvWrite([])})
+ let createdAt=new Date().toISOString(),config={format:'star-ledger-config',version:2,mainName:mapped.get(prefs.mainName),activeLedger:mapped.get(prefs.mainName),ledgers:{},_starConfigUpdatedAt:Date.now()},relations={format:'star-ledger-relations',version:1,updatedAt:createdAt,ledgers:{}},entries=[],ledgerSummaries=[];
+ for(let name of sourceNames){let archive=mapped.get(name),ledgerPrefs=name===prefs.mainName?prefs:await get(ledgerPrefsKey(name)),csv=name===prefs.mainName?csvWrite(rows):await get(ledgerCsvKey(name)),relation=await get('relations:'+name);csv=csv||csvWrite([]);ledgerPrefs={...DEFAULT_PREFS,...(ledgerPrefs||{}),mainName:archive};config.ledgers[archive]={...sharedPrefSubset(ledgerPrefs),mainName:archive};relations.ledgers[archive]=relation&&typeof relation==='object'?relation:{groups:[],suppressedLegacy:[],updatedAt:''};entries.push({name:archive+'_desktop.csv',data:csv});ledgerSummaries.push({name:archive,records:csvParse(csv).filter(r=>!isDeletion(r)).length})
  }
- entries.push({name:SHARED_CONFIG_FILE,data:JSON.stringify(config,null,2)},{name:WORKSPACE_RELATIONS_FILE,data:JSON.stringify(relations,null,2)});return entries
+ let manifest={format:'star-ledger-backup',version:1,createdAt,deviceName:backupDeviceName(),activeLedger:mapped.get(prefs.mainName),ledgerCount:ledgerSummaries.length,recordCount:ledgerSummaries.reduce((n,x)=>n+x.records,0),ledgers:ledgerSummaries};
+ entries.push({name:SHARED_CONFIG_FILE,data:JSON.stringify(config,null,2)},{name:WORKSPACE_RELATIONS_FILE,data:JSON.stringify(relations,null,2)},{name:BACKUP_MANIFEST_FILE,data:JSON.stringify(manifest,null,2)});return entries
 }
 async function saveBackupBlob(blob,name){
  if(window.showSaveFilePicker){try{let fh=await showSaveFilePicker({suggestedName:name,types:[{description:'StarLedger 完整备份',accept:{'application/zip':['.zip']}}]}),w=await fh.createWritable();await w.write(blob);await w.close();await savePrefs({lastExportAt:Date.now(),lastExportName:name});toast('已保存完整备份：'+name);return}catch(e){if(e.name==='AbortError')return;throw e}}
  let url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);showExportConfirm(name,true)
 }
 async function exportCompleteBackup(){let name=backupExportName(),zip=StarLedgerZip.create(await completeBackupEntries());await saveBackupBlob(new Blob([zip],{type:'application/zip'}),name)}
-async function zipWorkspaceFiles(file){
- if(!window.StarLedgerZip)throw Error('ZIP 组件没有载入');let entries=await StarLedgerZip.read(file),files=[],seen=new Set();
- for(let entry of entries){let base=String(entry.name||'').split('/').filter(Boolean).at(-1)||'',allowed=base===SHARED_CONFIG_FILE||base===WORKSPACE_RELATIONS_FILE||workspaceLedgerFile(base);if(!allowed)continue;if(seen.has(base))throw Error('ZIP 中存在重复的 StarLedger 文件：'+base);seen.add(base);files.push(new File([entry.data],base,{type:base.endsWith('.json')?'application/json':'text/csv'}))}
- if(!files.length)throw Error('ZIP 中没有找到 StarLedger 账本文件');return files
+async function zipWorkspaceFiles(source){
+ if(!window.StarLedgerZip)throw Error('ZIP 组件没有载入');let entries=await StarLedgerZip.read(source),files=[],seen=new Set(),manifest=null;
+ for(let entry of entries){let base=String(entry.name||'').split('/').filter(Boolean).at(-1)||'',allowed=base===SHARED_CONFIG_FILE||base===WORKSPACE_RELATIONS_FILE||base===BACKUP_MANIFEST_FILE||workspaceLedgerFile(base);if(!allowed)continue;if(seen.has(base))throw Error('ZIP 中存在重复的 StarLedger 文件：'+base);seen.add(base);if(base===BACKUP_MANIFEST_FILE){try{let value=JSON.parse(new TextDecoder().decode(entry.data));if(value?.format!=='star-ledger-backup'||value.version!==1)throw Error();manifest=value}catch(e){throw Error(BACKUP_MANIFEST_FILE+' 格式无效')}continue}files.push(new File([entry.data],base,{type:base.endsWith('.json')?'application/json':'text/csv'}))}
+ if(!files.length)throw Error('ZIP 中没有找到 StarLedger 账本文件');return {files,manifest}
 }
-async function importCompleteBackup(file){
- let snapshot=await parseWorkspaceFiles(await zipWorkspaceFiles(file));if(!snapshot.names.length)throw Error('ZIP 中没有有效的主账本 CSV');if(!snapshot.configPresent||!snapshot.relationsPresent)throw Error('这不是完整备份：缺少配置或关联 JSON');if(snapshot.warnings.length)throw Error(snapshot.warnings.join('；'));
- if(prefs.mainName&&!confirm(`从完整备份读取 ${snapshot.names.length} 个主账本？\n\n同名本机账本会被备份内容替换；其他本机账本会保留。`))return;folderHandle=null;stopAutoRefresh();await applyWorkspaceSnapshot(snapshot,{folderName:file.name,mode:'snapshot',readWrite:false,askIfMultiple:true});toast('完整备份已恢复：'+snapshot.names.length+' 个主账本')
+async function readCompleteBackup(source,fileName=''){
+ let packed=await zipWorkspaceFiles(source),snapshot=await parseWorkspaceFiles(packed.files);
+ if(!snapshot.names.length)throw Error('ZIP 中没有有效的主账本 CSV');
+ if(!snapshot.configPresent||!snapshot.relationsPresent)throw Error('这不是完整备份：缺少配置或关联 JSON');
+ if(snapshot.warnings.length)throw Error(snapshot.warnings.join('；'));
+ let manifest=packed.manifest;
+ if(manifest){
+  let actual=new Map(snapshot.ledgers.map(ledger=>[ledger.name,ledger.counts.total]));
+  if(!Array.isArray(manifest.ledgers)||manifest.ledgerCount!==actual.size||manifest.recordCount!==[...actual.values()].reduce((n,count)=>n+count,0)||manifest.ledgers.length!==actual.size||new Set(manifest.ledgers.map(ledger=>ledger.name)).size!==actual.size||manifest.activeLedger!==snapshot.active||!Number.isFinite(Date.parse(manifest.createdAt))||manifest.ledgers.some(ledger=>!actual.has(ledger.name)||actual.get(ledger.name)!==ledger.records))throw Error('ZIP 摘要与账本内容不一致');
+ }
+ return {snapshot,manifest,fileName:String(fileName||source?.name||'完整备份.zip')}
+}
+function backupSummaryTime(task){let raw=task?.manifest?.createdAt||'',date=raw?new Date(raw):null;if(date&&Number.isFinite(date.getTime()))return date.toLocaleString('zh-CN');let stamp=filenameDate(task?.fileName||'');return stamp?new Date(stamp).toLocaleString('zh-CN'):'旧版备份未记录'}
+function showCompleteBackupPreview(task){let snapshot=task.snapshot,manifest=task.manifest,total=snapshot.ledgers.reduce((n,x)=>n+x.counts.total,0),overlap=snapshot.names.filter(name=>workspace.names.includes(name)).length,device=cleanBackupDeviceName(manifest?.deviceName)||'旧版备份未记录',list=snapshot.ledgers.map(ledger=>`<li><span>${esc(ledger.name)}</span><b>${ledger.counts.total.toLocaleString('zh-CN')} 笔</b></li>`).join('');$('#overlay').innerHTML=`<div class="modalback"><div class="modal backup-import-modal"><div class="sectionhead"><h2>读取完整备份</h2><button type="button" id="closeBtn">取消</button></div><div class="backup-import-summary"><span><small>备份设备</small><b>${esc(device)}</b></span><span><small>备份时间</small><b>${esc(backupSummaryTime(task))}</b></span><span><small>内容</small><b>${snapshot.names.length} 个主账本 · ${total.toLocaleString('zh-CN')} 笔</b></span></div><ul class="backup-ledger-list">${list}</ul>${prefs.mainName?`<p class="muted backup-import-note">检测到 ${overlap} 个同名本机主账本。继续前会在此浏览器自动保存一个可恢复的导入前快照。</p><div class="backup-import-actions"><button type="button" class="button primary" data-backupimportmode="merge"><b>合并导入</b><small>保留本机账本；同 ID 账单按更新时间合并，同名设置以备份为准</small></button><button type="button" class="button danger" data-backupimportmode="replace"><b>覆盖恢复</b><small>以此备份的主账本列表、账单、设置和关联关系替换当前内容</small></button></div>`:`<p class="muted backup-import-note">这是当前设备的首次恢复。确认后会把此备份保存到浏览器本地。</p><div class="backup-import-actions"><button type="button" class="button primary" data-backupimportmode="replace"><b>恢复此备份</b><small>导入全部主账本、设置和关联关系</small></button></div>`}</div></div>`}
+async function importCompleteBackup(file){pendingCompleteBackup=await readCompleteBackup(file,file.name);showCompleteBackupPreview(pendingCompleteBackup)}
+async function writeCompleteImportRecovery(record){
+ let meta={format:record.format,version:record.version,createdAt:record.createdAt,name:record.name,reason:record.reason,deviceName:record.deviceName,bytes:record.data.byteLength};
+ let d=await db();
+ try{await new Promise((resolve,reject)=>{let tx=d.transaction('state','readwrite'),store=tx.objectStore('state');store.put(record,COMPLETE_IMPORT_RECOVERY_KEY);store.put(meta,COMPLETE_IMPORT_RECOVERY_META_KEY);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error||Error('恢复点写入失败'));tx.onabort=()=>reject(tx.error||Error('恢复点写入中断'))})}finally{d.close()}
+ let saved=await get(COMPLETE_IMPORT_RECOVERY_KEY);
+ if(!saved?.data||saved.createdAt!==record.createdAt)throw Error('恢复点写入后无法读取');
+ await readCompleteBackup(saved.data,saved.name);
+ importRecoveryMeta=meta;return meta
+}
+async function saveCompleteImportRecovery(reason='导入前自动恢复点'){if(!prefs.mainName)return null;let zip=StarLedgerZip.create(await completeBackupEntries()),record={format:'star-ledger-local-recovery',version:1,createdAt:new Date().toISOString(),name:backupExportName('本机恢复点'),reason,deviceName:backupDeviceName(),data:zip};try{return await writeCompleteImportRecovery(record)}catch(e){throw Error('无法建立本机恢复点，已取消导入：'+e.message)}}
+function newerRelations(localValue,backupValue){if(!backupValue)return localValue;if(!localValue)return backupValue;let localAt=Date.parse(localValue.updatedAt||''),backupAt=Date.parse(backupValue.updatedAt||'');if(!Number.isFinite(localAt))localAt=0;if(!Number.isFinite(backupAt))backupAt=0;return backupAt>=localAt?backupValue:localValue}
+async function mergeCompleteBackupSnapshot(task){let snapshot=task.snapshot,names=[...new Set([...workspace.names,...snapshot.names])],entries={};for(let ledger of snapshot.ledgers){let localCsv=ledger.name===prefs.mainName?csvWrite(rows):await get(ledgerCsvKey(ledger.name)),localRows=localCsv?csvParse(localCsv):[],backupRows=csvParse(ledger.csv),merged=mergeSourceRows(localRows,[],backupRows),localPrefs=ledger.name===prefs.mainName?prefs:await get(ledgerPrefsKey(ledger.name)),nextPrefs={...DEFAULT_PREFS,...(localPrefs||{}),...(ledger.settings||{}),mainName:ledger.name},localRelations=await get('relations:'+ledger.name);entries[ledgerCsvKey(ledger.name)]=csvWrite(merged);entries[ledgerPrefsKey(ledger.name)]=nextPrefs;if(snapshot.relationsPresent)entries['relations:'+ledger.name]=newerRelations(localRelations,ledger.relations||null)||{groups:[],suppressedLegacy:[],updatedAt:''}}
+ let active=names.includes(prefs.mainName)?prefs.mainName:names.includes(snapshot.active)?snapshot.active:names[0],activePrefs=entries[ledgerPrefsKey(active)]||await get(ledgerPrefsKey(active))||{...DEFAULT_PREFS,mainName:active},activeCsv=entries[ledgerCsvKey(active)]||await get(ledgerCsvKey(active))||csvWrite([]);workspace=normalizeWorkspace({names,active,folderName:task.fileName,mode:'snapshot',readWrite:false,updatedAt:Date.now()});entries[WORKSPACE_KEY]=workspace;entries.prefs=activePrefs;entries.csv=activeCsv;await putBundle(entries);prefs=activePrefs;applyTheme();takeCsv(activeCsv);window.dispatchEvent(new CustomEvent('star-ledger-main-changed',{detail:{name:active}}))
+}
+async function applyPendingCompleteBackup(mode){let task=pendingCompleteBackup;if(!task||!['merge','replace'].includes(mode))return;if(task.applying)return;task.applying=true;document.querySelectorAll('[data-backupimportmode]').forEach(button=>button.disabled=true);try{if(prefs.mainName)await saveCompleteImportRecovery(mode==='merge'?'合并导入前恢复点':'覆盖恢复前恢复点');folderHandle=null;stopAutoRefresh();$('#overlay').innerHTML='';document.body.classList.remove('dialog-open');if(mode==='merge')await mergeCompleteBackupSnapshot(task);else await applyWorkspaceSnapshot(task.snapshot,{folderName:task.fileName,mode:'snapshot',readWrite:false,askIfMultiple:false});pendingCompleteBackup=null;render();toast(mode==='merge'?`已合并 ${task.snapshot.names.length} 个备份主账本；导入前状态可在设置中恢复`:`已从备份恢复 ${task.snapshot.names.length} 个主账本；导入前状态可在设置中恢复`)}catch(e){task.applying=false;showCompleteBackupPreview(task);throw e}}
+async function restoreCompleteImportRecovery(){let record=await get(COMPLETE_IMPORT_RECOVERY_KEY);if(!record?.data)throw Error('没有可恢复的导入前快照');let task=await readCompleteBackup(record.data,record.name);if(!confirm(`恢复 ${new Date(record.createdAt).toLocaleString('zh-CN')} 的本机快照？\n\n当前状态会自动成为新的恢复点，因此恢复后仍可切换回来。`))return;let previous=record;if(prefs.mainName)await saveCompleteImportRecovery('恢复操作前快照');try{folderHandle=null;stopAutoRefresh();$('#overlay').innerHTML='';await applyWorkspaceSnapshot(task.snapshot,{folderName:record.name,mode:'snapshot',readWrite:false,askIfMultiple:false});render();toast('已恢复导入前快照；刚才的状态已成为新的恢复点')}catch(e){await writeCompleteImportRecovery(previous);throw e}
 }
 function accountData(){let map=new Map();function ensure(k){if(k&&!map.has(k))map.set(k,{net:0,count:0,calibrated:false})}
  for(let name of Object.keys(prefs.accountProfiles||{}))ensure(name);
@@ -687,6 +723,7 @@ function settingsPage(){
  <div class="grid cols2">${appearanceCard()}
   <div class="card"><div class="sectionhead"><h2>导出提醒</h2></div>
    <p class="muted">StarLedger Web 的数据保存在当前设备。完整 ZIP 包含全部本地主账本、配置与账单关联；主动清除网站数据前请先导出。</p>
+   <label class="field backup-device-field">此设备名称<input data-setting="backupDeviceName" maxlength="32" value="${esc(prefs.backupDeviceName||detectedBackupDeviceName())}" placeholder="例如：我的 iPhone"><small>只用于 ZIP 文件名和备份摘要，不会同步到其他设备。</small></label>
    <div class="setting-row"><span><b>提醒间隔</b><small>按上次完整 ZIP 导出时间起算</small></span><select data-setting="exportDays">${[[1,'每天'],[3,'每 3 天'],[7,'每 7 天'],[14,'每 14 天'],[30,'每 30 天'],[0,'关闭提醒']].map(([n,v])=>`<option value="${n}" ${prefs.exportDays==n?'selected':''}>${v}</option>`).join('')}</select></div>
    <p class="muted">上次导出：${esc(when)}<br>${esc(prefs.lastExportName||'尚未导出')}</p>
   </div>
@@ -698,11 +735,12 @@ function settingsPage(){
   <button class="button" id="newBook">新建主账本</button>
   <button class="button primary" id="exportBackup">导出完整备份 ZIP</button>
   <button class="button" id="importBackup">读取完整备份 ZIP</button>
+  ${importRecoveryMeta?`<button class="button" id="restoreImportRecovery">恢复导入前数据</button>`:''}
   <button class="button" id="exportCsv">仅导出当前账本 CSV</button>
   ${workspace.readWrite?'<button class="button" id="refreshWorkspace">立即刷新工作区</button>':''}
   <button class="button" id="restorePrevious">恢复上一步</button>
   <button class="button danger" id="clearLedger">清空本机 StarLedger 数据</button></div>
-  <p class="muted">完整 ZIP 与工作区使用同一套固定文件规则：账单 CSV、StarLedgerConfig.json 和 StarLedgerRelations.json。导入 ZIP 时会校验三类数据并恢复到本机。</p>
+  <p class="muted">完整 ZIP 可手动保存到网盘或 WebDAV 文件夹，再在另一台设备读取。导入前会显示设备、时间、账本和账单摘要，并可选择合并或覆盖；有本机数据时会先建立恢复点。</p>
  </div>`
 }
 function accountPage(){let data=accountViewData(),f=financial(),groups=accountGroups();return `<div class="compact-inline-summary account-summary-strip">${f.ready?`净资产 ${money(f.net)} · 资产 ${money(f.assets)} · 负债 ${money(f.debt)}`:`待校准 ${f.missing} 个账户 · 点账户调整`}</div>${groups.map(group=>{let members=orderedGroupMembers(group.id,data.filter(([name,v])=>v.profile.groupId===group.id)),active=members.filter(([name,v])=>!v.profile.hidden),included=active.filter(([name,v])=>v.profile.include),uncalibrated=included.filter(([name,v])=>!v.calibrated).length,total=included.filter(([name,v])=>v.calibrated).reduce((n,[name,v])=>n+v.net,0);return `<div class="card section account-group"><div class="sectionhead"><button class="group-title" data-group="${esc(group.id)}">${esc(group.name)}　⌄</button><span class="group-total">${uncalibrated?`已校准 ${money(total)} · ${uncalibrated} 待校准`:money(total)}</span></div>${members.map(([name,v])=>`<div class="account-entry account-type-${esc(v.profile.type)} ${v.profile.hidden?'account-hidden':''}" data-accountentry="${esc(name)}" data-accountgroup="${esc(group.id)}"><button class="account-item account-name" data-accountname="${esc(name)}" aria-label="设置账户 ${esc(name)}"><span class="account-type-mark" aria-hidden="true"></span><span><b>${esc(name)}</b><small>${({stored:'储值／现金',credit:'信用卡',personal:'借贷关系'})[v.profile.type]}${v.profile.hidden?' · 已隐藏':v.profile.include?'':' · 不计入净资产'}${v.profile.note?' · '+esc(v.profile.note):''}</small></span></button><button class="account-item account-value" ${v.profile.hidden?'data-accountname':'data-accountquery'}="${esc(name)}" aria-label="${v.profile.hidden?'设置':'查询'}账户 ${esc(name)}"><span class="account-balance ${v.calibrated&&v.profile.type!=='personal'?(v.net>0?'positive':v.net<0?'negative':''):''}">${v.calibrated?money(v.net):'待校准'}<small>${v.profile.hidden?'已隐藏':'查看账单　›'}</small></span></button></div>`).join('')||'<div class="empty">这个分组还没有账户</div>'}</div>`}).join('')}<div class="account-page-actions"><button class="button add-group" id="addAccount">＋ 添加账户</button><button class="button add-group" id="addGroup">＋ 新建分组</button></div><p class="muted page-footnote">隐藏账户仍保留在账户页，但不参与账单显示、筛选和统计。账户资料、隐藏状态和分组保存在设置中，不改变账单 CSV。</p>`}
@@ -720,6 +758,7 @@ function firstUsePage(){return `<div class="card importarea first-use-card">
  <div class="first-use-assurance"><span><b>本地优先</b><small>数据留在你的设备</small></span><span><b>完整可恢复</b><small>支持导出与读取 ZIP</small></span></div>
 </div>`}
 async function savePrefs(changes){
+ if(Object.prototype.hasOwnProperty.call(changes,'backupDeviceName'))changes={...changes,backupDeviceName:cleanBackupDeviceName(changes.backupDeviceName)};
  let next={...prefs,...changes};
  if(native){
   let r=await nativeCommand('saveSettings',null,null,{settings:changes});
@@ -1825,7 +1864,7 @@ document.addEventListener('click',e=>{if(e.target.closest?.('.entry-date-action'
  else if(t.dataset.key)pressAmountKey(t.dataset.key)
  else if(t.id==='settingsBtn'){if(section==='settings'){rc20SetPage(rc21SettingsReturn||'home')}else{rc21SettingsReturn=PRIMARY_PAGE_ORDER.includes(section)?section:'home';rc20SetPage('settings')}render()}
  else if(t.id==='addBtn')form()
- else if(t.id==='closeBtn'||t.classList.contains('modalback')){let bf=t.closest('#bannerConfigForm'),bm=t.closest('[data-banner-modal]');let bk=bf?.dataset.bannerkey||bm?.dataset.bannerModal||'';if(bk)clearBannerDraft(bk,true);if(t.closest('#accountOverlay'))rc21CloseAccountOverlay();else close()}
+ else if(t.id==='closeBtn'||t.classList.contains('modalback')){let bf=t.closest('#bannerConfigForm'),bm=t.closest('[data-banner-modal]');let bk=bf?.dataset.bannerkey||bm?.dataset.bannerModal||'';if(bk)clearBannerDraft(bk,true);if(t.closest('.backup-import-modal'))pendingCompleteBackup=null;if(t.closest('#accountOverlay'))rc21CloseAccountOverlay();else close()}
  else if(t.id==='deleteBtn'||t.id==='desktopDeleteBtn'){let id=$('#entry')?.dataset.id;if(id)askDelete([id])}
  else if(t.id==='switchMain'){nativeCommand('switchMain').then(r=>{prefs={...prefs,...r.settings};if(r.catalog)BOOT.catalog=r.catalog;BOOT.ledgerReady=!!r.ledgerReady;takeCsv(r.csv);if($('#entry'))entryForm();else render();toast('当前主文件名：'+prefs.mainName)}).catch(err=>toast(err.message))}
  else if(t.id==='newBook')createBook().catch(err=>toast(err.message))
@@ -1836,6 +1875,8 @@ document.addEventListener('click',e=>{if(e.target.closest?.('.entry-date-action'
  else if(t.id==='disableExportReminder'){savePrefs({exportDays:0}).then(()=>toast('已关闭完整备份提醒；可在设置中重新开启')).catch(err=>toast(err.message))}
  else if(t.id==='exportBackup')exportCompleteBackup().catch(err=>toast('导出失败：'+err.message))
  else if(t.id==='importBackup')$('#backupZip').click()
+ else if(t.dataset.backupimportmode)applyPendingCompleteBackup(t.dataset.backupimportmode).catch(err=>toast('完整备份导入失败：'+err.message))
+ else if(t.id==='restoreImportRecovery')restoreCompleteImportRecovery().catch(err=>toast('恢复失败：'+err.message))
  else if(t.id==='exportCsv'){if(native)nativeCommand('exportLedger').then(r=>{if(r.exported)toast('已导出手机完整备份')}).catch(err=>toast(err.message));else exportLedger().catch(err=>toast(err.message))}
  else if(t.id==='restorePrevious'){if(confirm('恢复最近一次修改前的账本？恢复操作也可以再次撤回。'))send('restorePrevious').catch(err=>toast(err.message))}
  else if(t.id==='confirmExport'){if(t.dataset.complete==='1')savePrefs({lastExportAt:Date.now(),lastExportName:t.dataset.exportname}).then(()=>{close();toast('已记录本次完整备份')}).catch(err=>toast(err.message));else{close();toast('当前账本 CSV 已导出；完整备份提醒仍会保留')}}
