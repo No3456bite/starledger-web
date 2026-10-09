@@ -26,7 +26,7 @@ const pagesWorkflow = read('.github/workflows/pages.yml');
 
 const externalScripts = [
   './recognizer.js?v=ocr1',
-  './app.js?v=midterm8',
+  './app.js?v=cloudsync1',
   './ui-runtime.js?v=midterm3',
   './backup-zip.js?v=zip1',
   './books-stats.js?v=midterm2'
@@ -67,6 +67,8 @@ if (unexpectedInline.length) {
 
 if (!app.includes('function render()')) fail('app.js lost the primary render() function');
 if (!app.includes('async function exportCompleteBackup()') || !app.includes('async function importCompleteBackup(file)')) fail('app.js lost complete backup import/export');
+if (!app.includes('async function uploadCloudBackup()') || !app.includes('async function downloadCloudBackup()') || !app.includes('id="cloudSyncToken"')) fail('manual WebDAV sync controls are missing');
+if (!fs.existsSync('cloudflare/worker.mjs') || !fs.existsSync('wrangler.jsonc')) fail('Cloudflare relay source or deployment config is missing');
 if (!app.includes('async function readCompleteBackup(') || !app.includes('ZIP 摘要与账本内容不一致') || !app.includes('async function saveCompleteImportRecovery(') || !app.includes('async function restoreCompleteImportRecovery(') || !app.includes('data-backupimportmode="merge"') || !app.includes('data-backupimportmode="replace"')) fail('complete ZIP preview, merge/replace or recovery guard is missing');
 if (!app.includes("scrollPageTo(0,'smooth')")) fail('back-to-top no longer uses the unified page scroller');
 if (!app.includes("const COLS=['id','date','type'")) fail('app.js lost the ledger column schema');

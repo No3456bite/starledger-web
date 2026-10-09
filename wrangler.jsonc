@@ -1,0 +1,5 @@
+{
+  "name": "starledger-webdav-relay",
+  "main": "cloudflare/worker.mjs",
+  "compatibility_date": "2026-10-09"
+}
