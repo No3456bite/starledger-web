@@ -810,6 +810,30 @@ main {
   margin-left: auto;
 }
 
+.cloud-sync-status {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.cloud-sync-status[data-state="pending"] {
+  border-color: var(--green);
+  color: var(--ink);
+}
+
+.cloud-sync-status[data-state="success"] {
+  color: var(--green);
+}
+
+.cloud-sync-status[data-state="error"] {
+  color: var(--red);
+}
+
 .backup-device-field {
   margin: 16px 0;
 }
