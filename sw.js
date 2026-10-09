@@ -1,10 +1,10 @@
-const CACHE='starledger-web-v064-cloud-sync-feedback';
+const CACHE='starledger-web-v065-cloud-sync-diagnostics';
 const ASSETS=[
   './',
   './index.html',
   './manifest.webmanifest',
   './recognizer.js?v=ocr1',
-  './app.js?v=cloudtest1',
+  './app.js?v=clouddiag1',
   './ui-runtime.js?v=midterm3',
   './backup-zip.js?v=zip1',
   './books-stats.js?v=midterm2',

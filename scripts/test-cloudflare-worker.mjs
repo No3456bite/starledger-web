@@ -11,6 +11,7 @@ const base = 'https://example.workers.dev';
 const origin = 'https://no3456bite.github.io';
 const headers = { Origin: origin, Authorization: 'Bearer test-secret' };
 const originalFetch = globalThis.fetch;
+const originalSetTimeout = globalThis.setTimeout;
 let call;
 globalThis.fetch = async (url, options) => {
   call = { url: String(url), ...options };
@@ -23,6 +24,12 @@ try {
   assert.equal(response.status, 403);
   response = await worker.fetch(new Request(base + '/status', { headers: { Origin: origin } }), env);
   assert.equal(response.status, 401);
+  call = null;
+  response = await worker.fetch(new Request(base + '/health', { headers }), env);
+  assert.deepEqual(await response.json(), { ok: true });
+  assert.equal(call, null);
+  response = await worker.fetch(new Request(base + '/health', { headers }), { ...env, DAV_PASSWORD: '' });
+  assert.equal(response.status, 503);
   response = await worker.fetch(new Request(base + '/status', { headers }), env);
   assert.deepEqual(await response.json(), { exists: false });
   assert.equal(call.url, env.DAV_FILE_URL);
@@ -37,7 +44,13 @@ try {
   assert.deepEqual([...new Uint8Array(await response.arrayBuffer())], [0x50, 0x4b]);
   response = await worker.fetch(new Request(base + '/backup', { headers }), { ...env, DAV_FILE_URL: 'https://evil.example/backup.zip' });
   assert.equal(response.status, 503);
+  globalThis.setTimeout = callback => originalSetTimeout(callback, 5);
+  globalThis.fetch = (_url, options) => new Promise((_resolve, reject) => options.signal.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError'))));
+  response = await worker.fetch(new Request(base + '/status', { headers }), env);
+  assert.equal(response.status, 504);
+  assert.equal(await response.text(), 'WebDAV timed out');
   console.log('Cloudflare Worker relay tests passed.');
 } finally {
   globalThis.fetch = originalFetch;
+  globalThis.setTimeout = originalSetTimeout;
 }

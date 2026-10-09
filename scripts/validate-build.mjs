@@ -26,7 +26,7 @@ const pagesWorkflow = read('.github/workflows/pages.yml');
 
 const externalScripts = [
   './recognizer.js?v=ocr1',
-  './app.js?v=cloudtest1',
+  './app.js?v=clouddiag1',
   './ui-runtime.js?v=midterm3',
   './backup-zip.js?v=zip1',
   './books-stats.js?v=midterm2'
@@ -68,7 +68,8 @@ if (unexpectedInline.length) {
 if (!app.includes('function render()')) fail('app.js lost the primary render() function');
 if (!app.includes('async function exportCompleteBackup()') || !app.includes('async function importCompleteBackup(file)')) fail('app.js lost complete backup import/export');
 if (!app.includes('async function uploadCloudBackup()') || !app.includes('async function downloadCloudBackup()') || !app.includes('id="cloudSyncToken"')) fail('manual WebDAV sync controls are missing');
-if (!app.includes('id="cloudSyncStatus"') || !app.includes('正在连接 Worker，并检查坚果云备份') || !app.includes('controller.abort(),20000') || !uiFoundation.includes('.cloud-sync-status[data-state="error"]')) fail('cloud sync test status and timeout guard are missing');
+if (!app.includes('id="cloudSyncStatus"') || !app.includes('第一步：正在连接 Worker') || !app.includes('第二步：Worker 已连接') || !app.includes('controller.abort(),20000') || !uiFoundation.includes('.cloud-sync-status[data-state="error"]')) fail('cloud sync test status and timeout guard are missing');
+if (!read('cloudflare/worker.mjs').includes("url.pathname === '/health'") || !read('cloudflare/worker.mjs').includes("'WebDAV timed out'")) fail('Worker reachability and WebDAV timeout diagnostics are missing');
 if (!fs.existsSync('cloudflare/worker.mjs') || !fs.existsSync('wrangler.jsonc')) fail('Cloudflare relay source or deployment config is missing');
 if (!app.includes('async function readCompleteBackup(') || !app.includes('ZIP 摘要与账本内容不一致') || !app.includes('async function saveCompleteImportRecovery(') || !app.includes('async function restoreCompleteImportRecovery(') || !app.includes('data-backupimportmode="merge"') || !app.includes('data-backupimportmode="replace"')) fail('complete ZIP preview, merge/replace or recovery guard is missing');
 if (!app.includes("scrollPageTo(0,'smooth')")) fail('back-to-top no longer uses the unified page scroller');
