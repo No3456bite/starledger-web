@@ -26,7 +26,7 @@ const pagesWorkflow = read('.github/workflows/pages.yml');
 
 const externalScripts = [
   './recognizer.js?v=ocr1',
-  './app.js?v=autobackup2',
+  './app.js?v=contenthash1',
   './ui-runtime.js?v=midterm3',
   './backup-zip.js?v=zip1',
   './books-stats.js?v=midterm2'
@@ -68,7 +68,7 @@ if (unexpectedInline.length) {
 if (!app.includes('function render()')) fail('app.js lost the primary render() function');
 if (!app.includes('async function exportCompleteBackup()') || !app.includes('async function importCompleteBackup(file)')) fail('app.js lost complete backup import/export');
 if (!app.includes('async function uploadCloudBackup()') || !app.includes('async function downloadCloudBackup(') || !app.includes('id="cloudSyncToken"')) fail('WebDAV backup controls are missing');
-if (!app.includes('id="autoCloudBackup"') || !app.includes('checkRemoteBackupOnOpen') || !app.includes('pullCloudBackupAutomatically') || !app.includes('autoBackupSuppressWrites') || !app.includes('saveCompleteImportRecovery(\'自动载入坚果云前恢复点\')')) fail('automatic cloud backup or safe pull guard is missing');
+if (!app.includes('id="autoCloudBackup"') || !app.includes('checkRemoteBackupOnOpen') || !app.includes('pullCloudBackupAutomatically') || !app.includes('autoBackupSuppressWrites') || !app.includes('saveCompleteImportRecovery(\'自动载入坚果云前恢复点\')') || !app.includes('async function backupContentHash(') || !app.includes('manifest.contentHash!==contentHash') || !app.includes('autoBackupState.baseHash')) fail('automatic cloud backup, content hash or safe pull guard is missing');
 if (!sw.includes('new URL(e.request.url).origin!==self.location.origin')) fail('service worker must not cache cross-origin cloud backup responses');
 if (!app.includes('id="cloudSyncStatus"') || !app.includes('第一步：正在连接 Worker') || !app.includes('第二步：Worker 已连接') || !app.includes('controller.abort(),20000') || !uiFoundation.includes('.cloud-sync-status[data-state="error"]')) fail('cloud sync test status and timeout guard are missing');
 if (!read('cloudflare/worker.mjs').includes("url.pathname === '/health'") || !read('cloudflare/worker.mjs').includes("'WebDAV timed out'")) fail('Worker reachability and WebDAV timeout diagnostics are missing');

@@ -44,6 +44,8 @@ This document is the maintenance boundary for the current single-page Web build.
 9. **backup-zip.js — complete backup container**
    - Owns ZIP container creation, reading and CRC validation only.
    - The meaning and validation of ledger CSV/config/relations remain in `app.js` and reuse the workspace parser.
+   - `app.js` computes the SHA-256 content hash from canonical CSV/config/relations, stores it in `StarLedgerBackup.json`, and verifies it on import. Generated export timestamps and device labels are excluded.
+   - Cloud sync keeps the last verified content hash locally as its common baseline. WebDAV ETag only skips a download when that baseline is known; a changed or missing ETag requires reading and validating the ZIP before upload or restore.
 
 ## Change rules
 

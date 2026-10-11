@@ -459,6 +459,7 @@ function initLocal(){return (async()=>{
  applyTheme();
  openPendingPrefill();
  autoBackupReady=true;
+ queueLocalHashRefresh();
  checkRemoteBackupOnOpen(true);
 })()}
 
@@ -492,6 +493,10 @@ async function clearLocalLedger(){
   try{localStorage.removeItem('star_ledger_bundle')}catch(e){}
   autoBackupState.enabled=false;
   autoBackupState.remoteVersion='';
+  autoBackupState.baseHash='';
+  autoBackupState.localHash='';
+  autoBackupState.changeId=0;
+  autoBackupState.savedId=0;
   persistAutoBackupState();
  }
  location.reload()
@@ -596,6 +601,26 @@ function openPendingPrefill(){
 function showExportConfirm(name,complete=false){$('#overlay').innerHTML=`<div class="modalback"><div class="modal"><h2>备份是否已保存？</h2><p class="muted export-help">请确认 ${esc(name)} 已出现在“文件”App 或电脑下载目录。Safari 若只打开了预览，请先用共享菜单存储到“文件”。</p><div class="modalfooter"><button type="button" class="button" id="closeBtn">稍后确认</button><button type="button" class="button primary" id="confirmExport" data-exportname="${esc(name)}" data-complete="${complete?'1':'0'}">已保存备份</button></div></div></div>`}
 async function exportLedger(){if(!prefs.mainName)throw Error('请先建立账本');let name=exportName(),csv=csvWrite(rows);if(native)throw Error('请在网页中导出主账本');if(window.showSaveFilePicker){try{let fh=await showSaveFilePicker({suggestedName:name,types:[{description:'CSV 账单备份',accept:{'text/csv':['.csv']}}]}),w=await fh.createWritable();await w.write(csv);await w.close();toast('已导出当前账本 CSV：'+name);return}catch(e){if(e.name==='AbortError')return}}let blob=new Blob([csv],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);showExportConfirm(name,false)}
 function archiveLedgerName(name){return String(name||'账本').replace(/[\\/]/g,'／').trim()||'账本'}
+// Hash only user data. ZIP timestamps, backup device/time and generated wrapper timestamps
+// change on every export, even when the ledger itself is identical.
+async function backupContentHash(entries){
+ let decoder=new TextDecoder(),stable=value=>Array.isArray(value)?value.map(stable):value&&typeof value==='object'?Object.fromEntries(Object.keys(value).sort().map(key=>[key,stable(value[key])])):value;
+ let files=entries.filter(entry=>entry.name!==BACKUP_MANIFEST_FILE).map(entry=>{
+  let name=entry.name,value=typeof entry.data==='string'?entry.data:decoder.decode(entry.data);
+  if(name===SHARED_CONFIG_FILE||name===WORKSPACE_RELATIONS_FILE){
+   let object=JSON.parse(value);
+   if(name===SHARED_CONFIG_FILE)delete object._starConfigUpdatedAt;
+   else delete object.updatedAt;
+   value=stable(object)
+  }else{
+   value=csvParse(value).map(row=>COLS.map(key=>String(row[key]??'')));
+   value.sort((a,b)=>{let left=JSON.stringify(a),right=JSON.stringify(b);return left<right?-1:left>right?1:0})
+  }
+  return [name,value]
+ }).sort((a,b)=>a[0]<b[0]?-1:a[0]>b[0]?1:0);
+ let bytes=new TextEncoder().encode(JSON.stringify(files)),digest=new Uint8Array(await crypto.subtle.digest('SHA-256',bytes));
+ return [...digest].map(byte=>byte.toString(16).padStart(2,'0')).join('')
+}
 async function completeBackupEntries(){
  if(native)throw Error('请在网页浏览器中导出完整 ZIP');if(!prefs.mainName)throw Error('请先建立账本');if(!window.StarLedgerZip)throw Error('ZIP 组件没有载入');
  let sourceNames=[...new Set([...workspace.names,prefs.mainName].map(x=>String(x||'').trim()).filter(Boolean))],mapped=new Map(),used=new Set();
@@ -603,8 +628,9 @@ async function completeBackupEntries(){
  let createdAt=new Date().toISOString(),config={format:'star-ledger-config',version:2,mainName:mapped.get(prefs.mainName),activeLedger:mapped.get(prefs.mainName),ledgers:{},_starConfigUpdatedAt:Date.now()},relations={format:'star-ledger-relations',version:1,updatedAt:createdAt,ledgers:{}},entries=[],ledgerSummaries=[];
  for(let name of sourceNames){let archive=mapped.get(name),ledgerPrefs=name===prefs.mainName?prefs:await get(ledgerPrefsKey(name)),csv=name===prefs.mainName?csvWrite(rows):await get(ledgerCsvKey(name)),relation=await get('relations:'+name);csv=csv||csvWrite([]);ledgerPrefs={...DEFAULT_PREFS,...(ledgerPrefs||{}),mainName:archive};config.ledgers[archive]={...sharedPrefSubset(ledgerPrefs),mainName:archive};relations.ledgers[archive]=relation&&typeof relation==='object'?relation:{groups:[],suppressedLegacy:[],updatedAt:''};entries.push({name:archive+'_desktop.csv',data:csv});ledgerSummaries.push({name:archive,records:csvParse(csv).filter(r=>!isDeletion(r)).length})
  }
- let manifest={format:'star-ledger-backup',version:1,createdAt,deviceName:backupDeviceName(),activeLedger:mapped.get(prefs.mainName),ledgerCount:ledgerSummaries.length,recordCount:ledgerSummaries.reduce((n,x)=>n+x.records,0),ledgers:ledgerSummaries};
- entries.push({name:SHARED_CONFIG_FILE,data:JSON.stringify(config,null,2)},{name:WORKSPACE_RELATIONS_FILE,data:JSON.stringify(relations,null,2)},{name:BACKUP_MANIFEST_FILE,data:JSON.stringify(manifest,null,2)});return entries
+ entries.push({name:SHARED_CONFIG_FILE,data:JSON.stringify(config,null,2)},{name:WORKSPACE_RELATIONS_FILE,data:JSON.stringify(relations,null,2)});
+ let manifest={format:'star-ledger-backup',version:1,createdAt,deviceName:backupDeviceName(),activeLedger:mapped.get(prefs.mainName),ledgerCount:ledgerSummaries.length,recordCount:ledgerSummaries.reduce((n,x)=>n+x.records,0),ledgers:ledgerSummaries,contentHash:await backupContentHash(entries)};
+ entries.push({name:BACKUP_MANIFEST_FILE,data:JSON.stringify(manifest,null,2)});return entries
 }
 async function saveBackupBlob(blob,name){
  if(window.showSaveFilePicker){try{let fh=await showSaveFilePicker({suggestedName:name,types:[{description:'StarLedger 完整备份',accept:{'application/zip':['.zip']}}]}),w=await fh.createWritable();await w.write(blob);await w.close();await savePrefs({lastExportAt:Date.now(),lastExportName:name});toast('已保存完整备份：'+name);return}catch(e){if(e.name==='AbortError')return;throw e}}
@@ -619,41 +645,106 @@ async function cloudSyncRequest(path,options={}){let {base,token}=cloudSyncEndpo
 // Safari can reject response.json() with an opaque WebKit error; keep the HTTP step visible.
 async function cloudSyncJson(path,options={}){let response=await cloudSyncRequest(path,options),body;try{body=await response.text()}catch{throw Error(`Worker 响应无法读取 (HTTP ${response.status})`)}try{return JSON.parse(body)}catch{throw Error(`Worker 返回了非 JSON 内容 (HTTP ${response.status})，请检查 Worker 的部署状态`)}}
 function setCloudSyncStatus(message,state='idle'){let node=$('#cloudSyncStatus');if(node){node.textContent=message;node.dataset.state=state}}
-function saveCloudSyncConfig(){let url=$('#cloudSyncUrl')?.value.trim(),token=$('#cloudSyncToken')?.value.trim(),parsed;try{parsed=new URL(url)}catch{throw Error('请填写有效的 Worker 地址')}if(parsed.protocol!=='https:'||parsed.username||parsed.password||parsed.search||parsed.hash||parsed.pathname!=='/')throw Error('Worker 地址应为 HTTPS 根网址，且不含路径或参数');if(!token)throw Error('请填写同步令牌');let previous=cloudSyncConfig();localStorage.setItem(CLOUD_SYNC_KEY,JSON.stringify({url,token}));setCloudSyncStatus('连接信息已保存，尚未测试。');if(autoBackupState.enabled&&(previous.url!==url||previous.token!==token)){autoBackupState.remoteVersion='';autoBackupRemoteReady=false;autoBackupConflict='';autoBackupFirstReviewShown=false;autoBackupGeneration++;persistAutoBackupState();checkRemoteBackupOnOpen(true)}toast('云端连接配置仅保存在此浏览器')}
+function saveCloudSyncConfig(){let url=$('#cloudSyncUrl')?.value.trim(),token=$('#cloudSyncToken')?.value.trim(),parsed;try{parsed=new URL(url)}catch{throw Error('请填写有效的 Worker 地址')}if(parsed.protocol!=='https:'||parsed.username||parsed.password||parsed.search||parsed.hash||parsed.pathname!=='/')throw Error('Worker 地址应为 HTTPS 根网址，且不含路径或参数');if(!token)throw Error('请填写同步令牌');let previous=cloudSyncConfig();localStorage.setItem(CLOUD_SYNC_KEY,JSON.stringify({url,token}));setCloudSyncStatus('连接信息已保存，尚未测试。');if(previous.url!==url||previous.token!==token){autoBackupState.remoteVersion='';autoBackupState.baseHash='';autoBackupRemoteReady=false;autoBackupConflict='';autoBackupFirstReviewShown=false;autoBackupGeneration++;persistAutoBackupState();if(autoBackupState.enabled)checkRemoteBackupOnOpen(true)}toast('云端连接配置仅保存在此浏览器')}
 async function testCloudSync(){let button=$('#testCloudSync');if(!button||button.disabled)return;button.disabled=true;button.textContent='测试中…';setCloudSyncStatus('第一步：正在连接 Worker…','pending');let controller=new AbortController(),timer=setTimeout(()=>controller.abort(),20000),workerReady=false;try{let saved=cloudSyncConfig();if($('#cloudSyncUrl')?.value.trim()!==saved.url||$('#cloudSyncToken')?.value.trim()!==saved.token)throw Error('连接信息已修改，请先点“保存连接”');let health=await cloudSyncJson('/health',{signal:controller.signal});if(health.ok!==true)throw Error('Worker 健康检查结果不正确');workerReady=true;setCloudSyncStatus('第二步：Worker 已连接，正在检查坚果云…','pending');let data=await cloudSyncJson('/status',{signal:controller.signal});if(typeof data.exists!=='boolean')throw Error('Worker 返回格式不正确');setCloudSyncStatus(data.exists?'连接成功：坚果云已有备份。':'连接成功：坚果云尚无备份。','success')}catch(err){setCloudSyncStatus(`连接失败（${workerReady?'第二步：坚果云':'第一步：Worker'}）：`+(controller.signal.aborted?(workerReady?'Worker 已连接，但坚果云检查超时':'20 秒内未连上 Worker，请检查 Production 开关和地址'):err.message),'error')}finally{clearTimeout(timer);if(button.isConnected){button.disabled=false;button.textContent='测试连接'}}}
-async function uploadCloudBackup(){if(!prefs.mainName)throw Error('请先建立账本');let status=await cloudSyncJson('/status');if(status.exists&&!confirm('这会用本机当前的完整备份覆盖坚果云中的上一份备份。确认继续？'))return;let version=autoBackupState.changeId,name=backupExportName(),zip=StarLedgerZip.create(await completeBackupEntries());await readCompleteBackup(zip,name);await cloudSyncRequest('/backup',{method:'PUT',headers:{'Content-Type':'application/zip'},body:zip});await savePrefs({lastExportAt:Date.now(),lastExportName:name+'（坚果云）'});await recordAutoBackupSuccess(version);toast('完整备份已上传到坚果云')}
-async function downloadCloudBackup(version=''){let response=await cloudSyncRequest('/backup'),blob=await response.blob();if(blob.size>256*1024*1024)throw Error('远端 ZIP 超过安全大小限制');let file=new File([blob],'StarLedger-cloud-backup.zip',{type:'application/zip'});if(!version){try{version=remoteBackupVersion(await cloudSyncJson('/status'))}catch{}}pendingCloudImportVersion=version;try{await importCompleteBackup(file)}catch(err){pendingCloudImportVersion='';throw err}}
+async function uploadCloudBackup(){if(!prefs.mainName)throw Error('请先建立账本');let status=await cloudSyncJson('/status');if(status.exists&&!confirm('这会用本机当前的完整备份覆盖坚果云中的上一份备份。确认继续？'))return;let version=autoBackupState.changeId,name=backupExportName(),zip=StarLedgerZip.create(await completeBackupEntries()),task=await readCompleteBackup(zip,name);await cloudSyncRequest('/backup',{method:'PUT',headers:{'Content-Type':'application/zip'},body:zip});await savePrefs({lastExportAt:Date.now(),lastExportName:name+'（坚果云）'});await recordAutoBackupSuccess(version,task.contentHash);toast('完整备份已上传到坚果云')}
+async function downloadCloudBackup(version=''){let response=await cloudSyncRequest('/backup'),blob=await response.blob();if(blob.size>256*1024*1024)throw Error('远端 ZIP 超过安全大小限制');let file=new File([blob],'StarLedger-cloud-backup.zip',{type:'application/zip'});if(!version){try{version=remoteBackupVersion(await cloudSyncJson('/status'))}catch{}}pendingCloudImportVersion=version||'content-review';try{let task=await importCompleteBackup(file);pendingCloudImportHash=task.contentHash}catch(err){pendingCloudImportVersion='';pendingCloudImportHash='';throw err}}
 const AUTO_BACKUP_KEY='star-ledger-auto-backup-v1',AUTO_BACKUP_DELAY=60000,AUTO_BACKUP_INTERVAL=3600000,AUTO_BACKUP_RETRY=300000;
-let autoBackupState=(()=>{try{let value=JSON.parse(localStorage.getItem(AUTO_BACKUP_KEY)||'{}');return {enabled:value.enabled===true,changeId:Number(value.changeId)||0,savedId:Number(value.savedId)||0,lastSuccessAt:Number(value.lastSuccessAt)||0,lastPullAt:Number(value.lastPullAt)||0,remoteVersion:String(value.remoteVersion||''),lastError:String(value.lastError||''),retryAt:Number(value.retryAt)||0,dirtyAt:Number(value.dirtyAt)||0}}catch{return {enabled:false,changeId:0,savedId:0,lastSuccessAt:0,lastPullAt:0,remoteVersion:'',lastError:'',retryAt:0,dirtyAt:0}}})();
-let autoBackupReady=false,autoBackupTimer=0,autoBackupCheckTimer=0,autoBackupInFlight=false,autoBackupRemoteReady=false,autoBackupChecking=false,autoBackupConflict='',autoBackupLastCheck=0,autoBackupGeneration=0,autoBackupFirstReviewShown=false,pendingCloudImportVersion='',autoBackupSuppressWrites=false;
+let autoBackupState=(()=>{let value={};try{value=JSON.parse(localStorage.getItem(AUTO_BACKUP_KEY)||'{}')}catch{}return {enabled:value.enabled===true,changeId:Number(value.changeId)||0,savedId:Number(value.savedId)||0,lastSuccessAt:Number(value.lastSuccessAt)||0,lastPullAt:Number(value.lastPullAt)||0,remoteVersion:String(value.remoteVersion||''),baseHash:String(value.baseHash||''),localHash:String(value.localHash||''),lastError:String(value.lastError||''),retryAt:Number(value.retryAt)||0,dirtyAt:Number(value.dirtyAt)||0}})();
+let autoBackupReady=false,autoBackupTimer=0,autoBackupCheckTimer=0,autoBackupInFlight=false,autoBackupRemoteReady=false,autoBackupChecking=false,autoBackupConflict='',autoBackupLastCheck=0,autoBackupGeneration=0,autoBackupFirstReviewShown=false,pendingCloudImportVersion='',pendingCloudImportHash='',autoBackupSuppressWrites=false,localHashTimer=0,localHashGeneration=0;
 function remoteBackupVersion(status){if(!status?.exists)return '';return status.etag?'etag:'+status.etag:status.updatedAt?'modified:'+status.updatedAt+':'+(status.bytes||0):''}
-// Backup creation writes fresh timestamps into the manifest, config and relations wrapper.
-// Compare the actual exported files before treating a first connection as a conflict.
-async function sameCloudBackupContent(blob){
- await readCompleteBackup(blob,'StarLedger-cloud-backup.zip');
- let local=await completeBackupEntries(),remote=await StarLedgerZip.read(blob),decoder=new TextDecoder();
- let normalized=(name,data)=>{
-  let value=typeof data==='string'?data:decoder.decode(data);
-  if(name===SHARED_CONFIG_FILE||name===WORKSPACE_RELATIONS_FILE){let object=JSON.parse(value);if(name===SHARED_CONFIG_FILE)delete object._starConfigUpdatedAt;else delete object.updatedAt;return JSON.stringify(object)}
-  return value
- };
- let localFiles=new Map(local.filter(entry=>entry.name!==BACKUP_MANIFEST_FILE).map(entry=>[entry.name,normalized(entry.name,entry.data)]));
- let remoteFiles=new Map(remote.filter(entry=>entry.name!==BACKUP_MANIFEST_FILE).map(entry=>[entry.name,normalized(entry.name,entry.data)]));
- return localFiles.size===remoteFiles.size&&[...localFiles].every(([name,data])=>remoteFiles.get(name)===data)
-}
+async function currentBackupHash(){if(!prefs.mainName)return '';let entries=await completeBackupEntries();return JSON.parse(entries.find(entry=>entry.name===BACKUP_MANIFEST_FILE).data).contentHash}
+function queueLocalHashRefresh(){if(!autoBackupReady||autoBackupSuppressWrites)return;clearTimeout(localHashTimer);let generation=++localHashGeneration;localHashTimer=setTimeout(async()=>{try{let hash=await currentBackupHash();if(generation===localHashGeneration){autoBackupState.localHash=hash;persistAutoBackupState();showAutoBackupStatus()}}catch(err){console.warn('StarLedger content hash:',err)}},150)}
 function persistAutoBackupState(){try{localStorage.setItem(AUTO_BACKUP_KEY,JSON.stringify(autoBackupState));return true}catch{autoBackupState.enabled=false;let node=$('#autoCloudBackupStatus');if(node){node.textContent='无法保存自动备份状态，请检查浏览器存储权限。';node.dataset.state='error'}return false}}
 function autoBackupPending(){return autoBackupState.changeId>autoBackupState.savedId}
-function showAutoBackupStatus(){let node=$('#autoCloudBackupStatus');if(!node)return;let s=autoBackupState,last=s.lastSuccessAt?`上次上传：${new Date(s.lastSuccessAt).toLocaleString('zh-CN')}`:'还没有成功上传',pull=s.lastPullAt?` · 上次载入：${new Date(s.lastPullAt).toLocaleString('zh-CN')}`:'';node.textContent=!s.enabled?`自动备份已关闭 · ${last}`:autoBackupConflict?autoBackupConflict:autoBackupChecking?'正在检查云端备份…':autoBackupInFlight?'正在上传完整 ZIP 到坚果云…':s.lastError?`自动备份失败：${s.lastError}。修改仍在本机，稍后重试。`:autoBackupPending()?`有待备份的修改 · ${last}`:`已同步 · ${last}${pull}`;node.dataset.state=autoBackupConflict||s.lastError&&s.enabled?'error':autoBackupInFlight||autoBackupChecking?'pending':s.enabled&&!autoBackupPending()&&(s.lastSuccessAt||s.lastPullAt)?'success':'idle'}
+function showAutoBackupStatus(){let node=$('#autoCloudBackupStatus'),hashNode=$('#localContentHash'),s=autoBackupState;if(hashNode)hashNode.textContent=`本机内容码（前 16 位）：${s.localHash?s.localHash.slice(0,16):'正在计算或尚无账本'}`;if(!node)return;let last=s.lastSuccessAt?`上次上传：${new Date(s.lastSuccessAt).toLocaleString('zh-CN')}`:'还没有成功上传',pull=s.lastPullAt?` · 上次载入：${new Date(s.lastPullAt).toLocaleString('zh-CN')}`:'';node.textContent=!s.enabled?`自动备份已关闭 · ${last}`:autoBackupConflict?autoBackupConflict:autoBackupChecking?'正在比较本机与云端内容码…':autoBackupInFlight?'正在上传完整 ZIP 到坚果云…':s.lastError?`自动备份失败：${s.lastError}。修改仍在本机，稍后重试。`:autoBackupPending()?`有待备份的修改 · ${last}`:`已同步 · ${last}${pull}`;node.dataset.state=autoBackupConflict||s.lastError&&s.enabled?'error':autoBackupInFlight||autoBackupChecking?'pending':s.enabled&&!autoBackupPending()&&(s.lastSuccessAt||s.lastPullAt)?'success':'idle'}
 function scheduleAutoBackup(){clearTimeout(autoBackupTimer);autoBackupTimer=0;if(!autoBackupReady||!autoBackupState.enabled||!autoBackupRemoteReady||autoBackupConflict||!autoBackupPending()||autoBackupInFlight||document.hidden)return;let s=autoBackupState,when=Math.max(Date.now(),s.dirtyAt+AUTO_BACKUP_DELAY,s.lastSuccessAt+AUTO_BACKUP_INTERVAL,s.retryAt);autoBackupTimer=setTimeout(runAutoBackup,Math.max(0,when-Date.now()))}
-function markAutoBackupDirty(){if(!autoBackupReady||!autoBackupState.enabled)return;autoBackupState.changeId++;autoBackupState.dirtyAt=Date.now();autoBackupState.lastError='';if(persistAutoBackupState()){showAutoBackupStatus();scheduleAutoBackup()}}
+function markAutoBackupDirty(){queueLocalHashRefresh();if(!autoBackupReady||!autoBackupState.enabled)return;autoBackupState.changeId++;autoBackupState.dirtyAt=Date.now();autoBackupState.lastError='';if(persistAutoBackupState()){showAutoBackupStatus();scheduleAutoBackup()}}
 // Mark only committed local data writes. Loading a ledger or refreshing the UI does not queue an upload.
 function noteBackupWrite(entries){if(!autoBackupReady||autoBackupSuppressWrites)return;let keys=Object.keys(entries||{});if(keys.some(key=>key.startsWith('relations:')||key.startsWith('ledger:')&&key.endsWith(':csv'))||Object.prototype.hasOwnProperty.call(entries,'csv')&&entries.prefs&&entries.prefs!==prefs)markAutoBackupDirty()}
-async function recordAutoBackupSuccess(version){autoBackupState.savedId=Math.max(autoBackupState.savedId,version);autoBackupState.lastSuccessAt=Date.now();autoBackupState.lastError='';autoBackupState.retryAt=0;try{autoBackupState.remoteVersion=remoteBackupVersion(await cloudSyncJson('/status'))||autoBackupState.remoteVersion}catch{}persistAutoBackupState();showAutoBackupStatus();scheduleAutoBackup()}
-async function runAutoBackup(){autoBackupTimer=0;if(!autoBackupReady||!autoBackupState.enabled||!autoBackupRemoteReady||autoBackupConflict||!autoBackupPending()||autoBackupInFlight||document.hidden)return;autoBackupInFlight=true;showAutoBackupStatus();let version=autoBackupState.changeId;try{if(!prefs.mainName)throw Error('请先建立账本');cloudSyncEndpoint();let status=await cloudSyncJson('/status'),remote=remoteBackupVersion(status);if(status.exists&&(!remote||!autoBackupState.remoteVersion||remote!==autoBackupState.remoteVersion)){autoBackupConflict='云端备份已经变化，本机也有修改。请先点“读取坚果云备份”并选择合并；自动上传已暂停。';return}let name=backupExportName(),zip=StarLedgerZip.create(await completeBackupEntries());await readCompleteBackup(zip,name);if(!autoBackupState.enabled)return;await cloudSyncRequest('/backup',{method:'PUT',headers:{'Content-Type':'application/zip'},body:zip});await savePrefs({lastExportAt:Date.now(),lastExportName:name+'（坚果云自动备份）'});await recordAutoBackupSuccess(version)}catch(err){autoBackupState.lastError=err.message||'上传失败';autoBackupState.retryAt=Date.now()+AUTO_BACKUP_RETRY;persistAutoBackupState()}finally{autoBackupInFlight=false;showAutoBackupStatus();scheduleAutoBackup()}}
+async function recordAutoBackupSuccess(version,hash){autoBackupState.savedId=Math.max(autoBackupState.savedId,version);autoBackupState.baseHash=hash;if(autoBackupState.changeId===version)autoBackupState.localHash=hash;autoBackupState.lastSuccessAt=Date.now();autoBackupState.lastError='';autoBackupState.retryAt=0;try{autoBackupState.remoteVersion=remoteBackupVersion(await cloudSyncJson('/status'))}catch{autoBackupState.remoteVersion=''}persistAutoBackupState();showAutoBackupStatus();scheduleAutoBackup()}
+async function fetchCloudBackupTask(){let response=await cloudSyncRequest('/backup'),blob=await response.blob();if(blob.size>256*1024*1024)throw Error('远端 ZIP 超过安全大小限制');return {blob,task:await readCompleteBackup(blob,'StarLedger-cloud-backup.zip')}}
+async function runAutoBackup(){
+ autoBackupTimer=0;
+ if(!autoBackupReady||!autoBackupState.enabled||!autoBackupRemoteReady||autoBackupConflict||!autoBackupPending()||autoBackupInFlight||document.hidden)return;
+ autoBackupInFlight=true;showAutoBackupStatus();
+ let revision=autoBackupState.changeId;
+ try{
+  if(!prefs.mainName)throw Error('请先建立账本');
+  cloudSyncEndpoint();
+  let entries=await completeBackupEntries(),hash=JSON.parse(entries.find(entry=>entry.name===BACKUP_MANIFEST_FILE).data).contentHash,status=await cloudSyncJson('/status'),version=remoteBackupVersion(status);
+  autoBackupState.localHash=hash;
+  if(status.exists&&hash===autoBackupState.baseHash&&version&&version===autoBackupState.remoteVersion){autoBackupState.savedId=revision;persistAutoBackupState();return}
+  if(status.exists&&(!version||!autoBackupState.remoteVersion||version!==autoBackupState.remoteVersion||!autoBackupState.baseHash)){
+   let remote=(await fetchCloudBackupTask()).task.contentHash;
+   if(remote===hash){autoBackupState.baseHash=hash;autoBackupState.remoteVersion=version;autoBackupState.savedId=revision;persistAutoBackupState();return}
+   if(!autoBackupState.baseHash||remote!==autoBackupState.baseHash){autoBackupConflict='云端和本机都有不同的内容，请读取坚果云备份并选择合并；自动上传已暂停。';return}
+   if(version&&remoteBackupVersion(await cloudSyncJson('/status'))!==version){autoBackupConflict='上传前云端备份又发生变化，请重新检查云端备份。';return}
+   autoBackupState.remoteVersion=version
+  }
+  let name=backupExportName(),zip=StarLedgerZip.create(entries);
+  await readCompleteBackup(zip,name);
+  if(!autoBackupState.enabled)return;
+  let beforePut=await cloudSyncJson('/status');
+  if(beforePut.exists!==status.exists||status.exists&&version&&remoteBackupVersion(beforePut)!==version||status.exists&&!version&&(await fetchCloudBackupTask()).task.contentHash!==autoBackupState.baseHash){autoBackupConflict='上传前云端备份发生变化，已暂停覆盖。请重新检查云端备份。';return}
+  await cloudSyncRequest('/backup',{method:'PUT',headers:{'Content-Type':'application/zip'},body:zip});
+  await savePrefs({lastExportAt:Date.now(),lastExportName:name+'（坚果云自动备份）'});
+  await recordAutoBackupSuccess(revision,hash)
+ }catch(err){autoBackupState.lastError=err.message||'上传失败';autoBackupState.retryAt=Date.now()+AUTO_BACKUP_RETRY;persistAutoBackupState()}
+ finally{autoBackupInFlight=false;showAutoBackupStatus();scheduleAutoBackup()}
+}
 function toggleAutoBackup(enabled){if(enabled){try{cloudSyncEndpoint()}catch(err){let input=$('#autoCloudBackup');if(input)input.checked=false;toast(err.message);return}}autoBackupState.enabled=enabled;autoBackupState.lastError='';autoBackupState.retryAt=0;if(!persistAutoBackupState()){let input=$('#autoCloudBackup');if(input)input.checked=false;return}if(enabled)checkRemoteBackupOnOpen(true);else{clearTimeout(autoBackupTimer);clearTimeout(autoBackupCheckTimer);autoBackupTimer=0;autoBackupCheckTimer=0;autoBackupRemoteReady=false;autoBackupConflict=''}showAutoBackupStatus()}
-function acceptCloudImport(mode){if(!pendingCloudImportVersion)return;autoBackupState.remoteVersion=pendingCloudImportVersion;pendingCloudImportVersion='';autoBackupState.lastPullAt=Date.now();autoBackupState.lastError='';autoBackupConflict='';autoBackupRemoteReady=true;if(mode==='replace')autoBackupState.savedId=autoBackupState.changeId;persistAutoBackupState();if(mode==='merge')markAutoBackupDirty();showAutoBackupStatus();scheduleAutoBackup()}
-async function checkRemoteBackupOnOpen(force=false){if(!autoBackupReady||!autoBackupState.enabled||autoBackupChecking||autoBackupInFlight||document.hidden||!force&&Date.now()-autoBackupLastCheck<600000)return;clearTimeout(autoBackupCheckTimer);autoBackupCheckTimer=0;autoBackupChecking=true;autoBackupRemoteReady=false;autoBackupLastCheck=Date.now();let generation=autoBackupGeneration;showAutoBackupStatus();try{let status=await cloudSyncJson('/status'),version=remoteBackupVersion(status);if(!autoBackupState.enabled||generation!==autoBackupGeneration)return;autoBackupState.lastError='';autoBackupState.retryAt=0;persistAutoBackupState();if(!status.exists){autoBackupConflict='';autoBackupRemoteReady=true;if(prefs.mainName&&!autoBackupPending())markAutoBackupDirty();return}if(!version||!autoBackupState.remoteVersion){let localRevision=autoBackupState.changeId,response=await cloudSyncRequest('/backup'),blob=await response.blob();if(blob.size>256*1024*1024)throw Error('远端 ZIP 超过安全大小限制');if(!autoBackupState.enabled||generation!==autoBackupGeneration)return;let matches=prefs.mainName&&await sameCloudBackupContent(blob);if(autoBackupState.changeId!==localRevision||version&&remoteBackupVersion(await cloudSyncJson('/status'))!==version){autoBackupCheckTimer=setTimeout(()=>checkRemoteBackupOnOpen(true),0);return}if(matches){autoBackupState.remoteVersion=version;autoBackupState.savedId=autoBackupState.changeId;autoBackupConflict='';autoBackupRemoteReady=true;persistAutoBackupState();return}if(!prefs.mainName&&version){await pullCloudBackupAutomatically(version,generation);return}autoBackupConflict='本机与云端备份内容不同，请检查后选择合并或覆盖；在确认前不会自动上传。';if(!autoBackupFirstReviewShown){autoBackupFirstReviewShown=true;pendingCloudImportVersion=version||'content-review';await importCompleteBackup(new File([blob],'StarLedger-cloud-backup.zip',{type:'application/zip'}))}return}if(version===autoBackupState.remoteVersion){autoBackupConflict='';autoBackupRemoteReady=true;return}if(autoBackupPending()||$('#entry')){autoBackupConflict='云端和本机都有修改。请先读取坚果云备份并选择合并；自动上传已暂停。';return}await pullCloudBackupAutomatically(version,generation)}catch(err){autoBackupConflict='';autoBackupFirstReviewShown=false;autoBackupState.lastError=err.message||'检查云端失败';autoBackupState.retryAt=Date.now()+AUTO_BACKUP_RETRY;persistAutoBackupState();autoBackupCheckTimer=setTimeout(()=>checkRemoteBackupOnOpen(true),AUTO_BACKUP_RETRY)}finally{autoBackupChecking=false;showAutoBackupStatus();scheduleAutoBackup();if(generation!==autoBackupGeneration)setTimeout(()=>checkRemoteBackupOnOpen(true),0)}}
-async function pullCloudBackupAutomatically(version,generation=autoBackupGeneration){let response=await cloudSyncRequest('/backup'),blob=await response.blob();if(blob.size>256*1024*1024)throw Error('远端 ZIP 超过安全大小限制');let task=await readCompleteBackup(blob,'StarLedger-cloud-backup.zip'),current=remoteBackupVersion(await cloudSyncJson('/status'));if(!autoBackupState.enabled||generation!==autoBackupGeneration)return;if(current!==version||autoBackupPending()||$('#entry')){autoBackupConflict='检查期间云端或本机发生变化，已暂停自动载入。请手动读取坚果云备份。';return}if(prefs.mainName)await saveCompleteImportRecovery('自动载入坚果云前恢复点');if(!autoBackupState.enabled||generation!==autoBackupGeneration)return;if(autoBackupPending()||$('#entry')){autoBackupConflict='建立恢复点期间本机发生变化，已暂停自动载入。请手动读取坚果云备份。';return}folderHandle=null;stopAutoRefresh();autoBackupSuppressWrites=true;try{await applyWorkspaceSnapshot(task.snapshot,{folderName:task.fileName,mode:'snapshot',readWrite:false,askIfMultiple:false})}finally{autoBackupSuppressWrites=false}autoBackupState.remoteVersion=version;autoBackupState.savedId=autoBackupState.changeId;autoBackupState.lastPullAt=Date.now();autoBackupState.lastError='';autoBackupConflict='';autoBackupRemoteReady=true;persistAutoBackupState();toast('已自动载入坚果云的新备份；原本机数据可在设置中恢复')}
+function acceptCloudImport(mode,hash=''){if(!pendingCloudImportVersion)return;autoBackupState.remoteVersion=pendingCloudImportVersion==='content-review'?'':pendingCloudImportVersion;autoBackupState.baseHash=hash||pendingCloudImportHash;pendingCloudImportVersion='';pendingCloudImportHash='';autoBackupState.lastPullAt=Date.now();autoBackupState.lastError='';autoBackupConflict='';autoBackupRemoteReady=true;if(mode==='replace'){clearTimeout(localHashTimer);localHashGeneration++;autoBackupState.savedId=autoBackupState.changeId;autoBackupState.localHash=autoBackupState.baseHash}else markAutoBackupDirty();persistAutoBackupState();showAutoBackupStatus();scheduleAutoBackup()}
+async function checkRemoteBackupOnOpen(force=false){
+ if(!autoBackupReady||!autoBackupState.enabled||autoBackupChecking||autoBackupInFlight||document.hidden||!force&&Date.now()-autoBackupLastCheck<600000)return;
+ clearTimeout(autoBackupCheckTimer);autoBackupCheckTimer=0;autoBackupChecking=true;autoBackupRemoteReady=false;autoBackupLastCheck=Date.now();
+ let generation=autoBackupGeneration,revision=autoBackupState.changeId;showAutoBackupStatus();
+ try{
+  let status=await cloudSyncJson('/status'),version=remoteBackupVersion(status),local=await currentBackupHash();
+  if(!autoBackupState.enabled||generation!==autoBackupGeneration)return;
+  if(revision!==autoBackupState.changeId){autoBackupCheckTimer=setTimeout(()=>checkRemoteBackupOnOpen(true),0);return}
+  autoBackupState.localHash=local;autoBackupState.lastError='';autoBackupState.retryAt=0;
+  if(!status.exists){autoBackupState.baseHash='';autoBackupState.remoteVersion='';autoBackupConflict='';autoBackupRemoteReady=true;if(local&&!autoBackupPending())markAutoBackupDirty();persistAutoBackupState();return}
+  // A matching ETag only skips the ZIP download when a verified content baseline exists.
+  if(version&&version===autoBackupState.remoteVersion&&autoBackupState.baseHash){
+   autoBackupConflict='';autoBackupRemoteReady=true;
+   if(local===autoBackupState.baseHash)autoBackupState.savedId=autoBackupState.changeId;
+   else if(local&&!autoBackupPending())markAutoBackupDirty();
+   persistAutoBackupState();return
+  }
+  let remote=await fetchCloudBackupTask(),hash=remote.task.contentHash;
+  if(!autoBackupState.enabled||generation!==autoBackupGeneration)return;
+  if(revision!==autoBackupState.changeId||version&&remoteBackupVersion(await cloudSyncJson('/status'))!==version){autoBackupCheckTimer=setTimeout(()=>checkRemoteBackupOnOpen(true),0);return}
+  if(local&&local===hash){autoBackupState.baseHash=hash;autoBackupState.remoteVersion=version;autoBackupState.savedId=autoBackupState.changeId;autoBackupConflict='';autoBackupRemoteReady=true;persistAutoBackupState();return}
+  let base=autoBackupState.baseHash,legacyClean=!base&&version&&autoBackupState.remoteVersion&&autoBackupState.remoteVersion!==version&&!autoBackupPending();
+  if(!local&&!base||base&&local===base||legacyClean){
+   autoBackupState.savedId=autoBackupState.changeId;
+   await pullCloudBackupAutomatically(version,generation,remote);return
+  }
+  if(base&&hash===base||!base&&autoBackupState.remoteVersion===version&&autoBackupPending()){
+   autoBackupState.baseHash=hash;autoBackupState.remoteVersion=version;autoBackupConflict='';autoBackupRemoteReady=true;
+   if(!autoBackupPending())markAutoBackupDirty();
+   persistAutoBackupState();return
+  }
+  autoBackupConflict=base?'本机和云端内容都与上次同步版本不同，请检查后选择合并或覆盖；自动上传已暂停。':'首次连接时本机与云端内容不同，请检查后选择合并或覆盖；自动上传已暂停。';
+  if(!autoBackupFirstReviewShown){autoBackupFirstReviewShown=true;pendingCloudImportVersion=version||'content-review';pendingCloudImportHash=hash;pendingCompleteBackup=remote.task;showCompleteBackupPreview(remote.task)}
+ }catch(err){autoBackupConflict='';autoBackupFirstReviewShown=false;autoBackupState.lastError=err.message||'检查云端失败';autoBackupState.retryAt=Date.now()+AUTO_BACKUP_RETRY;persistAutoBackupState();autoBackupCheckTimer=setTimeout(()=>checkRemoteBackupOnOpen(true),AUTO_BACKUP_RETRY)}
+ finally{autoBackupChecking=false;showAutoBackupStatus();scheduleAutoBackup();if(generation!==autoBackupGeneration)setTimeout(()=>checkRemoteBackupOnOpen(true),0)}
+}
+async function pullCloudBackupAutomatically(version,generation=autoBackupGeneration,remote=null){
+ let {task}=remote||await fetchCloudBackupTask(),current=remoteBackupVersion(await cloudSyncJson('/status'));
+ if(!autoBackupState.enabled||generation!==autoBackupGeneration)return;
+ if(current!==version||autoBackupPending()||$('#entry')){autoBackupConflict='检查期间云端或本机发生变化，已暂停自动载入。请手动读取坚果云备份。';return}
+ if(prefs.mainName)await saveCompleteImportRecovery('自动载入坚果云前恢复点');
+ if(!autoBackupState.enabled||generation!==autoBackupGeneration)return;
+ if(autoBackupPending()||$('#entry')){autoBackupConflict='建立恢复点期间本机发生变化，已暂停自动载入。请手动读取坚果云备份。';return}
+ if(version?remoteBackupVersion(await cloudSyncJson('/status'))!==version:(await fetchCloudBackupTask()).task.contentHash!==task.contentHash){autoBackupConflict='建立恢复点期间云端备份发生变化，已暂停自动载入。请重新检查云端备份。';return}
+ folderHandle=null;stopAutoRefresh();clearTimeout(localHashTimer);localHashGeneration++;autoBackupSuppressWrites=true;
+ try{await applyWorkspaceSnapshot(task.snapshot,{folderName:task.fileName,mode:'snapshot',readWrite:false,askIfMultiple:false})}finally{autoBackupSuppressWrites=false}
+ autoBackupState.baseHash=task.contentHash;autoBackupState.localHash=await currentBackupHash();autoBackupState.remoteVersion=version;autoBackupState.savedId=autoBackupState.changeId;autoBackupState.lastPullAt=Date.now();autoBackupState.lastError='';autoBackupConflict='';autoBackupRemoteReady=true;
+ if(autoBackupState.localHash!==task.contentHash){autoBackupConflict='云端备份已载入，但本机内容码发生变化；请检查后再备份。';autoBackupRemoteReady=false}
+ persistAutoBackupState();toast('已自动载入坚果云的新备份；原本机数据可在设置中恢复')
+}
 function showCloudSyncHelp(){
  $('#overlay').innerHTML=`<div class="modalback"><div class="modal cloud-help-modal"><div class="sectionhead"><h2>设置坚果云备份</h2><button type="button" id="closeBtn" aria-label="关闭帮助">完成</button></div><p class="muted">只需设置一次。坚果云密码和同步令牌请填写在对应的私密位置，不要发给任何人。</p><ol class="cloud-help-steps">
  <li><span class="cloud-help-number">1</span><div><b>准备坚果云文件夹</b><p>在坚果云创建 <code>StarLedger</code> 文件夹，并在“安全选项”创建第三方应用密码。</p><div class="cloud-help-visual"><span>坚果云</span><span>📁 StarLedger</span><span>🔑 第三方应用密码</span></div><a href="https://www.jianguoyun.com/" target="_blank" rel="noopener noreferrer">打开坚果云 ↗</a></div></li>
@@ -665,25 +756,26 @@ function showCloudSyncHelp(){
  document.body.classList.add('dialog-open')
 }
 async function zipWorkspaceFiles(source){
- if(!window.StarLedgerZip)throw Error('ZIP 组件没有载入');let entries=await StarLedgerZip.read(source),files=[],seen=new Set(),manifest=null;
- for(let entry of entries){let base=String(entry.name||'').split('/').filter(Boolean).at(-1)||'',allowed=base===SHARED_CONFIG_FILE||base===WORKSPACE_RELATIONS_FILE||base===BACKUP_MANIFEST_FILE||workspaceLedgerFile(base);if(!allowed)continue;if(seen.has(base))throw Error('ZIP 中存在重复的 StarLedger 文件：'+base);seen.add(base);if(base===BACKUP_MANIFEST_FILE){try{let value=JSON.parse(new TextDecoder().decode(entry.data));if(value?.format!=='star-ledger-backup'||value.version!==1)throw Error();manifest=value}catch(e){throw Error(BACKUP_MANIFEST_FILE+' 格式无效')}continue}files.push(new File([entry.data],base,{type:base.endsWith('.json')?'application/json':'text/csv'}))}
- if(!files.length)throw Error('ZIP 中没有找到 StarLedger 账本文件');return {files,manifest}
+ if(!window.StarLedgerZip)throw Error('ZIP 组件没有载入');let entries=await StarLedgerZip.read(source),files=[],contentEntries=[],seen=new Set(),manifest=null;
+ for(let entry of entries){let base=String(entry.name||'').split('/').filter(Boolean).at(-1)||'',allowed=base===SHARED_CONFIG_FILE||base===WORKSPACE_RELATIONS_FILE||base===BACKUP_MANIFEST_FILE||workspaceLedgerFile(base);if(!allowed)continue;if(seen.has(base))throw Error('ZIP 中存在重复的 StarLedger 文件：'+base);seen.add(base);if(base===BACKUP_MANIFEST_FILE){try{let value=JSON.parse(new TextDecoder().decode(entry.data));if(value?.format!=='star-ledger-backup'||value.version!==1)throw Error();manifest=value}catch(e){throw Error(BACKUP_MANIFEST_FILE+' 格式无效')}continue}files.push(new File([entry.data],base,{type:base.endsWith('.json')?'application/json':'text/csv'}));contentEntries.push({name:base,data:entry.data})}
+ if(!files.length)throw Error('ZIP 中没有找到 StarLedger 账本文件');return {files,manifest,contentEntries}
 }
 async function readCompleteBackup(source,fileName=''){
  let packed=await zipWorkspaceFiles(source),snapshot=await parseWorkspaceFiles(packed.files);
  if(!snapshot.names.length)throw Error('ZIP 中没有有效的主账本 CSV');
  if(!snapshot.configPresent||!snapshot.relationsPresent)throw Error('这不是完整备份：缺少配置或关联 JSON');
  if(snapshot.warnings.length)throw Error(snapshot.warnings.join('；'));
- let manifest=packed.manifest;
+ let manifest=packed.manifest,contentHash=await backupContentHash(packed.contentEntries);
  if(manifest){
   let actual=new Map(snapshot.ledgers.map(ledger=>[ledger.name,ledger.counts.total]));
   if(!Array.isArray(manifest.ledgers)||manifest.ledgerCount!==actual.size||manifest.recordCount!==[...actual.values()].reduce((n,count)=>n+count,0)||manifest.ledgers.length!==actual.size||new Set(manifest.ledgers.map(ledger=>ledger.name)).size!==actual.size||manifest.activeLedger!==snapshot.active||!Number.isFinite(Date.parse(manifest.createdAt))||manifest.ledgers.some(ledger=>!actual.has(ledger.name)||actual.get(ledger.name)!==ledger.records))throw Error('ZIP 摘要与账本内容不一致');
+  if(manifest.contentHash!==undefined&&(!/^[0-9a-f]{64}$/.test(manifest.contentHash)||manifest.contentHash!==contentHash))throw Error('ZIP 内容码与账本内容不一致');
  }
- return {snapshot,manifest,fileName:String(fileName||source?.name||'完整备份.zip')}
+ return {snapshot,manifest,contentHash,fileName:String(fileName||source?.name||'完整备份.zip')}
 }
 function backupSummaryTime(task){let raw=task?.manifest?.createdAt||'',date=raw?new Date(raw):null;if(date&&Number.isFinite(date.getTime()))return date.toLocaleString('zh-CN');let stamp=filenameDate(task?.fileName||'');return stamp?new Date(stamp).toLocaleString('zh-CN'):'旧版备份未记录'}
 function showCompleteBackupPreview(task){let snapshot=task.snapshot,manifest=task.manifest,total=snapshot.ledgers.reduce((n,x)=>n+x.counts.total,0),overlap=snapshot.names.filter(name=>workspace.names.includes(name)).length,device=cleanBackupDeviceName(manifest?.deviceName)||'旧版备份未记录',list=snapshot.ledgers.map(ledger=>`<li><span>${esc(ledger.name)}</span><b>${ledger.counts.total.toLocaleString('zh-CN')} 笔</b></li>`).join('');$('#overlay').innerHTML=`<div class="modalback"><div class="modal backup-import-modal"><div class="sectionhead"><h2>读取完整备份</h2><button type="button" id="closeBtn">取消</button></div><div class="backup-import-summary"><span><small>备份设备</small><b>${esc(device)}</b></span><span><small>备份时间</small><b>${esc(backupSummaryTime(task))}</b></span><span><small>内容</small><b>${snapshot.names.length} 个主账本 · ${total.toLocaleString('zh-CN')} 笔</b></span></div><ul class="backup-ledger-list">${list}</ul>${prefs.mainName?`<p class="muted backup-import-note">检测到 ${overlap} 个同名本机主账本。继续前会在此浏览器自动保存一个可恢复的导入前快照。</p><div class="backup-import-actions"><button type="button" class="button primary" data-backupimportmode="merge"><b>合并导入</b><small>保留本机账本；同 ID 账单按更新时间合并，同名设置以备份为准</small></button><button type="button" class="button danger" data-backupimportmode="replace"><b>覆盖恢复</b><small>以此备份的主账本列表、账单、设置和关联关系替换当前内容</small></button></div>`:`<p class="muted backup-import-note">这是当前设备的首次恢复。确认后会把此备份保存到浏览器本地。</p><div class="backup-import-actions"><button type="button" class="button primary" data-backupimportmode="replace"><b>恢复此备份</b><small>导入全部主账本、设置和关联关系</small></button></div>`}</div></div>`}
-async function importCompleteBackup(file){pendingCompleteBackup=await readCompleteBackup(file,file.name);showCompleteBackupPreview(pendingCompleteBackup)}
+async function importCompleteBackup(file){pendingCompleteBackup=await readCompleteBackup(file,file.name);showCompleteBackupPreview(pendingCompleteBackup);return pendingCompleteBackup}
 async function writeCompleteImportRecovery(record){
  let meta={format:record.format,version:record.version,createdAt:record.createdAt,name:record.name,reason:record.reason,deviceName:record.deviceName,bytes:record.data.byteLength};
  let d=await db();
@@ -698,7 +790,7 @@ function newerRelations(localValue,backupValue){if(!backupValue)return localValu
 async function mergeCompleteBackupSnapshot(task){let snapshot=task.snapshot,names=[...new Set([...workspace.names,...snapshot.names])],entries={};for(let ledger of snapshot.ledgers){let localCsv=ledger.name===prefs.mainName?csvWrite(rows):await get(ledgerCsvKey(ledger.name)),localRows=localCsv?csvParse(localCsv):[],backupRows=csvParse(ledger.csv),merged=mergeSourceRows(localRows,[],backupRows),localPrefs=ledger.name===prefs.mainName?prefs:await get(ledgerPrefsKey(ledger.name)),nextPrefs={...DEFAULT_PREFS,...(localPrefs||{}),...(ledger.settings||{}),mainName:ledger.name},localRelations=await get('relations:'+ledger.name);entries[ledgerCsvKey(ledger.name)]=csvWrite(merged);entries[ledgerPrefsKey(ledger.name)]=nextPrefs;if(snapshot.relationsPresent)entries['relations:'+ledger.name]=newerRelations(localRelations,ledger.relations||null)||{groups:[],suppressedLegacy:[],updatedAt:''}}
  let active=names.includes(prefs.mainName)?prefs.mainName:names.includes(snapshot.active)?snapshot.active:names[0],activePrefs=entries[ledgerPrefsKey(active)]||await get(ledgerPrefsKey(active))||{...DEFAULT_PREFS,mainName:active},activeCsv=entries[ledgerCsvKey(active)]||await get(ledgerCsvKey(active))||csvWrite([]);workspace=normalizeWorkspace({names,active,folderName:task.fileName,mode:'snapshot',readWrite:false,updatedAt:Date.now()});entries[WORKSPACE_KEY]=workspace;entries.prefs=activePrefs;entries.csv=activeCsv;await putBundle(entries);prefs=activePrefs;applyTheme();takeCsv(activeCsv);window.dispatchEvent(new CustomEvent('star-ledger-main-changed',{detail:{name:active}}))
 }
-async function applyPendingCompleteBackup(mode){let task=pendingCompleteBackup;if(!task||!['merge','replace'].includes(mode))return;if(task.applying)return;task.applying=true;document.querySelectorAll('[data-backupimportmode]').forEach(button=>button.disabled=true);try{if(prefs.mainName)await saveCompleteImportRecovery(mode==='merge'?'合并导入前恢复点':'覆盖恢复前恢复点');folderHandle=null;stopAutoRefresh();$('#overlay').innerHTML='';document.body.classList.remove('dialog-open');if(mode==='merge')await mergeCompleteBackupSnapshot(task);else await applyWorkspaceSnapshot(task.snapshot,{folderName:task.fileName,mode:'snapshot',readWrite:false,askIfMultiple:false});pendingCompleteBackup=null;acceptCloudImport(mode);render();toast(mode==='merge'?`已合并 ${task.snapshot.names.length} 个备份主账本；导入前状态可在设置中恢复`:`已从备份恢复 ${task.snapshot.names.length} 个主账本；导入前状态可在设置中恢复`)}catch(e){task.applying=false;showCompleteBackupPreview(task);throw e}}
+async function applyPendingCompleteBackup(mode){let task=pendingCompleteBackup;if(!task||!['merge','replace'].includes(mode))return;if(task.applying)return;task.applying=true;document.querySelectorAll('[data-backupimportmode]').forEach(button=>button.disabled=true);try{if(prefs.mainName)await saveCompleteImportRecovery(mode==='merge'?'合并导入前恢复点':'覆盖恢复前恢复点');folderHandle=null;stopAutoRefresh();$('#overlay').innerHTML='';document.body.classList.remove('dialog-open');if(mode==='merge')await mergeCompleteBackupSnapshot(task);else await applyWorkspaceSnapshot(task.snapshot,{folderName:task.fileName,mode:'snapshot',readWrite:false,askIfMultiple:false});pendingCompleteBackup=null;acceptCloudImport(mode,task.contentHash);render();toast(mode==='merge'?`已合并 ${task.snapshot.names.length} 个备份主账本；导入前状态可在设置中恢复`:`已从备份恢复 ${task.snapshot.names.length} 个主账本；导入前状态可在设置中恢复`)}catch(e){task.applying=false;showCompleteBackupPreview(task);throw e}}
 async function restoreCompleteImportRecovery(){let record=await get(COMPLETE_IMPORT_RECOVERY_KEY);if(!record?.data)throw Error('没有可恢复的导入前快照');let task=await readCompleteBackup(record.data,record.name);if(!confirm(`恢复 ${new Date(record.createdAt).toLocaleString('zh-CN')} 的本机快照？\n\n当前状态会自动成为新的恢复点，因此恢复后仍可切换回来。`))return;let previous=record;if(prefs.mainName)await saveCompleteImportRecovery('恢复操作前快照');try{folderHandle=null;stopAutoRefresh();$('#overlay').innerHTML='';await applyWorkspaceSnapshot(task.snapshot,{folderName:record.name,mode:'snapshot',readWrite:false,askIfMultiple:false});render();toast('已恢复导入前快照；刚才的状态已成为新的恢复点')}catch(e){await writeCompleteImportRecovery(previous);throw e}
 }
 function accountCurrency(name){return currencyCode(prefs.accountProfiles?.[name]?.currency||'人民币')}
@@ -826,9 +918,10 @@ function settingsPage(){
   <label class="field">同步令牌<input id="cloudSyncToken" type="password" autocomplete="off" value="${esc(cloudSyncConfig().token)}" placeholder="Worker 中的 SYNC_TOKEN"></label>
   <div class="workspace-actions"><button class="button" id="saveCloudSync">保存连接</button><button class="button" id="testCloudSync">测试连接</button></div>
   <p class="cloud-sync-status" id="cloudSyncStatus" role="status" aria-live="polite">${cloudSyncConfig().url?'连接信息已保存，尚未测试。':'先填写 Worker 地址和同步令牌，再保存并测试连接。'}</p>
-  <label class="auto-backup-toggle"><span><b>自动备份</b><small>打开网页时检查并载入较新的云端备份；本机修改后合并上传，最多每小时一次。约 1 MB 的 ZIP 上传或下载会使用当前网络流量。</small></span><input type="checkbox" id="autoCloudBackup" ${autoBackupState.enabled?'checked':''} aria-describedby="autoCloudBackupStatus"></label>
+  <label class="auto-backup-toggle"><span><b>自动备份</b><small>打开网页时比较本机与云端内容码；仅云端改变时自动载入，仅本机改变时合并上传，最多每小时一次。约 1 MB 的 ZIP 上传或下载会使用当前网络流量。</small></span><input type="checkbox" id="autoCloudBackup" ${autoBackupState.enabled?'checked':''} aria-describedby="autoCloudBackupStatus"></label>
   <p class="cloud-sync-status" id="autoCloudBackupStatus" role="status" aria-live="polite"></p>
-  <p class="muted cloud-sync-caution">本机已有账本且首次连接云端时会先请你确认；若本机和云端都有新修改，将暂停上传并请你选择合并。网页关闭后不会在后台运行。</p>
+  <p class="muted" id="localContentHash">本机内容码（前 16 位）：正在计算</p>
+  <p class="muted cloud-sync-caution">首次连接会比较本机与云端的实际内容；只有双方内容不同时才需确认。之后若两边都有新修改，将暂停上传并请你选择合并。网页关闭后不会在后台运行。</p>
   <div class="workspace-actions"><button class="button primary" id="uploadCloudBackup">备份到坚果云</button><button class="button" id="downloadCloudBackup">读取坚果云备份</button></div>
  </div>`
 }
@@ -1956,7 +2049,7 @@ document.addEventListener('click',e=>{if(e.target.closest?.('.entry-date-action'
  else if(t.dataset.key)pressAmountKey(t.dataset.key)
  else if(t.id==='settingsBtn'){if(section==='settings'){rc20SetPage(rc21SettingsReturn||'home')}else{rc21SettingsReturn=PRIMARY_PAGE_ORDER.includes(section)?section:'home';rc20SetPage('settings')}render()}
  else if(t.id==='addBtn')form()
- else if(t.id==='closeBtn'||t.classList.contains('modalback')){let bf=t.closest('#bannerConfigForm'),bm=t.closest('[data-banner-modal]');let bk=bf?.dataset.bannerkey||bm?.dataset.bannerModal||'';if(bk)clearBannerDraft(bk,true);if(t.closest('.backup-import-modal')){pendingCompleteBackup=null;pendingCloudImportVersion=''}if(t.closest('#accountOverlay'))rc21CloseAccountOverlay();else close()}
+ else if(t.id==='closeBtn'||t.classList.contains('modalback')){let bf=t.closest('#bannerConfigForm'),bm=t.closest('[data-banner-modal]');let bk=bf?.dataset.bannerkey||bm?.dataset.bannerModal||'';if(bk)clearBannerDraft(bk,true);if(t.closest('.backup-import-modal')){pendingCompleteBackup=null;pendingCloudImportVersion='';pendingCloudImportHash=''}if(t.closest('#accountOverlay'))rc21CloseAccountOverlay();else close()}
  else if(t.id==='deleteBtn'||t.id==='desktopDeleteBtn'){let id=$('#entry')?.dataset.id;if(id)askDelete([id])}
  else if(t.id==='switchMain'){nativeCommand('switchMain').then(r=>{prefs={...prefs,...r.settings};if(r.catalog)BOOT.catalog=r.catalog;BOOT.ledgerReady=!!r.ledgerReady;takeCsv(r.csv);if($('#entry'))entryForm();else render();toast('当前主文件名：'+prefs.mainName)}).catch(err=>toast(err.message))}
  else if(t.id==='newBook')createBook().catch(err=>toast(err.message))

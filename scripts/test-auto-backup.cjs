@@ -4,32 +4,19 @@ const vm = require('node:vm');
 
 const source = fs.readFileSync('app.js', 'utf8');
 const start = source.indexOf("const AUTO_BACKUP_KEY=");
-const end = source.indexOf('async function zipWorkspaceFiles(', start);
-assert(start > 0 && end > start, 'auto backup module is present');
+const end = source.indexOf('function showCloudSyncHelp(', start);
+assert(start > 0 && end > start, 'automatic backup module is present');
 
 const stored = new Map();
 const nodes = {
   autoCloudBackup: { checked: false },
-  autoCloudBackupStatus: { textContent: '', dataset: {} }
+  autoCloudBackupStatus: { textContent: '', dataset: {} },
+  localContentHash: { textContent: '' }
 };
-let uploads = 0;
-let changeDuringUpload = false;
-let remoteTag = 'v1';
-let pulls = 0;
-let previews = 0;
-let recoveryPoints = 0;
-const encoder = new TextEncoder();
-const localEntries = [
-  { name: 'test_desktop.csv', data: 'id,amount\n1,5' },
-  { name: 'StarLedgerConfig.json', data: JSON.stringify({ ledgers: { test: { theme: 'slate' } }, _starConfigUpdatedAt: 1 }) },
-  { name: 'StarLedgerRelations.json', data: JSON.stringify({ ledgers: { test: { groups: [] } }, updatedAt: 'old' }) },
-  { name: 'StarLedgerBackup.json', data: '{}' }
-];
-let remoteEntries = localEntries.map(entry => ({ name: entry.name, data: encoder.encode(entry.data) }));
+let localHash = 'A', remoteHash = 'A', remoteTag = 'v1', remoteExists = true;
+let uploads = 0, pulls = 0, previews = 0, recoveries = 0, changeDuringUpload = false;
 const context = {
-  Date, JSON, Error, Object, TextDecoder,
-  SHARED_CONFIG_FILE: 'StarLedgerConfig.json',
-  WORKSPACE_RELATIONS_FILE: 'StarLedgerRelations.json',
+  Date, JSON, Error, Object, console,
   BACKUP_MANIFEST_FILE: 'StarLedgerBackup.json',
   localStorage: {
     getItem: key => stored.get(key) ?? null,
@@ -41,90 +28,92 @@ const context = {
   clearTimeout: () => {},
   toast: () => {},
   cloudSyncEndpoint: () => ({}),
-  cloudSyncJson: async () => ({ exists: true, etag: remoteTag }),
-  cloudSyncRequest: async path => {
-    if (path === '/backup' && vm.runInContext('autoBackupInFlight', context)) {
+  cloudSyncJson: async () => ({ exists: remoteExists, etag: remoteTag }),
+  cloudSyncRequest: async (path, options = {}) => {
+    if (path === '/backup' && options.method === 'PUT') {
       uploads++;
-      if (changeDuringUpload) vm.runInContext('markAutoBackupDirty()', context);
+      remoteExists = true;
+      remoteHash = localHash;
+      remoteTag = 'v' + (Number(remoteTag.slice(1)) + 1);
+      if (changeDuringUpload) {
+        localHash = 'LATER';
+        vm.runInContext('markAutoBackupDirty()', context);
+      }
     }
     return { blob: async () => ({ size: 1 }) };
   },
-  completeBackupEntries: async () => localEntries,
-  StarLedgerZip: { create: () => new Uint8Array([1]), read: async () => remoteEntries },
-  readCompleteBackup: async () => ({ snapshot: { names: ['test'] }, fileName: 'cloud.zip' }),
+  completeBackupEntries: async () => [
+    { name: 'StarLedgerBackup.json', data: JSON.stringify({ contentHash: localHash }) }
+  ],
+  StarLedgerZip: { create: () => new Uint8Array([1]) },
+  readCompleteBackup: async source => ({
+    snapshot: { names: ['test'] },
+    fileName: 'cloud.zip',
+    contentHash: source instanceof Uint8Array ? localHash : remoteHash
+  }),
   savePrefs: async () => {},
-  saveCompleteImportRecovery: async () => { recoveryPoints++; },
-  downloadCloudBackup: async () => { previews++; },
-  importCompleteBackup: async () => { previews++; },
-  File: class {},
+  saveCompleteImportRecovery: async () => { recoveries++; },
+  showCompleteBackupPreview: () => { previews++; },
   stopAutoRefresh: () => {},
-  applyWorkspaceSnapshot: async () => { pulls++; },
+  applyWorkspaceSnapshot: async () => { localHash = remoteHash; pulls++; },
   folderHandle: null,
+  pendingCompleteBackup: null,
   backupExportName: () => 'backup.zip',
   prefs: { mainName: 'test' }
 };
 vm.createContext(context);
 vm.runInContext(source.slice(start, end), context);
+const run = expression => vm.runInContext(expression, context);
 
 (async () => {
-  remoteEntries = remoteEntries.map(entry => entry.name === 'StarLedgerConfig.json'
-    ? { ...entry, data: encoder.encode(JSON.stringify({ ledgers: { test: { theme: 'slate' } }, _starConfigUpdatedAt: 2 })) }
-    : entry.name === 'StarLedgerRelations.json'
-      ? { ...entry, data: encoder.encode(JSON.stringify({ ledgers: { test: { groups: [] } }, updatedAt: 'new' })) }
-      : entry);
-  assert.equal(await vm.runInContext('sameCloudBackupContent({})', context), true, 'generated timestamps do not create a conflict');
-  remoteEntries = remoteEntries.map(entry => entry.name === 'test_desktop.csv'
-    ? { ...entry, data: encoder.encode('id,amount\n1,6') } : entry);
-  assert.equal(await vm.runInContext('sameCloudBackupContent({})', context), false, 'a changed bill creates a conflict');
-
-  vm.runInContext('autoBackupReady=true;autoBackupState.remoteVersion="etag:v1";toggleAutoBackup(true)', context);
+  run('autoBackupReady=true;toggleAutoBackup(true)');
   await new Promise(resolve => setImmediate(resolve));
-  vm.runInContext('autoBackupRemoteReady=true;autoBackupConflict="";autoBackupState.remoteVersion="etag:v1"', context);
-  assert.equal(vm.runInContext('autoBackupPending()', context), false, 'enabling does not invent a local edit');
-  assert.equal(uploads, 0, 'enabling only queues a backup');
-  const first = vm.runInContext('autoBackupState.changeId', context);
-  vm.runInContext('noteBackupWrite({csv:"same",prefs})', context);
-  assert.equal(vm.runInContext('autoBackupState.changeId', context), first, 'opening an existing ledger is not a change');
-  vm.runInContext('noteBackupWrite({csv:"changed",prefs:{mainName:"test"}})', context);
-  assert.equal(vm.runInContext('autoBackupState.changeId', context), first + 1, 'saved bills queue a backup');
+  assert.equal(run('autoBackupState.baseHash'), 'A', 'first connection adopts identical content');
+  assert.equal(previews, 0, 'identical content never asks to merge');
+  assert.equal(run('autoBackupPending()'), false, 'enabling does not invent an edit');
 
-  changeDuringUpload = true;
-  await vm.runInContext('runAutoBackup()', context);
-  assert.equal(uploads, 1);
-  assert.equal(vm.runInContext('autoBackupPending()', context), true, 'a later edit remains pending');
-  changeDuringUpload = false;
-  await vm.runInContext('runAutoBackup()', context);
-  assert.equal(vm.runInContext('autoBackupPending()', context), false);
-  assert.equal(uploads, 2);
+  localHash = 'B';
+  run('markAutoBackupDirty()');
+  await run('runAutoBackup()');
+  assert.equal(uploads, 1, 'local-only change uploads');
+  assert.equal(run('autoBackupState.baseHash'), 'B');
+  assert.equal(run('autoBackupPending()'), false);
 
-  vm.runInContext('markAutoBackupDirty();toggleAutoBackup(false)', context);
-  await vm.runInContext('runAutoBackup()', context);
-  assert.equal(uploads, 2, 'disabled backup never uploads');
+  remoteHash = 'C'; remoteTag = 'v3';
+  await run('checkRemoteBackupOnOpen(true)');
+  assert.equal(pulls, 1, 'remote-only change loads automatically');
+  assert.equal(recoveries, 1, 'automatic load saves a recovery point');
+  assert.equal(run('autoBackupState.baseHash'), 'C');
 
-  vm.runInContext('autoBackupState.enabled=true;autoBackupState.savedId=autoBackupState.changeId;autoBackupLastCheck=0', context);
-  remoteTag = 'v2';
-  await vm.runInContext('checkRemoteBackupOnOpen(true)', context);
-  assert.equal(pulls, 1, 'a newer remote backup loads when local data is clean');
-  assert.equal(recoveryPoints, 1, 'automatic loading saves a local recovery point');
-  assert.equal(vm.runInContext('autoBackupState.remoteVersion', context), 'etag:v2');
-  vm.runInContext('markAutoBackupDirty()', context);
-  remoteTag = 'v3';
-  await vm.runInContext('checkRemoteBackupOnOpen(true)', context);
-  assert.equal(pulls, 1, 'conflicting local edits stop automatic loading');
+  localHash = 'D'; run('markAutoBackupDirty()');
+  remoteHash = 'E'; remoteTag = 'v4';
+  await run('checkRemoteBackupOnOpen(true)');
+  assert.equal(pulls, 1, 'divergent changes do not replace local data');
+  assert.equal(previews, 1, 'divergent changes offer a review');
   assert.match(nodes.autoCloudBackupStatus.textContent, /暂停/);
-  vm.runInContext('autoBackupState.remoteVersion="";autoBackupConflict=""', context);
-  vm.runInContext('sameCloudBackupContent=async()=>true', context);
-  await vm.runInContext('checkRemoteBackupOnOpen(true)', context);
-  assert.equal(previews, 0, 'identical content needs no first-use review');
-  assert.equal(vm.runInContext('autoBackupState.remoteVersion', context), 'etag:v3');
-  vm.runInContext('sameCloudBackupContent=async()=>false;autoBackupState.remoteVersion=""', context);
-  await vm.runInContext('checkRemoteBackupOnOpen(true)', context);
-  assert.equal(previews, 1, 'divergent first-use data opens the import preview');
-  await vm.runInContext('checkRemoteBackupOnOpen(true)', context);
-  assert.equal(previews, 1, 'dismissed first-use review does not reopen on every focus');
-  context.prefs.mainName = '';
-  vm.runInContext('autoBackupState.remoteVersion="";autoBackupState.savedId=autoBackupState.changeId;autoBackupConflict=""', context);
-  await vm.runInContext('checkRemoteBackupOnOpen(true)', context);
-  assert.equal(pulls, 2, 'an empty device can load the cloud backup automatically');
-  console.log('Automatic backup queue and upload tests passed.');
-})().catch(error => { console.error(error); process.exitCode = 1; });
+
+  run("autoBackupConflict='';autoBackupState.baseHash='C';autoBackupState.remoteVersion='etag:v3'");
+  remoteHash = 'C'; remoteTag = 'v5';
+  await run('checkRemoteBackupOnOpen(true)');
+  assert.equal(run('autoBackupRemoteReady'), true, 'unchanged remote content permits pending local upload');
+  await run('runAutoBackup()');
+  assert.equal(uploads, 2);
+  assert.equal(run('autoBackupState.baseHash'), 'D');
+
+  remoteHash = 'D'; remoteTag = 'v7';
+  await run('checkRemoteBackupOnOpen(true)');
+  assert.equal(pulls, 1, 'a new ETag with identical content does not reload');
+  assert.equal(previews, 1);
+
+  remoteTag = '';
+  await run('checkRemoteBackupOnOpen(true)');
+  assert.equal(run('autoBackupState.baseHash'), 'D', 'content comparison works without ETag');
+  assert.equal(previews, 1);
+
+  localHash = 'F'; run('markAutoBackupDirty()');
+  changeDuringUpload = true;
+  await run('runAutoBackup()');
+  assert.equal(run('autoBackupPending()'), true, 'an edit made during upload remains pending');
+  changeDuringUpload = false;
+  console.log('Automatic backup content-hash decisions passed.');
+})().catch(error => { console.error(error.stack || error); process.exitCode = 1; });

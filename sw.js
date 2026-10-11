@@ -1,10 +1,10 @@
-const CACHE='starledger-web-v068-content-sync-keypad';
+const CACHE='starledger-web-v069-content-hash-sync';
 const ASSETS=[
   './',
   './index.html',
   './manifest.webmanifest',
   './recognizer.js?v=ocr1',
-  './app.js?v=autobackup2',
+  './app.js?v=contenthash1',
   './ui-runtime.js?v=midterm3',
   './backup-zip.js?v=zip1',
   './books-stats.js?v=midterm2',
