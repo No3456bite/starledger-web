@@ -1,4 +1,4 @@
-const CACHE='starledger-web-v069-content-hash-sync';
+const CACHE='starledger-web-v070-keypad-uniform';
 const ASSETS=[
   './',
   './index.html',
