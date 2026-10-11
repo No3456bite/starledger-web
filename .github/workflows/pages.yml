@@ -42,6 +42,9 @@ jobs:
       - name: Check complete backup ZIP codec
         run: node scripts/test-backup-zip.cjs
 
+      - name: Check automatic backup decisions
+        run: node scripts/test-auto-backup.cjs
+
   deploy:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: validate

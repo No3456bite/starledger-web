@@ -18,8 +18,19 @@ let remoteTag = 'v1';
 let pulls = 0;
 let previews = 0;
 let recoveryPoints = 0;
+const encoder = new TextEncoder();
+const localEntries = [
+  { name: 'test_desktop.csv', data: 'id,amount\n1,5' },
+  { name: 'StarLedgerConfig.json', data: JSON.stringify({ ledgers: { test: { theme: 'slate' } }, _starConfigUpdatedAt: 1 }) },
+  { name: 'StarLedgerRelations.json', data: JSON.stringify({ ledgers: { test: { groups: [] } }, updatedAt: 'old' }) },
+  { name: 'StarLedgerBackup.json', data: '{}' }
+];
+let remoteEntries = localEntries.map(entry => ({ name: entry.name, data: encoder.encode(entry.data) }));
 const context = {
-  Date, JSON, Error, Object,
+  Date, JSON, Error, Object, TextDecoder,
+  SHARED_CONFIG_FILE: 'StarLedgerConfig.json',
+  WORKSPACE_RELATIONS_FILE: 'StarLedgerRelations.json',
+  BACKUP_MANIFEST_FILE: 'StarLedgerBackup.json',
   localStorage: {
     getItem: key => stored.get(key) ?? null,
     setItem: (key, value) => stored.set(key, value)
@@ -38,12 +49,14 @@ const context = {
     }
     return { blob: async () => ({ size: 1 }) };
   },
-  completeBackupEntries: async () => [],
-  StarLedgerZip: { create: () => new Uint8Array([1]) },
+  completeBackupEntries: async () => localEntries,
+  StarLedgerZip: { create: () => new Uint8Array([1]), read: async () => remoteEntries },
   readCompleteBackup: async () => ({ snapshot: { names: ['test'] }, fileName: 'cloud.zip' }),
   savePrefs: async () => {},
   saveCompleteImportRecovery: async () => { recoveryPoints++; },
   downloadCloudBackup: async () => { previews++; },
+  importCompleteBackup: async () => { previews++; },
+  File: class {},
   stopAutoRefresh: () => {},
   applyWorkspaceSnapshot: async () => { pulls++; },
   folderHandle: null,
@@ -54,10 +67,20 @@ vm.createContext(context);
 vm.runInContext(source.slice(start, end), context);
 
 (async () => {
+  remoteEntries = remoteEntries.map(entry => entry.name === 'StarLedgerConfig.json'
+    ? { ...entry, data: encoder.encode(JSON.stringify({ ledgers: { test: { theme: 'slate' } }, _starConfigUpdatedAt: 2 })) }
+    : entry.name === 'StarLedgerRelations.json'
+      ? { ...entry, data: encoder.encode(JSON.stringify({ ledgers: { test: { groups: [] } }, updatedAt: 'new' })) }
+      : entry);
+  assert.equal(await vm.runInContext('sameCloudBackupContent({})', context), true, 'generated timestamps do not create a conflict');
+  remoteEntries = remoteEntries.map(entry => entry.name === 'test_desktop.csv'
+    ? { ...entry, data: encoder.encode('id,amount\n1,6') } : entry);
+  assert.equal(await vm.runInContext('sameCloudBackupContent({})', context), false, 'a changed bill creates a conflict');
+
   vm.runInContext('autoBackupReady=true;autoBackupState.remoteVersion="etag:v1";toggleAutoBackup(true)', context);
   await new Promise(resolve => setImmediate(resolve));
   vm.runInContext('autoBackupRemoteReady=true;autoBackupConflict="";autoBackupState.remoteVersion="etag:v1"', context);
-  assert.equal(nodes.autoCloudBackupStatus.textContent.includes('待备份'), true);
+  assert.equal(vm.runInContext('autoBackupPending()', context), false, 'enabling does not invent a local edit');
   assert.equal(uploads, 0, 'enabling only queues a backup');
   const first = vm.runInContext('autoBackupState.changeId', context);
   vm.runInContext('noteBackupWrite({csv:"same",prefs})', context);
@@ -90,8 +113,13 @@ vm.runInContext(source.slice(start, end), context);
   assert.equal(pulls, 1, 'conflicting local edits stop automatic loading');
   assert.match(nodes.autoCloudBackupStatus.textContent, /暂停/);
   vm.runInContext('autoBackupState.remoteVersion="";autoBackupConflict=""', context);
+  vm.runInContext('sameCloudBackupContent=async()=>true', context);
   await vm.runInContext('checkRemoteBackupOnOpen(true)', context);
-  assert.equal(previews, 1, 'an existing cloud backup requires first-use review');
+  assert.equal(previews, 0, 'identical content needs no first-use review');
+  assert.equal(vm.runInContext('autoBackupState.remoteVersion', context), 'etag:v3');
+  vm.runInContext('sameCloudBackupContent=async()=>false;autoBackupState.remoteVersion=""', context);
+  await vm.runInContext('checkRemoteBackupOnOpen(true)', context);
+  assert.equal(previews, 1, 'divergent first-use data opens the import preview');
   await vm.runInContext('checkRemoteBackupOnOpen(true)', context);
   assert.equal(previews, 1, 'dismissed first-use review does not reopen on every focus');
   context.prefs.mainName = '';
