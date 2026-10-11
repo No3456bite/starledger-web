@@ -48,9 +48,12 @@
 
   html.browser-tab #overlay.safari-document-modal>.entryback{
     padding:8px 10px var(--sl-browser-chrome-gap)!important;
+    overflow-x:hidden!important;
+    overflow-y:auto!important;
+    touch-action:pan-y!important;
   }
   html.browser-tab #overlay.safari-document-modal>.entryback>.entry{
-    max-height:calc(var(--sl-modal-height,100vh) - var(--sl-browser-chrome-gap) - 8px)!important;
+    max-height:none!important;
     margin:auto!important;
   }
 

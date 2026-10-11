@@ -1,4 +1,4 @@
-const CACHE='starledger-web-v071-entry-spacing-tags';
+const CACHE='starledger-web-v072-entry-content-height';
 const ASSETS=[
   './',
   './index.html',

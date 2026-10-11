@@ -3372,20 +3372,27 @@ button.home-month-stat:active{background:var(--pale);border-radius:12px}
     height:42px!important;
   }
 
-  /* The floating bill editor was capped at 76dvh, which forced a small internal scroll.
-     Use nearly the whole visual viewport on phones and keep scrolling only as a fallback. */
+  /* Keep the bill card's border around its contents. On a short screen the
+     overlay scrolls; the card itself must not become a clipped scroll pane. */
   .entryback{
     padding:8px 10px max(8px,env(safe-area-inset-bottom))!important;
+    justify-content:flex-start!important;
+    overflow-x:hidden!important;
+    overflow-y:auto!important;
+    scrollbar-width:none!important;
+    touch-action:pan-y!important;
   }
+  .entryback::-webkit-scrollbar{display:none!important}
   .entryback .entry,
   :root.scriptable .entryback .entry{
     --entry-section-gap:8px;
-    max-height:calc(100dvh - 16px)!important;
+    flex:none!important;
+    height:auto!important;
+    max-height:none!important;
     width:100%!important;
     margin:auto!important;
     padding:13px 14px!important;
-    overflow-y:auto!important;
-    -webkit-overflow-scrolling:touch!important;
+    overflow:visible!important;
   }
   .entryback .entryhead{
     min-height:32px!important;
