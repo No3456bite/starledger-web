@@ -1,4 +1,4 @@
-const CACHE='starledger-web-v070-keypad-uniform';
+const CACHE='starledger-web-v071-entry-spacing-tags';
 const ASSETS=[
   './',
   './index.html',
