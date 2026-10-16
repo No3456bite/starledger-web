@@ -994,7 +994,7 @@ async function savePrefs(changes){
  }else{
   if(folderHandle&&next.mainName){
    let shared=Object.fromEntries(Object.entries(changes).filter(([k])=>SHARED_PREF_KEYS.includes(k)||k==='mainName'));
-   if(Object.keys(shared).length)await writeSharedPrefs(shared);
+   if(Object.keys(shared).length){await writeSharedPrefs(shared);next={...prefs,...changes}}
   }
   await put('prefs',next);
   prefs=next;

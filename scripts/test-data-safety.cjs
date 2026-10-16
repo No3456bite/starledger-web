@@ -165,3 +165,14 @@ test('failed local preference write does not change visible settings',async()=>{
  await assert.rejects(()=>run(c,'savePrefs({appearance:"dark"})'),/storage full/);
  assert.equal(c.prefs.appearance,'light');
 });
+
+test('linked preference save retains the shared configuration revision',async()=>{
+ let stored;
+ const c=context({native:false,prefs:{mainName:'测试账本',appearance:'light',_starConfigUpdatedAt:10},folderHandle:{},
+  SHARED_PREF_KEYS:['appearance'],writeSharedPrefs:async()=>{c.prefs={...c.prefs,appearance:'dark',_starConfigUpdatedAt:20}},
+  put:async(_key,value)=>{stored=value},markAutoBackupDirty:()=>{},applyTheme:()=>{},render:()=>{}
+ },section('async function savePrefs(','function nativeCommand('));
+ await run(c,'savePrefs({appearance:"dark"})');
+ assert.equal(stored._starConfigUpdatedAt,20);
+ assert.equal(c.prefs._starConfigUpdatedAt,20);
+});
