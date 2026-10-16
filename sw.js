@@ -1,10 +1,10 @@
-const CACHE='starledger-web-v072-entry-content-height';
+const CACHE='starledger-web-v073-data-safety';
 const ASSETS=[
   './',
   './index.html',
   './manifest.webmanifest',
   './recognizer.js?v=ocr1',
-  './app.js?v=contenthash1',
+  './app.js?v=data-safety1',
   './ui-runtime.js?v=midterm3',
   './backup-zip.js?v=zip1',
   './books-stats.js?v=midterm2',

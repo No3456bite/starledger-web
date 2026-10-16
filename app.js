@@ -219,7 +219,21 @@ function toggleDesktopSidebar(){setDesktopSidebarCollapsed(!document.body.classL
 try{requestAnimationFrame(()=>setDesktopSidebarCollapsed(localStorage.getItem('star-ledger-side-collapsed')==='1'))}catch(e){}
 
 
-function csvParse(s,legacyBook='日常账本'){s=String(s).replace(/^\uFEFF/,'');let out=[],row=[],field='',quoted=false;for(let i=0;i<s.length;i++){let c=s[i];if(quoted){if(c==='"'&&s[i+1]==='"'){field+='"';i++}else if(c==='"')quoted=false;else field+=c}else if(c==='"')quoted=true;else if(c===','){row.push(field);field=''}else if(c==='\n'){row.push(field.replace(/\r$/,''));out.push(row);row=[];field=''}else field+=c}if(field||row.length){row.push(field.replace(/\r$/,''));out.push(row)}let index=out.findIndex(r=>COLS.every(k=>r.includes(k))),legacy=false;if(index<0){index=out.findIndex(r=>['类型','日期','大类','小类','金额','账户','账户2'].every(k=>r.includes(k)));legacy=true}if(index<0)throw Error('CSV 格式不匹配：请选择账本 CSV 或小星的原始导入模板');let head=out[index].map(x=>x.replace(/^\uFEFF/,''));return out.slice(index+1).filter(r=>r.some(Boolean)).map((r,i)=>{let source=Object.fromEntries(head.map((k,j)=>[k,r[j]||'']));if(!legacy)return Object.fromEntries(COLS.map(k=>[k,source[k]||'']));let fields={'类型':'type','日期':'date','大类':'category','小类':'subcategory','金额':'amount','账户':'account','账户2':'account2','报销':'reimbursement','备注':'note','图片':'image','角色':'role','标签':'tags','币种':'currency','商家':'merchant'};let obj=Object.fromEntries(COLS.map(k=>[k,'']));for(let [a,b] of Object.entries(fields))obj[b]=source[a]||'';obj.type=obj.type==='支出或应付款'?'支出':obj.type==='收入或应收款'?'收入':obj.type;obj.date=obj.date.replace(/\//g,'-');obj.book=legacyBook||'日常账本';obj.currency=obj.currency||'人民币';obj.id='LEG-'+digest(JSON.stringify([obj.book,r]))+'-'+i;return obj})}
+function csvParse(s,legacyBook='日常账本'){s=String(s).replace(/^\uFEFF/,'');let out=[],row=[],field='',quoted=false;for(let i=0;i<s.length;i++){let c=s[i];if(quoted){if(c==='"'&&s[i+1]==='"'){field+='"';i++}else if(c==='"')quoted=false;else field+=c}else if(c==='"')quoted=true;else if(c===','){row.push(field);field=''}else if(c==='\n'){row.push(field.replace(/\r$/,''));out.push(row);row=[];field=''}else field+=c}if(quoted)throw Error('CSV 引号未闭合');if(field||row.length){row.push(field.replace(/\r$/,''));out.push(row)}let index=out.findIndex(r=>COLS.every(k=>r.includes(k))),legacy=false;if(index<0){index=out.findIndex(r=>['类型','日期','大类','小类','金额','账户','账户2'].every(k=>r.includes(k)));legacy=true}if(index<0)throw Error('CSV 格式不匹配：请选择账本 CSV 或小星的原始导入模板');let head=out[index].map(x=>x.replace(/^\uFEFF/,''));return out.slice(index+1).filter(r=>r.some(Boolean)).map((r,i)=>{let source=Object.fromEntries(head.map((k,j)=>[k,r[j]||'']));if(!legacy)return Object.fromEntries(COLS.map(k=>[k,source[k]||'']));let fields={'类型':'type','日期':'date','大类':'category','小类':'subcategory','金额':'amount','账户':'account','账户2':'account2','报销':'reimbursement','备注':'note','图片':'image','角色':'role','标签':'tags','币种':'currency','商家':'merchant'};let obj=Object.fromEntries(COLS.map(k=>[k,'']));for(let [a,b] of Object.entries(fields))obj[b]=source[a]||'';obj.type=obj.type==='支出或应付款'?'支出':obj.type==='收入或应收款'?'收入':obj.type;obj.date=obj.date.replace(/\//g,'-');obj.book=legacyBook||'日常账本';obj.currency=obj.currency||'人民币';obj.id='LEG-'+digest(JSON.stringify([obj.book,r]))+'-'+i;return obj})}
+function validateImportCsv(data,label='CSV'){
+ let seen=new Set(),problems=[];
+ for(let [i,r] of data.entries()){
+  let line=i+2,id=String(r.id||'').trim(),date=String(r.date||'').trim(),value=String(r.amount||'').trim();
+  if(!id)problems.push(`第 ${line} 行缺少 ID`);
+  else if(seen.has(id))problems.push(`第 ${line} 行重复 ID：${id}`);
+  seen.add(id);
+  let m=date.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/),parsed=Date.parse(date.replace(' ','T'));
+  if(!Number.isFinite(parsed)||m&&new Date(Date.UTC(+m[1],+m[2]-1,+m[3])).toISOString().slice(0,10)!==`${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`)problems.push(`第 ${line} 行日期无效`);
+  if(!value||!Number.isFinite(Number(value)))problems.push(`第 ${line} 行金额无效`);
+  if(!String(r.account||'').trim())problems.push(`第 ${line} 行缺少账户`);
+ }
+ if(problems.length)throw Error(`${label} 有 ${problems.length} 项数据问题：${problems.slice(0,5).join('；')}${problems.length>5?'；请先修正后重新导入':''}`);
+}
 function csvWrite(data){return '\uFEFF'+COLS.join(',')+'\r\n'+data.map(r=>COLS.map(k=>'"'+String(r[k]??'').replace(/"/g,'""')+'"').join(',')).join('\r\n')+'\r\n'}
 function digest(s){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return (h>>>0).toString(16)}
 function takeCsv(s){rows=csvParse(s);revision=digest(s);render()}
@@ -330,8 +344,8 @@ function historicalYearlyExpenseAvg(){let base=filtered(rows),current=currentCyc
 function metricMoney(value,klass=''){return {value:value===null||value===undefined?'—':money(value),klass}}
 function metricCount(value,unit='笔'){return {value:`${Number(value||0).toLocaleString('zh-CN')} ${unit}`,klass:''}}
 function assetBannerMetrics(f){let data=accountViewData(),included=data.filter(([name,v])=>v.profile.include),calibrated=included.filter(([name,v])=>v.calibrated),ready=f.ready;return {
- net:{label:'净资产',value:ready?money(f.net):f.missingRates?'待设汇率':'待校准',klass:ready?(f.net<0?'negative':'positive'):''},
- assets:{label:'总资产',value:ready?money(f.assets):f.missingRates?'待设汇率':'待校准',klass:''},debt:{label:'总负债',value:ready?money(f.debt):f.missingRates?'待设汇率':'待校准',klass:''},
+ net:{label:'净资产',value:ready?money(f.net):f.missingRates?'待设汇率':f.unconverted?'币种未换算':'待校准',klass:ready?(f.net<0?'negative':'positive'):''},
+ assets:{label:'总资产',value:ready?money(f.assets):f.missingRates?'待设汇率':f.unconverted?'币种未换算':'待校准',klass:''},debt:{label:'总负债',value:ready?money(f.debt):f.missingRates?'待设汇率':f.unconverted?'币种未换算':'待校准',klass:''},
  accountCount:{label:'账户数',...metricCount(data.length,'个')},includedAccounts:{label:'计入净资产账户',...metricCount(included.length,'个')},calibratedAccounts:{label:'已校准账户',...metricCount(calibrated.length,'个')}
  }}
 function monthBannerMetrics(rs){let s=stats(rs),b=budgetState(),expenseRows=rs.filter(r=>r.type==='支出'&&cnyAmount(r)!==null),incomeRows=rs.filter(r=>r.type==='收入'&&cnyAmount(r)!==null),days=elapsedCycleDays(year,month),yearRows=cycleYearRows(year),months=elapsedCycleMonths(year),yearAvg=historicalYearlyExpenseAvg(),activeDays=new Set(rs.map(r=>dateOf(r))).size,maxExpense=expenseRows.length?Math.max(...expenseRows.map(r=>cnyAmount(r))):0,maxIncome=incomeRows.length?Math.max(...incomeRows.map(r=>cnyAmount(r))):0;return {
@@ -378,6 +392,7 @@ function applySharedPrefs(config){
 }
 
 const WORKSPACE_KEY='workspace-v1';
+const LOCAL_FALLBACK_ACTIVE_KEY='star_ledger_fallback_active';
 const ledgerCsvKey=name=>'ledger:'+String(name||'')+':csv';
 const ledgerPrefsKey=name=>'ledger:'+String(name||'')+':prefs';
 function normalizeWorkspace(value){
@@ -400,27 +415,37 @@ function db(){return new Promise((resolve,reject)=>{let req=indexedDB.open('star
 async function putBundle(entries){
  if(native)return;
  let payload={...entries},target=String(entries?.prefs?.mainName||prefs?.mainName||workspace.active||'').trim();
+ let nextWorkspace=Object.prototype.hasOwnProperty.call(entries,WORKSPACE_KEY)?normalizeWorkspace(entries[WORKSPACE_KEY]):workspace;
  if(target){
-  workspace=normalizeWorkspace({...workspace,names:[...workspace.names,target],active:target,updatedAt:Date.now()});
+  nextWorkspace=normalizeWorkspace({...nextWorkspace,names:[...nextWorkspace.names,target],active:target,updatedAt:Date.now()});
   if(Object.prototype.hasOwnProperty.call(entries,'csv'))payload[ledgerCsvKey(target)]=entries.csv;
   if(Object.prototype.hasOwnProperty.call(entries,'prefs'))payload[ledgerPrefsKey(target)]=entries.prefs;
-  payload[WORKSPACE_KEY]=workspace;
+  payload[WORKSPACE_KEY]=nextWorkspace;
  }
+ let fallback=false;
+ try{fallback=localStorage.getItem(LOCAL_FALLBACK_ACTIVE_KEY)==='1'}catch(e){}
  let failure;
- try{
-  let d=await db();
-  await new Promise((res,rej)=>{let tx=d.transaction('state','readwrite'),store=tx.objectStore('state');for(let [key,value] of Object.entries(payload))store.put(value,key);tx.oncomplete=res;tx.onerror=()=>rej(tx.error||Error('存储失败'));tx.onabort=()=>rej(tx.error||Error('存储被中断'))});
-  d.close();noteBackupWrite(entries);return
- }catch(e){failure=e}
+ if(!fallback){
+  let d;
+  try{d=await db()}catch(e){failure=e}
+  if(d){
+   try{
+    await new Promise((res,rej)=>{let tx=d.transaction('state','readwrite'),store=tx.objectStore('state');for(let [key,value] of Object.entries(payload))store.put(value,key);tx.oncomplete=res;tx.onerror=()=>rej(tx.error||Error('存储失败'));tx.onabort=()=>rej(tx.error||Error('存储被中断'))});
+   }finally{d.close()}
+   workspace=nextWorkspace;noteBackupWrite(entries);return
+  }
+ }
  try{
   let current=JSON.parse(localStorage.getItem('star_ledger_bundle')||'{}'),next={...current,...payload},serialized=JSON.stringify(next);
   localStorage.setItem('star_ledger_bundle',serialized);
   if(localStorage.getItem('star_ledger_bundle')!==serialized)throw Error('写入后校验失败');
-  noteBackupWrite(entries);return
+  localStorage.setItem(LOCAL_FALLBACK_ACTIVE_KEY,'1');
+  workspace=nextWorkspace;noteBackupWrite(entries);return
  }catch(e){throw Error('设备存储不可用，账单没有保存。请用正常浏览器窗口打开并检查可用空间：'+(failure?.message||e.message))}
 }
 async function put(key,value){return putBundle({[key]:value})}
-async function get(key){try{let d=await db(),v=await new Promise((res,rej)=>{let tx=d.transaction('state','readonly'),q=tx.objectStore('state').get(key);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)});d.close();if(v!==undefined)return v}catch(e){}try{return JSON.parse(localStorage.getItem('star_ledger_bundle')||'{}')[key]??null}catch(e){return null}}
+async function get(key){let fallback=false;try{fallback=localStorage.getItem(LOCAL_FALLBACK_ACTIVE_KEY)==='1'}catch(e){}if(fallback){try{let saved=JSON.parse(localStorage.getItem('star_ledger_bundle')||'{}');if(Object.prototype.hasOwnProperty.call(saved,key))return saved[key]}catch(e){}}
+ try{let d=await db(),v=await new Promise((res,rej)=>{let tx=d.transaction('state','readonly'),q=tx.objectStore('state').get(key);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)});d.close();if(v!==undefined)return v}catch(e){}try{return JSON.parse(localStorage.getItem('star_ledger_bundle')||'{}')[key]??null}catch(e){return null}}
 async function ensurePersistentStorage(){
  try{
   if(!navigator.storage?.persist)return false;
@@ -467,9 +492,9 @@ async function switchWorkspaceLedger(name,{silent=false}={}){
  name=String(name||'').trim();
  if(!name||!workspace.names.includes(name))throw Error('找不到这个主账本');
  let savedPrefs=await get(ledgerPrefsKey(name)),csv=await get(ledgerCsvKey(name));
- prefs={...DEFAULT_PREFS,...(savedPrefs||{}),mainName:name};
- workspace=normalizeWorkspace({...workspace,active:name,updatedAt:Date.now()});
- await putBundle({prefs,csv:csv||csvWrite([]),[WORKSPACE_KEY]:workspace});
+ let nextPrefs={...DEFAULT_PREFS,...(savedPrefs||{}),mainName:name},nextWorkspace=normalizeWorkspace({...workspace,active:name,updatedAt:Date.now()});
+ await putBundle({prefs:nextPrefs,csv:csv||csvWrite([]),[WORKSPACE_KEY]:nextWorkspace});
+ prefs=nextPrefs;workspace=nextWorkspace;
  if(folderHandle&&workspace.readWrite){try{await writeSharedPrefs({mainName:name})}catch(e){toast('已切换，但工作区配置未能写回：'+e.message)}}
  book='全部账本';query='';kind='全部类型';account='全部账户';category='全部分类';subcategory='全部小类';currencyFilter='全部币种';day='';page=0;
  applyTheme();takeCsv(csv||csvWrite([]));
@@ -491,6 +516,7 @@ async function clearLocalLedger(){
   });
  }finally{
   try{localStorage.removeItem('star_ledger_bundle')}catch(e){}
+  try{localStorage.removeItem(LOCAL_FALLBACK_ACTIVE_KEY)}catch(e){}
   autoBackupState.enabled=false;
   autoBackupState.remoteVersion='';
   autoBackupState.baseHash='';
@@ -774,7 +800,7 @@ async function readCompleteBackup(source,fileName=''){
  return {snapshot,manifest,contentHash,fileName:String(fileName||source?.name||'完整备份.zip')}
 }
 function backupSummaryTime(task){let raw=task?.manifest?.createdAt||'',date=raw?new Date(raw):null;if(date&&Number.isFinite(date.getTime()))return date.toLocaleString('zh-CN');let stamp=filenameDate(task?.fileName||'');return stamp?new Date(stamp).toLocaleString('zh-CN'):'旧版备份未记录'}
-function showCompleteBackupPreview(task){let snapshot=task.snapshot,manifest=task.manifest,total=snapshot.ledgers.reduce((n,x)=>n+x.counts.total,0),overlap=snapshot.names.filter(name=>workspace.names.includes(name)).length,device=cleanBackupDeviceName(manifest?.deviceName)||'旧版备份未记录',list=snapshot.ledgers.map(ledger=>`<li><span>${esc(ledger.name)}</span><b>${ledger.counts.total.toLocaleString('zh-CN')} 笔</b></li>`).join('');$('#overlay').innerHTML=`<div class="modalback"><div class="modal backup-import-modal"><div class="sectionhead"><h2>读取完整备份</h2><button type="button" id="closeBtn">取消</button></div><div class="backup-import-summary"><span><small>备份设备</small><b>${esc(device)}</b></span><span><small>备份时间</small><b>${esc(backupSummaryTime(task))}</b></span><span><small>内容</small><b>${snapshot.names.length} 个主账本 · ${total.toLocaleString('zh-CN')} 笔</b></span></div><ul class="backup-ledger-list">${list}</ul>${prefs.mainName?`<p class="muted backup-import-note">检测到 ${overlap} 个同名本机主账本。继续前会在此浏览器自动保存一个可恢复的导入前快照。</p><div class="backup-import-actions"><button type="button" class="button primary" data-backupimportmode="merge"><b>合并导入</b><small>保留本机账本；同 ID 账单按更新时间合并，同名设置以备份为准</small></button><button type="button" class="button danger" data-backupimportmode="replace"><b>覆盖恢复</b><small>以此备份的主账本列表、账单、设置和关联关系替换当前内容</small></button></div>`:`<p class="muted backup-import-note">这是当前设备的首次恢复。确认后会把此备份保存到浏览器本地。</p><div class="backup-import-actions"><button type="button" class="button primary" data-backupimportmode="replace"><b>恢复此备份</b><small>导入全部主账本、设置和关联关系</small></button></div>`}</div></div>`}
+function showCompleteBackupPreview(task){let snapshot=task.snapshot,manifest=task.manifest,total=snapshot.ledgers.reduce((n,x)=>n+x.counts.total,0),overlap=snapshot.names.filter(name=>workspace.names.includes(name)).length,device=cleanBackupDeviceName(manifest?.deviceName)||'旧版备份未记录',list=snapshot.ledgers.map(ledger=>`<li><span>${esc(ledger.name)}</span><b>${ledger.counts.total.toLocaleString('zh-CN')} 笔</b></li>`).join('');$('#overlay').innerHTML=`<div class="modalback"><div class="modal backup-import-modal"><div class="sectionhead"><h2>读取完整备份</h2><button type="button" id="closeBtn">取消</button></div><div class="backup-import-summary"><span><small>备份设备</small><b>${esc(device)}</b></span><span><small>备份时间</small><b>${esc(backupSummaryTime(task))}</b></span><span><small>内容</small><b>${snapshot.names.length} 个主账本 · ${total.toLocaleString('zh-CN')} 笔</b></span></div><ul class="backup-ledger-list">${list}</ul>${prefs.mainName?`<p class="muted backup-import-note">检测到 ${overlap} 个同名本机主账本。继续前会在此浏览器自动保存一个可恢复的导入前快照。</p><div class="backup-import-actions"><button type="button" class="button primary" data-backupimportmode="merge"><b>合并导入</b><small>保留本机账本；同 ID 账单按更新时间合并，同名设置以备份为准。ZIP 不含删除标记，旧账单可能重新出现</small></button><button type="button" class="button danger" data-backupimportmode="replace"><b>覆盖恢复</b><small>以此备份的主账本列表、账单、设置和关联关系替换当前内容</small></button></div>`:`<p class="muted backup-import-note">这是当前设备的首次恢复。确认后会把此备份保存到浏览器本地。</p><div class="backup-import-actions"><button type="button" class="button primary" data-backupimportmode="replace"><b>恢复此备份</b><small>导入全部主账本、设置和关联关系</small></button></div>`}</div></div>`}
 async function importCompleteBackup(file){pendingCompleteBackup=await readCompleteBackup(file,file.name);showCompleteBackupPreview(pendingCompleteBackup);return pendingCompleteBackup}
 async function writeCompleteImportRecovery(record){
  let meta={format:record.format,version:record.version,createdAt:record.createdAt,name:record.name,reason:record.reason,deviceName:record.deviceName,bytes:record.data.byteLength};
@@ -788,7 +814,7 @@ async function writeCompleteImportRecovery(record){
 async function saveCompleteImportRecovery(reason='导入前自动恢复点'){if(!prefs.mainName)return null;let zip=StarLedgerZip.create(await completeBackupEntries()),record={format:'star-ledger-local-recovery',version:1,createdAt:new Date().toISOString(),name:backupExportName('本机恢复点'),reason,deviceName:backupDeviceName(),data:zip};try{return await writeCompleteImportRecovery(record)}catch(e){throw Error('无法建立本机恢复点，已取消导入：'+e.message)}}
 function newerRelations(localValue,backupValue){if(!backupValue)return localValue;if(!localValue)return backupValue;let localAt=Date.parse(localValue.updatedAt||''),backupAt=Date.parse(backupValue.updatedAt||'');if(!Number.isFinite(localAt))localAt=0;if(!Number.isFinite(backupAt))backupAt=0;return backupAt>=localAt?backupValue:localValue}
 async function mergeCompleteBackupSnapshot(task){let snapshot=task.snapshot,names=[...new Set([...workspace.names,...snapshot.names])],entries={};for(let ledger of snapshot.ledgers){let localCsv=ledger.name===prefs.mainName?csvWrite(rows):await get(ledgerCsvKey(ledger.name)),localRows=localCsv?csvParse(localCsv):[],backupRows=csvParse(ledger.csv),merged=mergeSourceRows(localRows,[],backupRows),localPrefs=ledger.name===prefs.mainName?prefs:await get(ledgerPrefsKey(ledger.name)),nextPrefs={...DEFAULT_PREFS,...(localPrefs||{}),...(ledger.settings||{}),mainName:ledger.name},localRelations=await get('relations:'+ledger.name);entries[ledgerCsvKey(ledger.name)]=csvWrite(merged);entries[ledgerPrefsKey(ledger.name)]=nextPrefs;if(snapshot.relationsPresent)entries['relations:'+ledger.name]=newerRelations(localRelations,ledger.relations||null)||{groups:[],suppressedLegacy:[],updatedAt:''}}
- let active=names.includes(prefs.mainName)?prefs.mainName:names.includes(snapshot.active)?snapshot.active:names[0],activePrefs=entries[ledgerPrefsKey(active)]||await get(ledgerPrefsKey(active))||{...DEFAULT_PREFS,mainName:active},activeCsv=entries[ledgerCsvKey(active)]||await get(ledgerCsvKey(active))||csvWrite([]);workspace=normalizeWorkspace({names,active,folderName:task.fileName,mode:'snapshot',readWrite:false,updatedAt:Date.now()});entries[WORKSPACE_KEY]=workspace;entries.prefs=activePrefs;entries.csv=activeCsv;await putBundle(entries);prefs=activePrefs;applyTheme();takeCsv(activeCsv);window.dispatchEvent(new CustomEvent('star-ledger-main-changed',{detail:{name:active}}))
+ let active=names.includes(prefs.mainName)?prefs.mainName:names.includes(snapshot.active)?snapshot.active:names[0],activePrefs=entries[ledgerPrefsKey(active)]||await get(ledgerPrefsKey(active))||{...DEFAULT_PREFS,mainName:active},activeCsv=entries[ledgerCsvKey(active)]||await get(ledgerCsvKey(active))||csvWrite([]),nextWorkspace=normalizeWorkspace({names,active,folderName:task.fileName,mode:'snapshot',readWrite:false,updatedAt:Date.now()});entries[WORKSPACE_KEY]=nextWorkspace;entries.prefs=activePrefs;entries.csv=activeCsv;await putBundle(entries);workspace=nextWorkspace;prefs=activePrefs;applyTheme();takeCsv(activeCsv);window.dispatchEvent(new CustomEvent('star-ledger-main-changed',{detail:{name:active}}))
 }
 async function applyPendingCompleteBackup(mode){let task=pendingCompleteBackup;if(!task||!['merge','replace'].includes(mode))return;if(task.applying)return;task.applying=true;document.querySelectorAll('[data-backupimportmode]').forEach(button=>button.disabled=true);try{if(prefs.mainName)await saveCompleteImportRecovery(mode==='merge'?'合并导入前恢复点':'覆盖恢复前恢复点');folderHandle=null;stopAutoRefresh();$('#overlay').innerHTML='';document.body.classList.remove('dialog-open');if(mode==='merge')await mergeCompleteBackupSnapshot(task);else await applyWorkspaceSnapshot(task.snapshot,{folderName:task.fileName,mode:'snapshot',readWrite:false,askIfMultiple:false});pendingCompleteBackup=null;acceptCloudImport(mode,task.contentHash);render();toast(mode==='merge'?`已合并 ${task.snapshot.names.length} 个备份主账本；导入前状态可在设置中恢复`:`已从备份恢复 ${task.snapshot.names.length} 个主账本；导入前状态可在设置中恢复`)}catch(e){task.applying=false;showCompleteBackupPreview(task);throw e}}
 async function restoreCompleteImportRecovery(){let record=await get(COMPLETE_IMPORT_RECOVERY_KEY);if(!record?.data)throw Error('没有可恢复的导入前快照');let task=await readCompleteBackup(record.data,record.name);if(!confirm(`恢复 ${new Date(record.createdAt).toLocaleString('zh-CN')} 的本机快照？\n\n当前状态会自动成为新的恢复点，因此恢复后仍可切换回来。`))return;let previous=record;if(prefs.mainName)await saveCompleteImportRecovery('恢复操作前快照');try{folderHandle=null;stopAutoRefresh();$('#overlay').innerHTML='';await applyWorkspaceSnapshot(task.snapshot,{folderName:record.name,mode:'snapshot',readWrite:false,askIfMultiple:false});render();toast('已恢复导入前快照；刚才的状态已成为新的恢复点')}catch(e){await writeCompleteImportRecovery(previous);throw e}
@@ -808,13 +834,13 @@ function accountGroups(){let groups=Array.isArray(prefs.accountGroups)?prefs.acc
 function accountProfile(name){let old=prefs.accountTypes?.[name],data=prefs.accountProfiles?.[name]||{};return {type:data.type||((old==='debt'||/信用卡/.test(name))?'credit':/借贷|借入|借出|欠款/.test(name)?'personal':'stored'),include:data.include!==undefined?!!data.include:old!=='ignore',groupId:accountGroups().some(g=>g.id===data.groupId)?data.groupId:accountGroups()[0].id,limit:data.limit||'',note:data.note||'',hidden:!!data.hidden,currency:currencyCode(data.currency||'人民币'),cnyRate:Number(data.cnyRate)>0?Number(data.cnyRate):'',calibration:data.calibration||null}}
 function accountViewData(){return accountData().map(([name,raw])=>{let p=accountProfile(name),c=p.calibration,net=c?Number(c.balance)+raw.net-Number(c.baseline):raw.net;return [name,{...raw,net,calibrated:!!c||raw.calibrated,profile:p}]})}
 // Match the two-decimal balance shown in the account row. Uncalibrated rows say "待校准", not zero.
-function accountShowsZeroBalance(view){return view.calibrated&&Number.isFinite(view.net)&&Math.round(view.net*100)===0}
+function accountShowsZeroBalance(view){return view.calibrated&&!view.unconverted&&Number.isFinite(view.net)&&Math.round(view.net*100)===0}
 function orderedGroupMembers(groupId,members){let saved=Array.isArray(prefs.accountOrder?.[groupId])?prefs.accountOrder[groupId]:[],rank=new Map(saved.map((name,i)=>[name,i]));return members.map((entry,i)=>({entry,i})).sort((a,b)=>{let ai=rank.has(a.entry[0])?rank.get(a.entry[0]):1e9+a.i,bi=rank.has(b.entry[0])?rank.get(b.entry[0]):1e9+b.i;return ai-bi}).map(x=>x.entry)}
 function orderedAccountNameList(names){let pool=new Set(names),result=[];for(let group of accountGroups()){let members=names.filter(name=>accountProfile(name).groupId===group.id),ordered=orderedGroupMembers(group.id,members.map(name=>[name,{}])).map(([name])=>name);for(let name of ordered)if(pool.delete(name))result.push(name)}for(let name of names)if(pool.delete(name))result.push(name);return result}
 function accountCnyRate(profile){if(profile.currency==='CNY')return 1;let rate=Number(profile.cnyRate)||Number(ledgerRuntimeRates?.[profile.currency]?.rate||ledgerRuntimeRates?.[profile.currency]);return Number.isFinite(rate)&&rate>0?rate:null}
 function syncEntryAccountCurrency(){let form=$('#entry'),name=form?.elements.account?.value,currency=form?.elements.currency;if(!name||!currency)return;let profile=accountProfile(name),code=profile.currency;currency.value=CURRENCY_NAMES[code]||code;currency.dispatchEvent(new Event('change',{bubbles:true}));let rate=form.elements.fxRate;if(code!=='CNY'&&rate&&profile.cnyRate){rate.value=profile.cnyRate;rate.dataset.rateSource='account';rate.dataset.rateDate='';$('#fxHint').textContent='已使用账户设置的参考汇率；本笔可修改'}updateEntryChips()}
 function entryAccountCurrencyError(record){let code=currencyCode(record.currency);for(let name of [record.account,...(['转账','借贷'].includes(record.type)?[record.account2]:[])]){if(!name)continue;let accountCode=accountCurrency(name);if(accountCode!=='CNY'&&accountCode!==code)return `账户「${name}」以 ${accountCode} 记余额，请将本笔币种设为 ${accountCode}`};return ''}
-function financial(){let data=accountViewData().filter(([name,v])=>!v.profile.hidden),included=data.filter(([name,v])=>v.profile.include),unready=included.filter(([name,v])=>!v.calibrated),missingRates=included.filter(([name,v])=>!accountCnyRate(v.profile));if(unready.length||missingRates.length)return{ready:false,missing:unready.length,missingRates:missingRates.length};let assets=included.reduce((n,[name,v])=>n+Math.max(0,v.net*accountCnyRate(v.profile)),0),debt=included.reduce((n,[name,v])=>n+Math.max(0,-v.net*accountCnyRate(v.profile)),0);return{ready:true,assets,debt,net:assets-debt}}
+function financial(){let data=accountViewData().filter(([name,v])=>!v.profile.hidden),included=data.filter(([name,v])=>v.profile.include),unready=included.filter(([name,v])=>!v.calibrated),unconverted=included.filter(([name,v])=>v.unconverted),missingRates=included.filter(([name,v])=>!accountCnyRate(v.profile));if(unready.length||unconverted.length||missingRates.length)return{ready:false,missing:unready.length,unconverted:unconverted.length,missingRates:missingRates.length};let assets=included.reduce((n,[name,v])=>n+Math.max(0,v.net*accountCnyRate(v.profile)),0),debt=included.reduce((n,[name,v])=>n+Math.max(0,-v.net*accountCnyRate(v.profile)),0);return{ready:true,assets,debt,net:assets-debt}}
 function accountForm(name){let found=accountViewData().find(([k])=>k===name),v=found?.[1];if(!v)return;let p=v.profile,credit=p.type==='credit';$('#overlay').innerHTML=`<div class="modalback account-dialog-back"><div class="modal account-config account-config-compact"><div class="account-config-head"><h2>${esc(name)}</h2><div class="account-head-actions"><button type="button" data-hideaccount="${esc(name)}">${p.hidden?'显示':'隐藏'}</button><button type="button" class="danger" data-removeaccount="${esc(name)}">删除</button></div></div><p class="muted account-summary">${v.calibrated?'当前余额 '+money(v.net,p.currency):'尚未校准'} · ${v.count} 笔账单</p><label class="field account-rename-full">账户名称<span class="account-rename-control"><input id="accountRenameInput" maxlength="60" value="${esc(name)}" autocomplete="off"><button type="button" class="button" data-requestaccountrename="${esc(name)}">改名</button></span></label><form id="accountProfileForm" data-account="${esc(name)}"><div class="account-compact-grid"><label class="field">重新校准<input type="number" name="actual" step="0.01" inputmode="decimal" placeholder="${v.calibrated?money(v.net,p.currency):'当前实际余额'}"></label><label class="field">主币种<select name="currency" id="accountCurrencySelect">${accountCurrencyOptions(p.currency)}</select></label><label class="field account-cny-rate" ${p.currency==='CNY'?'hidden':''}>兑人民币汇率<small>1 单位主币种等于多少人民币；用于净资产折算</small><input type="number" name="cnyRate" min="0.000001" step="any" inputmode="decimal" value="${esc(p.cnyRate)}" placeholder="例如 7.20"></label><label class="field">账户类型<select name="type" id="accountTypeSelect"><option value="stored" ${p.type==='stored'?'selected':''}>储值／现金</option><option value="credit" ${p.type==='credit'?'selected':''}>信用卡</option><option value="personal" ${p.type==='personal'?'selected':''}>借贷关系／人名</option></select></label><label class="field">所属分组<select name="groupId">${accountGroups().map(g=>`<option value="${esc(g.id)}" ${g.id===p.groupId?'selected':''}>${esc(g.name)}</option>`).join('')}</select></label><label class="field account-credit-limit" ${credit?'':'hidden'}>信用额度<input type="number" name="limit" min="0" step="0.01" inputmode="decimal" value="${esc(p.limit)}" placeholder="${p.limit?esc(p.limit):'信用卡额度'}"></label><label class="field include-toggle account-include-compact"><input type="checkbox" name="include" ${p.include?'checked':''}>计入净资产</label></div><label class="field account-note-full">备注<input name="note" maxlength="160" value="${esc(p.note)}" placeholder="例如所属银行、借贷对象说明"></label><p class="muted account-config-hint">账户余额按主币种计算；切换主币种须重新校准。不同币种的旧账单不会直接相加；隐藏只影响显示和统计。</p><div class="modalfooter"><button type="button" class="button" id="closeBtn">取消</button><button type="submit" class="button primary">保存账户</button></div></form></div></div>`;if(compactViewport())document.body.classList.add('dialog-open');activateAppTertiary('account')}
 function groupForm(id){let groups=accountGroups(),group=groups.find(g=>g.id===id),isNew=!group,other=groups.filter(g=>g.id!==id),accounts=accountViewData();$('#overlay').innerHTML=`<div class="modalback account-dialog-back"><div class="modal account-config"><h2>${isNew?'新建分组':'管理分组 · '+esc(group.name)}</h2><form id="groupForm" data-group="${esc(id||'')}"><label class="field">分组名称<input name="name" maxlength="40" required value="${esc(group?.name||'')}"></label><label class="field">排列位置<select name="position">${Array.from({length:groups.length+(isNew?1:0)},(_,i)=>`<option value="${i}" ${i===(isNew?groups.length:groups.findIndex(g=>g.id===id))?'selected':''}>第 ${i+1} 个</option>`).join('')}</select></label><div class="group-choice"><strong>选择此分组的账户</strong><div>${accounts.map(([name,v])=>`<label class="group-account-option ${Array.from(name).length>10?'group-account-option-wide':''}"><input type="checkbox" name="member" value="${esc(name)}" ${!isNew&&v.profile.groupId===id?'checked':''}><span>${esc(name)}</span></label>`).join('')||'<small>尚无账户，记账后自动出现</small>'}</div></div><p class="muted">账户只属于一个分组。取消勾选的账户会移动到其他分组。</p><div class="modalfooter"><button type="button" class="button" id="closeBtn">取消</button><button type="submit" class="button primary">保存分组</button></div></form>${!isNew?`<div class="group-delete"><label class="field">删除此分组时，将账户移到<select id="groupDestination">${other.map(g=>`<option value="${esc(g.id)}">${esc(g.name)}</option>`).join('')}</select></label><button type="button" class="button danger" data-deletegroup="${esc(id)}" ${other.length?'':'disabled'}>删除分组</button></div>`:''}</div></div>`;if(compactViewport())document.body.classList.add('dialog-open');activateAppTertiary('account')}
 function newAccountForm(){let groups=accountGroups();$('#overlay').innerHTML=`<div class="modalback account-dialog-back"><div class="modal account-config"><h2>添加账户</h2><form id="newAccountForm"><label class="field">账户名称<input name="name" maxlength="60" required placeholder="例如：现金、信用卡、某位亲友"></label><label class="field">主币种<select name="currency">${accountCurrencyOptions('CNY')}</select></label><label class="field">类型<select name="type"><option value="stored">储值／现金</option><option value="credit">信用卡</option><option value="personal">借贷关系／人名</option></select></label><label class="field">所属分组<select name="groupId">${groups.map(g=>`<option value="${esc(g.id)}">${esc(g.name)}</option>`).join('')}</select></label><div class="modalfooter"><button type="button" class="button" id="closeBtn">取消</button><button type="submit" class="button primary">创建账户</button></div></form></div></div>`;if(compactViewport())document.body.classList.add('dialog-open');activateAppTertiary('account')}
@@ -832,10 +858,10 @@ async function renameAccount(name,dest){
  if(dest===name)throw Error('新名称与原名称相同');
  if(accountData().some(([k])=>k===dest))throw Error('已存在同名账户；本次只支持改名，不自动合并');
  let count=rows.filter(r=>r.account===name||r.account2===name).length;
+ let changed=count?rows.map(r=>({...r,account:r.account===name?dest:r.account,account2:r.account2===name?dest:r.account2})):rows;
  if(count){
   let op={kind:'accountMigrate',target:name,dest};
   if(native){let r=await nativeCommand('bulkPatch',null,null,{operation:op});prefs={...prefs,...r.settings};takeCsv(r.csv)}
-  else{let changed=rows.map(r=>({...r,account:r.account===name?dest:r.account,account2:r.account2===name?dest:r.account2}));await localWrite('replaceLedger',null,null,{csv:csvWrite(changed),mainName:prefs.mainName,allowEmpty:true})}
  }
  let profiles={...(prefs.accountProfiles||{})},types={...(prefs.accountTypes||{})},orders={...(prefs.accountOrder||{})},aliases={...(prefs.accountAliases||{})};
  let profile=profiles[name]||accountProfile(name);profiles[dest]={...profile};delete profiles[name];
@@ -845,12 +871,32 @@ async function renameAccount(name,dest){
  delete aliases[name];
  aliases[dest]=[...new Set([...prior,...inherited].map(v=>String(v||'').trim()).filter(v=>v&&v!==dest))];
  let deleted=(prefs.deletedAccounts||[]).filter(v=>v!==name&&v!==dest);
- await savePrefs({accountProfiles:profiles,accountTypes:types,accountOrder:orders,accountAliases:aliases,deletedAccounts:deleted});
+ let changes={accountProfiles:profiles,accountTypes:types,accountOrder:orders,accountAliases:aliases,deletedAccounts:deleted};
+ if(!native&&folderHandle)await commitWorkspaceAccountChange(count?changed:null,changes);
+ else if(!native)await commitLocalAccountChange(changed,changes);
+ else await savePrefs(changes);
  close();render();toast(`账户已改名：${name} → ${dest}`)
 }
 function accountDeleteForm(name){let count=rows.filter(r=>r.account===name||r.account2===name).length,dest=accountViewData().map(([k])=>k).filter(k=>k!==name);$('#overlay').innerHTML=`<div class="modalback account-dialog-back"><div class="modal account-config"><h2>删除账户 · ${esc(name)}</h2><p class="muted">${count? `关联 ${count} 笔账单。删除不可直接撤回，请先导出完整 ZIP 备份。可选择迁入别的账户，或连这些账单一起删除。`:'没有关联账单；删除只移除账户设置。'}</p>${count?`<label class="field">迁入账户<select id="accountDeleteDestination">${dest.map(k=>`<option value="${esc(k)}">${esc(k)}</option>`).join('')}</select></label><div class="modalfooter"><button type="button" class="button" id="closeBtn">取消</button><button type="button" class="button" id="exportBeforeAccountDelete">先导出完整备份</button></div><div class="modalfooter"><button type="button" class="button danger" data-deleteaccountmode="migrate" data-accountname="${esc(name)}" ${dest.length?'':'disabled'}>迁移账单后删除</button><button type="button" class="button danger" data-deleteaccountmode="bills" data-accountname="${esc(name)}">连账单一起删除</button></div>`:`<div class="modalfooter"><button type="button" class="button" id="closeBtn">取消</button><button type="button" class="button danger" data-deleteaccountmode="empty" data-accountname="${esc(name)}">删除账户</button></div>`}</div></div>`;if(compactViewport())document.body.classList.add('dialog-open');activateAppTertiary('account')}
 function confirmAccountBillsDelete(name){let count=rows.filter(r=>r.account===name||r.account2===name).length;$('#overlay').innerHTML=`<div class="modalback account-dialog-back"><div class="modal account-config"><h2>永久删除 ${count} 笔账单？</h2><p class="muted">这些账单只要涉及「${esc(name)}」，整笔都会从当前手机账本移除。此操作没有自动撤回，请先保存完整 ZIP 备份。</p><div class="modalfooter"><button type="button" class="button" id="closeBtn">取消</button><button type="button" class="button danger" data-confirmaccountbills="${esc(name)}">确认删除账单与账户</button></div></div></div>`;activateAppTertiary('account')}
-async function deleteAccount(name,mode){let count=rows.filter(r=>r.account===name||r.account2===name).length,dest=$('#accountDeleteDestination')?.value;if(count&&mode==='migrate'&&(!dest||dest===name))throw Error('先选择迁入账户');if(count&&mode!=='migrate'&&mode!=='bills')throw Error('请选择关联账单的处理方式');if(count){let op={kind:mode==='migrate'?'accountMigrate':'accountDeleteBills',target:name,dest:dest||''};if(native){let r=await nativeCommand('bulkPatch',null,null,{operation:op});prefs={...prefs,...r.settings};takeCsv(r.csv)}else{let changed=mode==='migrate'?rows.map(r=>({...r,account:r.account===name?dest:r.account,account2:r.account2===name?dest:r.account2})):rows.filter(r=>r.account!==name&&r.account2!==name);await localWrite('replaceLedger',null,null,{csv:csvWrite(changed),mainName:prefs.mainName,allowEmpty:true})}}let profiles={...(prefs.accountProfiles||{})},aliases={...(prefs.accountAliases||{})};delete profiles[name];delete aliases[name];await savePrefs({accountProfiles:profiles,accountAliases:aliases,deletedAccounts:[...new Set([...(prefs.deletedAccounts||[]),name])]});close();render();toast('账户已删除')}
+async function commitLocalAccountChange(changed,changes){
+ let nextPrefs={...prefs,...changes,lastChangeAt:Date.now(),undoBatch:null},nextCsv=csvWrite(changed);
+ await putBundle({recovery:csvWrite(rows),csv:nextCsv,prefs:nextPrefs});
+ prefs=nextPrefs;takeCsv(nextCsv)
+}
+async function commitWorkspaceAccountChange(changed,changes){
+ // CSV and shared JSON are separate external files: keep a verified full ZIP before either write.
+ await saveCompleteImportRecovery('账户修改前恢复点');
+ try{
+  if(changed)await localWrite('replaceLedger',null,null,{csv:csvWrite(changed),mainName:prefs.mainName,allowEmpty:true});
+  await savePrefs(changes)
+ }catch(e){
+  folderHandle=null;stopAutoRefresh();
+  try{await storeFolder(null)}catch(_){}
+  throw Error('工作区账户修改未完成，文件可能只写入一部分。已停止连接；请在设置中用「账户修改前恢复点」核对并恢复。原因：'+e.message)
+ }
+}
+async function deleteAccount(name,mode){let count=rows.filter(r=>r.account===name||r.account2===name).length,dest=$('#accountDeleteDestination')?.value;if(count&&mode==='migrate'&&(!dest||dest===name))throw Error('先选择迁入账户');if(count&&mode!=='migrate'&&mode!=='bills')throw Error('请选择关联账单的处理方式');let changed=count?mode==='migrate'?rows.map(r=>({...r,account:r.account===name?dest:r.account,account2:r.account2===name?dest:r.account2})):rows.filter(r=>r.account!==name&&r.account2!==name):rows;if(count){let op={kind:mode==='migrate'?'accountMigrate':'accountDeleteBills',target:name,dest:dest||''};if(native){let r=await nativeCommand('bulkPatch',null,null,{operation:op});prefs={...prefs,...r.settings};takeCsv(r.csv)}}let profiles={...(prefs.accountProfiles||{})},types={...(prefs.accountTypes||{})},orders={...(prefs.accountOrder||{})},aliases={...(prefs.accountAliases||{})};delete profiles[name];delete types[name];delete aliases[name];for(let key of Object.keys(orders))if(Array.isArray(orders[key]))orders[key]=orders[key].filter(v=>v!==name);let changes={accountProfiles:profiles,accountTypes:types,accountOrder:orders,accountAliases:aliases,deletedAccounts:[...new Set([...(prefs.deletedAccounts||[]),name])]};if(!native&&folderHandle)await commitWorkspaceAccountChange(count?changed:null,changes);else if(!native)await commitLocalAccountChange(changed,changes);else await savePrefs(changes);close();render();toast('账户已删除')}
 async function saveAccountForm(f){
  let name=f.dataset.account,form=new FormData(f),raw=accountData().find(([k])=>k===name)?.[1],current=accountProfile(name),type=form.get('type'),limit=form.get('limit'),actual=form.get('actual'),currency=currencyCode(form.get('currency')),rateText=String(form.get('cnyRate')||'').trim(),rate=rateText===''?'':Number(rateText);
  if(!raw)throw Error('找不到账户');
@@ -925,7 +971,7 @@ function settingsPage(){
   <div class="workspace-actions"><button class="button primary" id="uploadCloudBackup">备份到坚果云</button><button class="button" id="downloadCloudBackup">读取坚果云备份</button></div>
  </div>`
 }
-function accountPage(){let data=accountViewData(),f=financial(),groups=accountGroups(),zeroCount=data.filter(([,v])=>accountShowsZeroBalance(v)).length;return `<div class="account-page-toolbar"><div class="compact-inline-summary account-summary-strip">${f.ready?`净资产 ${money(f.net)} · 资产 ${money(f.assets)} · 负债 ${money(f.debt)}`:`待处理：${[f.missing?`${f.missing} 个账户待校准`:'',f.missingRates?`${f.missingRates} 个外币账户待设汇率`:''].filter(Boolean).join(' · ')}`}</div>${zeroCount?`<button type="button" class="button account-zero-toggle" id="toggleZeroAccounts" aria-pressed="${accountZeroCollapsed}" aria-label="${accountZeroCollapsed?'展开':'收起'} ${zeroCount} 个零余额账户">${accountZeroCollapsed?'展开':'收起'}零余额 · ${zeroCount}</button>`:''}</div>${groups.map(group=>{let members=orderedGroupMembers(group.id,data.filter(([name,v])=>v.profile.groupId===group.id)),active=members.filter(([name,v])=>!v.profile.hidden),included=active.filter(([name,v])=>v.profile.include),uncalibrated=included.filter(([name,v])=>!v.calibrated).length,groupZeroCount=members.filter(([,v])=>accountShowsZeroBalance(v)).length,totals=new Map();for(let [name,v] of included.filter(([name,v])=>v.calibrated)){let code=v.profile.currency;totals.set(code,(totals.get(code)||0)+v.net)}let total=[...totals].map(([code,value])=>money(value,code)).join(' · ')||money(0);return `<div class="card section account-group ${accountZeroCollapsed?'is-zero-collapsed':''}"><div class="sectionhead"><button class="group-title" data-group="${esc(group.id)}">${esc(group.name)}　⌄</button><span class="group-total">${uncalibrated?`已校准 ${total} · ${uncalibrated} 待校准`:total}</span></div>${members.map(([name,v])=>`<div class="account-entry account-type-${esc(v.profile.type)} ${v.profile.hidden?'account-hidden':''} ${accountShowsZeroBalance(v)?'account-zero-balance':''}" data-accountentry="${esc(name)}" data-accountgroup="${esc(group.id)}"><button class="account-item account-name" data-accountname="${esc(name)}" aria-label="设置账户 ${esc(name)}"><span class="account-type-mark" data-symbol="${esc(currencySymbol(v.profile.currency))}" aria-hidden="true"></span><span><b>${esc(name)}</b><small>${({stored:'储值／现金',credit:'信用卡',personal:'借贷关系'})[v.profile.type]}${v.profile.hidden?' · 已隐藏':v.profile.include?'':' · 不计入净资产'} · ${esc(v.profile.currency)}${v.unconverted?' · '+v.unconverted+' 笔币种不符未计入':''}${v.profile.note?' · '+esc(v.profile.note):''}</small></span></button><button class="account-item account-value" ${v.profile.hidden?'data-accountname':'data-accountquery'}="${esc(name)}" aria-label="${v.profile.hidden?'设置':'查询'}账户 ${esc(name)}"><span class="account-balance ${v.calibrated&&v.profile.type!=='personal'?(v.net>0?'positive':v.net<0?'negative':''):''}">${v.calibrated?money(v.net,v.profile.currency):'待校准'}<small>${v.profile.hidden?'已隐藏':'查看账单　›'}</small></span></button></div>`).join('')||'<div class="empty">这个分组还没有账户</div>'}${accountZeroCollapsed&&members.length&&groupZeroCount===members.length?`<div class="account-zero-empty">已收起 ${groupZeroCount} 个零余额账户</div>`:''}</div>`}).join('')}<div class="account-page-actions"><button class="button add-group" id="addAccount">＋ 添加账户</button><button class="button add-group" id="addGroup">＋ 新建分组</button></div><p class="muted page-footnote">隐藏账户仍保留在账户页，但不参与账单显示、筛选和统计。账户资料、隐藏状态和分组保存在设置中，不改变账单 CSV。</p>`}
+function accountPage(){let data=accountViewData(),f=financial(),groups=accountGroups(),zeroCount=data.filter(([,v])=>accountShowsZeroBalance(v)).length;return `<div class="account-page-toolbar"><div class="compact-inline-summary account-summary-strip">${f.ready?`净资产 ${money(f.net)} · 资产 ${money(f.assets)} · 负债 ${money(f.debt)}`:`待处理：${[f.missing?`${f.missing} 个账户待校准`:'',f.missingRates?`${f.missingRates} 个外币账户待设汇率`:'',f.unconverted?`${f.unconverted} 个账户有未换算账单`:''].filter(Boolean).join(' · ')}`}</div>${zeroCount?`<button type="button" class="button account-zero-toggle" id="toggleZeroAccounts" aria-pressed="${accountZeroCollapsed}" aria-label="${accountZeroCollapsed?'展开':'收起'} ${zeroCount} 个零余额账户">${accountZeroCollapsed?'展开':'收起'}零余额 · ${zeroCount}</button>`:''}</div>${groups.map(group=>{let members=orderedGroupMembers(group.id,data.filter(([name,v])=>v.profile.groupId===group.id)),active=members.filter(([name,v])=>!v.profile.hidden),included=active.filter(([name,v])=>v.profile.include),uncalibrated=included.filter(([name,v])=>!v.calibrated).length,groupUnconverted=included.filter(([name,v])=>v.unconverted).length,groupZeroCount=members.filter(([,v])=>accountShowsZeroBalance(v)).length,totals=new Map();for(let [name,v] of included.filter(([name,v])=>v.calibrated&&!v.unconverted)){let code=v.profile.currency;totals.set(code,(totals.get(code)||0)+v.net)}let total=[...totals].map(([code,value])=>money(value,code)).join(' · ')||money(0);return `<div class="card section account-group ${accountZeroCollapsed?'is-zero-collapsed':''}"><div class="sectionhead"><button class="group-title" data-group="${esc(group.id)}">${esc(group.name)}　⌄</button><span class="group-total">${uncalibrated||groupUnconverted?`已核实 ${total}${uncalibrated?' · '+uncalibrated+' 待校准':''}${groupUnconverted?' · '+groupUnconverted+' 币种未换算':''}`:total}</span></div>${members.map(([name,v])=>`<div class="account-entry account-type-${esc(v.profile.type)} ${v.profile.hidden?'account-hidden':''} ${accountShowsZeroBalance(v)?'account-zero-balance':''}" data-accountentry="${esc(name)}" data-accountgroup="${esc(group.id)}"><button class="account-item account-name" data-accountname="${esc(name)}" aria-label="设置账户 ${esc(name)}"><span class="account-type-mark" data-symbol="${esc(currencySymbol(v.profile.currency))}" aria-hidden="true"></span><span><b>${esc(name)}</b><small>${({stored:'储值／现金',credit:'信用卡',personal:'借贷关系'})[v.profile.type]}${v.profile.hidden?' · 已隐藏':v.profile.include?'':' · 不计入净资产'} · ${esc(v.profile.currency)}${v.unconverted?' · '+v.unconverted+' 笔币种不符未计入':''}${v.profile.note?' · '+esc(v.profile.note):''}</small></span></button><button class="account-item account-value" ${v.profile.hidden?'data-accountname':'data-accountquery'}="${esc(name)}" aria-label="${v.profile.hidden?'设置':'查询'}账户 ${esc(name)}"><span class="account-balance ${v.calibrated&&v.profile.type!=='personal'?(v.net>0?'positive':v.net<0?'negative':''):''}">${v.unconverted?'余额待核实':v.calibrated?money(v.net,v.profile.currency):'待校准'}<small>${v.profile.hidden?'已隐藏':'查看账单　›'}</small></span></button></div>`).join('')||'<div class="empty">这个分组还没有账户</div>'}${accountZeroCollapsed&&members.length&&groupZeroCount===members.length?`<div class="account-zero-empty">已收起 ${groupZeroCount} 个零余额账户</div>`:''}</div>`}).join('')}<div class="account-page-actions"><button class="button add-group" id="addAccount">＋ 添加账户</button><button class="button add-group" id="addGroup">＋ 新建分组</button></div><p class="muted page-footnote">隐藏账户仍保留在账户页，但不参与账单显示、筛选和统计。账户资料、隐藏状态和分组保存在设置中，不改变账单 CSV。</p>`}
 function continuousBillRows(){let end=cycleRange(year,month)[1];return filtered(rows).filter(r=>dateOf(r)<end).sort((a,b)=>b.date.localeCompare(a.date)||b.id.localeCompare(a.id))}
 function homeFinancialCard(f){return renderMetricBanner('homeAssets',assetBannerMetrics(f))}
 function homeMonthSummary(rs){let s=stats(rs),banner=renderMetricBanner('homeMonth',monthBannerMetrics(rs));return `${banner}${s.other?`<p class="muted">另有 ${s.other} 笔外币流水未折算，以上金额只统计已换算流水。</p>`:''}`}
@@ -946,12 +992,12 @@ async function savePrefs(changes){
   let r=await nativeCommand('saveSettings',null,null,{settings:changes});
   prefs={...prefs,...r.settings};
  }else{
-  prefs=next;
-  if(folderHandle&&prefs.mainName){
+  if(folderHandle&&next.mainName){
    let shared=Object.fromEntries(Object.entries(changes).filter(([k])=>SHARED_PREF_KEYS.includes(k)||k==='mainName'));
    if(Object.keys(shared).length)await writeSharedPrefs(shared);
   }
-  await put('prefs',prefs);
+  await put('prefs',next);
+  prefs=next;
  }
  if(Object.keys(changes).some(key=>!['lastExportAt','lastExportName'].includes(key)))markAutoBackupDirty();
  applyTheme();render();
@@ -980,7 +1026,8 @@ function upsertById(list,row){let i=list.findIndex(x=>x.id===row.id);if(i>=0)lis
 async function folderReadCsv(name,required=false){
  try{
   let fh=await folderHandle.getFileHandle(name),f=await fh.getFile(),text=await f.text();
-  return {rows:csvParse(text),meta:name+'|'+f.lastModified+'|'+f.size}
+  let parsed=csvParse(text);validateImportCsv(parsed,name);
+  return {rows:parsed,meta:name+'|'+f.lastModified+'|'+f.size}
  }catch(e){
   if(e.name==='NotFoundError'&&!required)return {rows:[],meta:name+'|missing'};
   throw e
@@ -1578,9 +1625,9 @@ async function createBook(){
   if(!await permission(folderHandle,'readwrite',true))throw Error('需要允许浏览器写入工作区文件夹');
   await writeDesktopDelta(name,[]);
  }
- workspace=normalizeWorkspace({...workspace,names:[...workspace.names,name],active:name,updatedAt:Date.now()});
- prefs=nextPrefs;
- await putBundle({prefs,csv:csvWrite([]),[ledgerPrefsKey(name)]:nextPrefs,[ledgerCsvKey(name)]:csvWrite([]),['relations:'+name]:{groups:[],suppressedLegacy:[],updatedAt:''},[WORKSPACE_KEY]:workspace});
+ let nextWorkspace=normalizeWorkspace({...workspace,names:[...workspace.names,name],active:name,updatedAt:Date.now()});
+ await putBundle({prefs:nextPrefs,csv:csvWrite([]),[ledgerPrefsKey(name)]:nextPrefs,[ledgerCsvKey(name)]:csvWrite([]),['relations:'+name]:{groups:[],suppressedLegacy:[],updatedAt:''},[WORKSPACE_KEY]:nextWorkspace});
+ workspace=nextWorkspace;prefs=nextPrefs;
  if(folderHandle)await writeSharedPrefs({...nextPrefs,mainName:name});
  rows=[];revision=digest(csvWrite([]));book='全部账本';query='';kind='全部类型';account='全部账户';category='全部分类';subcategory='全部小类';currencyFilter='全部币种';day='';page=0;
  applyTheme();render();window.dispatchEvent(new CustomEvent('star-ledger-main-changed',{detail:{name}}));toast('已新建主账本：'+name)
@@ -1761,12 +1808,13 @@ async function parseWorkspaceFiles(files){
   let bucket=parts.get(info.ledger)||{base:[],mobile:[],desktop:[]};
   try{
    let parsed=csvParse(await readCsvFile(file));
+   validateImportCsv(parsed,name);
    if(info.kind==='mobile'||info.kind==='手机主账本')bucket.base=parsed;
    else if(info.kind==='scriptable')bucket.mobile=parsed;
    else if(info.kind==='desktop')bucket.desktop=parsed;
    parts.set(info.ledger,bucket);
    meta.push(name+'|'+Number(file.lastModified||0)+'|'+Number(file.size||0))
-  }catch(e){warnings.push(name+' 不是有效 StarLedger CSV')}
+  }catch(e){warnings.push(name+'：'+e.message)}
  }
  let ledgers=[];
  for(let [name,source] of [...parts.entries()].sort((a,b)=>a[0].localeCompare(b[0],'zh-CN'))){
@@ -1793,6 +1841,7 @@ async function workspaceSnapshotFromDirectory(handle){
 }
 async function applyWorkspaceSnapshot(snapshot,{folderName='',mode='snapshot',readWrite=false,preferredActive='',askIfMultiple=false}={}){
  if(!snapshot?.names?.length)throw Error('这个文件夹没有找到 StarLedger 账本文件');
+ if(snapshot.warnings?.length)throw Error('工作区包含无效文件，未修改本机账本：'+snapshot.warnings.join('；'));
  let names=snapshot.names,active=names.includes(preferredActive)?preferredActive:names.includes(snapshot.active)?snapshot.active:names[0],entries={};
  for(let ledger of snapshot.ledgers){
   let localPrefs=await get(ledgerPrefsKey(ledger.name));
@@ -1801,11 +1850,11 @@ async function applyWorkspaceSnapshot(snapshot,{folderName='',mode='snapshot',re
   entries[ledgerPrefsKey(ledger.name)]=nextPrefs;
   if(snapshot.relationsPresent)entries['relations:'+ledger.name]=ledger.relations||{groups:[],suppressedLegacy:[],updatedAt:''}
  }
- workspace=normalizeWorkspace({names,active,folderName,mode,readWrite,updatedAt:Date.now()});
+ let nextWorkspace=normalizeWorkspace({names,active,folderName,mode,readWrite,updatedAt:Date.now()});
  let activeLedger=snapshot.ledgers.find(x=>x.name===active),activePrefs=entries[ledgerPrefsKey(active)],activeCsv=activeLedger?.csv||csvWrite([]);
- entries[WORKSPACE_KEY]=workspace;entries.prefs=activePrefs;entries.csv=activeCsv;
+ entries[WORKSPACE_KEY]=nextWorkspace;entries.prefs=activePrefs;entries.csv=activeCsv;
  await putBundle(entries);
- prefs=activePrefs;applyTheme();takeCsv(activeCsv);
+ workspace=nextWorkspace;prefs=activePrefs;applyTheme();takeCsv(activeCsv);
  window.dispatchEvent(new CustomEvent('star-ledger-main-changed',{detail:{name:active}}));
  if(snapshot.warnings?.length)toast('已读取工作区；'+snapshot.warnings.join('；'));
  else toast('已读取 '+names.length+' 个主账本');
@@ -1843,8 +1892,9 @@ async function writeSharedPrefs(changes){
      next={...existing,...ledgerSettings,format:'star-ledger-config',version:2,mainName:name,activeLedger:name,ledgers,_starConfigUpdatedAt:stamp};
  let fh=await folderHandle.getFileHandle(SHARED_CONFIG_FILE,{create:true}),w=await fh.createWritable();
  await w.write(JSON.stringify(next));await w.close();
- prefs={...prefs,...sharedPrefSubset(ledgerSettings),mainName:name};
- await putBundle({prefs});
+ let nextPrefs={...prefs,...sharedPrefSubset(ledgerSettings),mainName:name};
+ await putBundle({prefs:nextPrefs});
+ prefs=nextPrefs;
  lastDeltaMeta=''
 }
 async function refreshDelta(auto=false){
@@ -1879,7 +1929,7 @@ async function watchFolder(){
  }catch(e){stopFileObserver()}
 }
 
-async function reviewDelta(csv,auto){let incoming=csvParse(csv),existing=new Map(rows.filter(r=>r.id).map(r=>[r.id,r])),fingerprints=new Set(rows.map(fingerprint)),seen=new Set(),candidates=[];for(let [i,source] of incoming.entries()){let r={...source};if(!r.id)r.id='DEL-'+digest(JSON.stringify(r))+'-'+i;if(seen.has(r.id))continue;seen.add(r.id);let previous=existing.get(r.id),conflict=!!previous;if(isDeletion(r)&&!previous)continue;if(previous&&JSON.stringify(previous)===JSON.stringify(r))continue;let duplicate=conflict||isDeletion(r)||fingerprints.has(fingerprint(r));if(!duplicate)fingerprints.add(fingerprint(r));candidates.push({r,duplicate,conflict})}if(!candidates.length){if(!auto)toast('已是最新的了');return}let safe=candidates.filter(x=>!x.duplicate);if(safe.length>0&&safe.length<=5&&!candidates.some(x=>x.duplicate)){await mergeRecords(safe.map(x=>x.r));return}pendingDelta=candidates;$('#overlay').innerHTML=`<div class="modalback"><div class="modal"><h2>核对待汇入账单</h2><p class="muted">主账本：${esc(prefs.mainName)} · 新增 ${safe.length} 笔 · 需核对 ${candidates.length-safe.length} 笔。修改、删除及疑似重复均需手动核对。时间精确到秒、收支类型、金额和账户一致的项已高亮且默认不选中。</p><form id="mergeReview"><div class="merge-list">${candidates.map(({r,duplicate,conflict})=>`<label class="merge-item ${duplicate?'suspect':''}"><input type="checkbox" name="merge" value="${esc(r.id)}" ${duplicate?'':'checked'}><span><b>${isDeletion(r)?'删除 · ':''}${esc(r.merchant||r.note||r.subcategory||r.type)} · ${money(amount(r),r.currency)}</b><small>${esc(r.date)} · ${esc(r.account)} ${isDeletion(r)?'· 删除待确认':conflict?'· 同一笔已变动':duplicate?'· 疑似重复':''}</small></span></label>`).join('')}</div><div class="modalfooter"><button type="button" class="button" id="closeBtn">稍后</button><button class="button primary" type="submit">汇入所选</button></div></form></div></div>`}
+async function reviewDelta(csv,auto){let incoming=csvParse(csv);validateImportCsv(incoming,'导入 CSV');let existing=new Map(rows.filter(r=>r.id).map(r=>[r.id,r])),fingerprints=new Set(rows.map(fingerprint)),seen=new Set(),candidates=[];for(let [i,source] of incoming.entries()){let r={...source};if(seen.has(r.id))continue;seen.add(r.id);let previous=existing.get(r.id),conflict=!!previous;if(isDeletion(r)&&!previous)continue;if(previous&&JSON.stringify(previous)===JSON.stringify(r))continue;let duplicate=conflict||isDeletion(r)||fingerprints.has(fingerprint(r));if(!duplicate)fingerprints.add(fingerprint(r));candidates.push({r,duplicate,conflict})}if(!candidates.length){if(!auto)toast('已是最新的了');return}let safe=candidates.filter(x=>!x.duplicate);if(safe.length>0&&safe.length<=5&&!candidates.some(x=>x.duplicate)){await mergeRecords(safe.map(x=>x.r));return}pendingDelta=candidates;$('#overlay').innerHTML=`<div class="modalback"><div class="modal"><h2>核对待汇入账单</h2><p class="muted">主账本：${esc(prefs.mainName)} · 新增 ${safe.length} 笔 · 需核对 ${candidates.length-safe.length} 笔。修改、删除及疑似重复均需手动核对。时间精确到秒、收支类型、金额和账户一致的项已高亮且默认不选中。</p><form id="mergeReview"><div class="merge-list">${candidates.map(({r,duplicate,conflict})=>`<label class="merge-item ${duplicate?'suspect':''}"><input type="checkbox" name="merge" value="${esc(r.id)}" ${duplicate?'':'checked'}><span><b>${isDeletion(r)?'删除 · ':''}${esc(r.merchant||r.note||r.subcategory||r.type)} · ${money(amount(r),r.currency)}</b><small>${esc(r.date)} · ${esc(r.account)} ${isDeletion(r)?'· 删除待确认':conflict?'· 同一笔已变动':duplicate?'· 疑似重复':''}</small></span></label>`).join('')}</div><div class="modalfooter"><button type="button" class="button" id="closeBtn">稍后</button><button class="button primary" type="submit">汇入所选</button></div></form></div></div>`}
 async function mergeRecords(rs){if(!rs.length){toast('没有选中账单');return}let selected=new Map(rs.map(r=>[r.id,r])),merged=[...rs.filter(r=>!isDeletion(r)),...rows.filter(r=>!selected.has(r.id))];await localWrite('replaceLedger',null,null,{csv:csvWrite(merged),filename:prefs.lastExportName,mainName:prefs.mainName,allowEmpty:true});toast('已汇入 '+rs.length+' 笔，记得导出完整 ZIP')}
 async function mergeSelected(ids){let selected=new Set(ids),records=(pendingDelta||[]).filter(x=>selected.has(x.r.id)).map(x=>x.r);pendingDelta=null;await mergeRecords(records)}
 

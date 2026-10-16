@@ -48,6 +48,9 @@ jobs:
       - name: Check automatic backup decisions
         run: node scripts/test-auto-backup.cjs
 
+      - name: Check data safety and recovery
+        run: node scripts/test-data-safety.cjs
+
   deploy:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: validate
