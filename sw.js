@@ -1,14 +1,14 @@
-const CACHE='starledger-web-v074-budget';
+const CACHE='starledger-web-v075-budget-toggle';
 const ASSETS=[
   './',
   './index.html',
   './manifest.webmanifest',
   './recognizer.js?v=ocr1',
   './app.js?v=data-safety1',
-  './ui-runtime.js?v=budget1',
+  './ui-runtime.js?v=budget2',
   './backup-zip.js?v=zip1',
   './books-stats.js?v=midterm2',
-  './ui-foundation.css?v=budget1',
+  './ui-foundation.css?v=budget2',
   './mobile-compat.css?v=css3'
 ];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting())));

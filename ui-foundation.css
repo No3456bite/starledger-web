@@ -1227,13 +1227,24 @@ main {
   min-width: 0;
 }
 
-.entry-tag-row .entry-budget-control select {
-  max-width: 146px;
+.entry-tag-row .entry-budget-control button,
+.entry-tag-row .entry-budget-note {
+  display: inline-flex;
+  align-items: center;
   min-height: 34px;
-  padding: 5px 8px;
+  padding: 5px 10px;
   border: 1px solid var(--line);
   border-radius: 10px;
   background: var(--card);
   color: var(--ink);
   font-size: 13px;
+}
+
+.entry-tag-row .entry-budget-control button[aria-pressed="true"] {
+  border-color: var(--green);
+  color: var(--green);
+}
+
+.entry-tag-row .entry-budget-note {
+  color: var(--muted);
 }
