@@ -607,7 +607,7 @@ nativeCommand=function(action,record,id,extra={}){return rc12BaseNativeCommand(a
 function rc12ParseExtras(r){try{let v=JSON.parse(r?.extras||'{}');return v&&typeof v==='object'&&!Array.isArray(v)?v:{}}catch(e){return {}}}
 function rc12LegacyGroups(){
  let suppressed=new Set(rc12Relations.suppressedLegacy||[]),map=new Map();for(let r of rows){let rel=String(rc12ParseExtras(r).relation||'').trim();if(!rel)continue;let list=map.get(rel)||[];list.push(r.id);map.set(rel,list)}
- return [...map].filter(([rel,ids])=>ids.length>=2&&!suppressed.has('legacy:'+rel)).map(([rel,ids])=>({id:'legacy:'+rel,type:'legacy',members:ids.map(id=>({id,role:rc12InferRole(rows.find(r=>r.id===id))})),legacy:true,createdAt:'',updatedAt:''}))
+ return [...map].filter(([rel,ids])=>ids.length>=2&&!suppressed.has('legacy:'+rel)).map(([rel,ids])=>({id:'legacy:'+rel,type:'legacy',members:ids.map(id=>({id,role:'auto'})),legacy:true,createdAt:'',updatedAt:''}))
 }
 function rc12AllGroups(){
  let explicit=rc12Relations.groups||[],claimed=new Set(explicit.flatMap(g=>g.members.map(m=>m.id))),legacy=rc12LegacyGroups().map(g=>({...g,members:g.members.filter(m=>!claimed.has(m.id))})).filter(g=>g.members.length>=2);return [...explicit,...legacy]
@@ -618,15 +618,37 @@ function rc12InferRole(r){
  if(!r)return'auto';let text=[r.category,r.subcategory,r.note,r.merchant,r.tags].join(' ');
  if(r.type==='转账')return'transfer';
  if(/手续费|服务费|附加费/.test(text))return'fee';
- if(r.type==='收入'&&/退款|退回|退款返款/.test(text))return'refund';
- if(r.type==='收入'&&/返现|红包|奖励|优惠返/.test(text))return'rebate';
  if(r.type==='支出')return'expense';
  return'normal'
 }
 function rc12ResolvedRole(group,r){let role=rc12GroupRole(group,r?.id);return !role||role==='auto'?rc12InferRole(r):role}
-function rc12BudgetImpact(r){let n=cnyAmount(r);if(n===null)return null;let g=rc12GroupForBill(r.id);if(!g)return r.type==='支出'?n:0;let role=rc12ResolvedRole(g,r);if(role==='transfer')return 0;if(role==='refund'||role==='rebate')return-n;if(role==='fee'||role==='expense')return n;return r.type==='支出'?n:0}
-function rc12GroupBudget(group){let total=0,other=0;for(let m of group?.members||[]){let r=rows.find(x=>x.id===m.id);if(!r)continue;let n=rc12BudgetImpact(r);if(n===null)other++;else total+=n}return {total,other}}
-
+function rc12BudgetChoice(r,group=null){
+ let choice=rc12ParseExtras(r).budgetEffect;
+ if(r?.type==='支出')return choice==='none'||(!choice&&group&&rc12GroupRole(group,r.id)==='transfer')?'none':'expense';
+ if(r?.type==='收入')return choice==='offset'?'offset':'none';
+ return'none'
+}
+function rc12SetBudgetChoice(r,choice){let extras=rc12ParseExtras(r);if(r.extras&&!Object.keys(extras).length){try{JSON.parse(r.extras)}catch(_e){extras={legacy:r.extras}}}extras.budgetEffect=choice;return {...r,extras:JSON.stringify(extras)}}
+function rc12BudgetPurchase(r,group){
+ if(r.type!=='支出'||rc12BudgetChoice(r,group)==='none')return false;
+ if(['fee','transfer'].includes(rc12GroupRole(group,r.id)))return false;
+ return !/手续费|服务费|附加费/.test([r.category,r.subcategory,r.note].join(' '))
+}
+function rc12BudgetSpent(scoped,findGroup=rc12GroupForBill){
+ let spent=0,groups=new Map();
+ for(let r of scoped){
+  let n=cnyAmount(r);if(n===null)continue;
+  let cents=Math.round(n*100),group=findGroup(r.id);
+  if(r.type==='支出'&&rc12BudgetChoice(r,group)==='expense')spent+=cents;
+  if(!group)continue;
+  let entry=groups.get(group.id||group)||{purchases:0,offsets:0};
+  if(rc12BudgetPurchase(r,group))entry.purchases+=cents;
+  if(r.type==='收入'&&rc12BudgetChoice(r)==='offset')entry.offsets+=cents;
+  groups.set(group.id||group,entry)
+ }
+ for(let group of groups.values())spent-=Math.min(group.purchases,group.offsets);
+ return spent/100
+}
 async function rc12ReadRelationsDesktop(){
  if(folderHandle&&await permission(folderHandle,'read')){try{let fh=await folderHandle.getFileHandle(RC12_RELATIONS_FILE),file=await fh.getFile(),store=JSON.parse(await file.text());return rc12NormalizeRelations(store?.ledgers?.[prefs.mainName]||{})}catch(e){if(e.name!=='NotFoundError')console.warn(e)}}
  let local=await get('relations:'+String(prefs.mainName||''));return rc12NormalizeRelations(local||{})
@@ -645,8 +667,9 @@ async function rc12LoadRelations(force=false){
 }
 async function rc12SaveRelations(value){let next=rc12NormalizeRelations(value);if(native){let r=await nativeCommand('saveRelations',null,null,{relations:next});next=rc12NormalizeRelations(r.relations||next)}else next=await rc12WriteRelationsDesktop(next);rc12Relations=next;render();return next}
 
-// Budget remains raw for ordinary bills. Only linked bills gain relation semantics.
-budgetState=function(){let scoped=rows.filter(r=>!recordHidden(r)&&inCycle(dateOf(r),year,month)),spent=0;for(let r of scoped){let impact=rc12BudgetImpact(r);if(impact!==null)spent+=impact}let {has,value}=currentBudget();return {spent,has,value,left:value-spent}};
+// Relation roles may have been inferred from words like 红包. Only an explicit
+// per-bill budget choice can offset a linked purchase; old role data stays intact.
+budgetState=function(){let scoped=rows.filter(r=>!recordHidden(r)&&inCycle(dateOf(r),year,month)),spent=rc12BudgetSpent(scoped),{has,value}=currentBudget();return {spent,has,value,left:value-spent}};
 
 records=function(rs,limit=10){
  if(!rs.length)return '<div class="empty">没有符合条件的账单</div>';let shown=rs.slice(0,limit);return shown.map((r,i)=>{let next=shown[i+1],monthBreak=!!next&&ym(r)!==ym(next),group=rc12GroupForBill(r.id),badge=group?`<small class="relation-badge">关联 · ${group.members.length}</small>`:'';return `<div class="row ${monthBreak?'month-break':''} ${group?'compound-row':''}" data-rowid="${esc(r.id)}"><input class="rowcheck" type="checkbox" data-check="${esc(r.id)}" aria-label="选择账单" ${selection.has(r.id)?'checked':''}><button data-id="${esc(r.id)}"><span class="record-copy"><span class="record-first"><b class="title">${esc(recordHeadline(r))}</b><small class="record-wallet">－ ${esc(r.account||'未选账户')}</small>${badge}</span><small class="record-note">${esc((prefs.recordTitle==='note'?[r.category,r.subcategory].filter(Boolean).join(' / '):r.note)||'　')}</small><small class="record-time">${esc(String(r.date||'').replace('T',' ').slice(0,19))}</small></span><span class="record-amount"><span class="amount ${r.type==='支出'?'negative':r.type==='收入'?'positive':''}">${r.type==='支出'?'-':''}${money(amount(r),r.currency)}</span>${!isCNY(r)&&cnyAmount(r)!==null?`<small class="amount-converted">≈ ${money(cnyAmount(r))}</small>`:''}</span></button></div>`}).join('')
@@ -800,18 +823,21 @@ function rc12StartTask(recordsInput=[{}],opts={}){
  rc12RenderTask(0)
 }
 function rc12CaptureDraft(){
- let f=$('#entry');if(!rc12Task||!f)return;let draft=rc12Task.drafts[rc12Task.active],raw=Object.fromEntries(new FormData(f));raw.id=draft.existingId||'';raw.date=String(raw.date||'').replace('T',' ');if(raw.date.length===16)raw.date+=':00';if(raw.book==='__new_book__')raw.book=String(raw.newBookName||'').trim();delete raw.newBookName;raw._fxRate=String(raw.fxRate||'');delete raw.fxRate;draft.record={...draft.record,...raw,id:draft.existingId||''}
+ let f=$('#entry');if(!rc12Task||!f)return;let draft=rc12Task.drafts[rc12Task.active],raw=Object.fromEntries(new FormData(f));raw.id=draft.existingId||'';raw.date=String(raw.date||'').replace('T',' ');if(raw.date.length===16)raw.date+=':00';if(raw.book==='__new_book__')raw.book=String(raw.newBookName||'').trim();delete raw.newBookName;raw._fxRate=String(raw.fxRate||'');delete raw.fxRate;draft.record={...draft.record,...raw,id:draft.existingId||''};let choice=f.querySelector('[data-budget-effect]')?.value;if(choice)draft.record=rc12SetBudgetChoice(draft.record,choice)
 }
 function rc12DraftAmountCny(draft){let r=draft?.record||{},n=Number(normalizeAmountExpression(r.amount).replace('−','-'));if(!Number.isFinite(n)||n<=0)return null;if(currencyCode(r.currency)==='CNY')return n;let rate=Number(r._fxRate||fxInfo(r)?.rate);return Number.isFinite(rate)&&rate>0?n*rate:null}
-function rc12TaskGroupBudget(group){let total=0,unknown=0;for(let key of group?.members||[]){let d=rc12Task?.drafts?.find(x=>x.key===key);if(!d)continue;let n=rc12DraftAmountCny(d);if(n===null){unknown++;continue}let role=group.roles?.[key]||d.relationRole||rc12InferRole(d.record);if(role==='refund'||role==='rebate')total-=n;else if(role==='fee'||role==='expense')total+=n;else if(role==='normal'&&d.record?.type==='支出')total+=n}return {total,unknown}}
+function rc12TaskBudgetGroup(group){return {id:group.id,members:group.members.map(id=>({id,role:group.roles?.[id]||'auto'}))}}
+function rc12TaskHasBudgetPurchase(group){let mapped=rc12TaskBudgetGroup(group);return group.members.some(id=>{let r=rc12Task.drafts.find(d=>d.key===id)?.record;return r&&rc12BudgetPurchase({...r,id},mapped)})}
+function rc12TaskGroupBudget(group){let unknown=0,items=[];for(let key of group?.members||[]){let d=rc12Task?.drafts?.find(x=>x.key===key);if(!d)continue;let n=rc12DraftAmountCny(d);if(n===null){unknown++;continue}items.push({...d.record,id:key,amount:n,currency:'人民币'})}let mapped=rc12TaskBudgetGroup(group);return {total:rc12BudgetSpent(items,id=>mapped.members.some(m=>m.id===id)?mapped:null),unknown}}
 function rc12RecordForSave(draft,index){
  let r={...draft.record};let check=amountSaveValue(r.amount);if(!check.ok)throw Error(`第 ${index+1} 笔：${check.error}`);r.amount=check.value.toFixed(2);r.date=String(r.date||'').replace('T',' ');if(r.date.length===16)r.date+=':00';let extras;try{extras=JSON.parse(r.extras||'{}');if(!extras||typeof extras!=='object'||Array.isArray(extras))extras={}}catch(e){extras={legacy:r.extras||''}}let fxText=String(r._fxRate||'').trim();if(currencyCode(r.currency)==='CNY')delete extras.fx;else if(fxText){let rate=Number(fxText);if(!Number.isFinite(rate)||rate<=0||rate>1e8)throw Error(`第 ${index+1} 笔：汇率无效`);extras.fx={rate,date:'',source:'manual',quote:'CNY'}}r.extras=Object.keys(extras).length?JSON.stringify(extras):'';delete r._fxRate;delete r.id;delete r.relationRole;validate(r);return r
 }
 function rc12AugmentEntry(direction=0){
- let f=$('#entry'),entry=f?.closest('.entry'),back=f?.closest('.entryback');if(!f||!entry||!back||!rc12Task)return;back.classList.toggle('rc12-multi',rc12Task.drafts.length>1);entry.classList.remove('rc12-from-left','rc12-from-right');if(direction)entry.classList.add(direction>0?'rc12-from-right':'rc12-from-left');let draft=rc12Task.drafts[rc12Task.active],group=rc12TaskGroupForKey(draft.key),gb=group?rc12TaskGroupBudget(group):null,summary=group?`关联 · ${group.members.length} 笔${gb&&!gb.unknown?' · 实际预算 '+money(gb.total):''}`:'',mobile=matchMedia('(max-width:760px)').matches;
+ let f=$('#entry'),entry=f?.closest('.entry'),back=f?.closest('.entryback');if(!f||!entry||!back||!rc12Task)return;back.classList.toggle('rc12-multi',rc12Task.drafts.length>1);entry.classList.remove('rc12-from-left','rc12-from-right');if(direction)entry.classList.add(direction>0?'rc12-from-right':'rc12-from-left');let draft=rc12Task.drafts[rc12Task.active],group=rc12TaskGroupForKey(draft.key),gb=group?rc12TaskGroupBudget(group):null,months=group?new Set(group.members.map(key=>String(rc12Task.drafts.find(d=>d.key===key)?.record.date||'').slice(0,7))):null,summary=group?`关联 · ${group.members.length} 笔${months.size===1&&gb&&!gb.unknown?' · 本组预算支出 '+money(gb.total):''}`:'',mobile=matchMedia('(max-width:760px)').matches;
  entry.setAttribute('role','dialog');entry.setAttribute('aria-modal','true');entry.setAttribute('aria-label',draft.existingId?'编辑账单':'记一笔');
  let old=entry.querySelector('.rc12-taskbar');if(old)old.remove();let bar=document.createElement('div');bar.className='rc12-taskbar';let relationLabel=group?`关联·${group.members.length}`:'关联',deleteLabel=draft.existingId?'移出':'删除';bar.innerHTML=`<div class="rc12-tasknav"><button type="button" id="rc12PrevDraft" aria-label="上一笔" ${rc12Task.active<=0?'disabled':''}>‹</button><b>${rc12Task.active+1}/${rc12Task.drafts.length}</b><button type="button" id="rc12NextDraft" aria-label="下一笔" ${rc12Task.active>=rc12Task.drafts.length-1?'disabled':''}>›</button>${!mobile&&summary?`<span class="rc12-current-relation">${summary}</span>`:''}</div><div class="rc12-taskactions"><button type="button" id="rc12AddDraft">＋新增</button><button type="button" id="rc12ManageRelations" ${summary?`title="${esc(summary)}"`:''}>${relationLabel}</button><button type="button" id="rc12DeleteDraft" ${rc12Task.drafts.length<=1?'disabled':''}>${deleteLabel}</button></div>`;
  let head=entry.querySelector('.entryhead'),right=head?.querySelector('.entryhead-right'),tag=f.querySelector('.entry-tag-row'),note=f.querySelector('.entry-note-card');if(head)head.insertBefore(bar,right||null);else if(tag)tag.after(bar);else if(note)note.before(bar);else f.prepend(bar);
+ let kind=draft.record.type||'支出',choice=rc12BudgetChoice({...draft.record,type:kind,id:draft.key},group?rc12TaskBudgetGroup(group):null),canOffset=!!group&&rc12TaskHasBudgetPurchase(group),budget=document.createElement('label');budget.className='entry-budget-control';budget.innerHTML=`<span>预算</span><select data-budget-effect aria-label="预算影响">${kind==='支出'?`<option value="expense">计入预算</option><option value="none">不计入预算</option>`:kind==='收入'?`<option value="none">不影响预算</option><option value="offset" ${canOffset?'':'disabled'}>冲减关联消费</option>`:'<option value="none">不影响预算</option>'}</select>`;budget.querySelector('select').value=choice;budget.querySelector('select').addEventListener('change',()=>{rc12CaptureDraft();rc12RenderTask()});tag?.insertBefore(budget,tag.querySelector('#selectedTags'));
  let h=entry.querySelector('.entryhead h2');if(h){h.hidden=mobile;h.textContent=mobile?'':(rc12Task.source==='compound'?'复合账单':'记一笔')+` · ${rc12Task.active+1}/${rc12Task.drafts.length}`}
  let ledgerBtn=entry.querySelector('#switchMain');if(ledgerBtn&&mobile){ledgerBtn.textContent=prefs.mainName||'账本';ledgerBtn.title='切换账本';ledgerBtn.setAttribute('aria-label','切换账本')}
  let submit=f.querySelector('button[type=submit]');if(submit)submit.textContent=`确认保存（${rc12Task.drafts.length}笔）`;let keySave=f.querySelector('[data-key="保存账单"]');if(keySave)keySave.textContent=`保存 ${rc12Task.drafts.length} 笔`;
@@ -836,7 +862,7 @@ function rc123GhostHydrate(clone,draft,index){
  for(const name of ['account','account2']){let input=clone.querySelector(`[name="${name}"]`),button=input?.closest('.account-picker')?.querySelector('button');if(button)button.textContent=input.value||(name==='account2'?'选择账户':'选择账户')}
  let nav=clone.querySelector('.rc12-tasknav>b');if(nav)nav.textContent=`${index+1}/${rc12Task?.drafts?.length||1}`;
  let prev=clone.querySelector('#rc12PrevDraft'),next=clone.querySelector('#rc12NextDraft');if(prev)prev.disabled=index<=0;if(next)next.disabled=index>=(rc12Task?.drafts?.length||1)-1;
- let group=rc12TaskGroupForKey(draft?.key),rel=clone.querySelector('#rc12ManageRelations');if(rel)rel.textContent=group?`关联·${group.members.length}`:'关联';
+ let group=rc12TaskGroupForKey(draft?.key),rel=clone.querySelector('#rc12ManageRelations');if(rel)rel.textContent=group?`关联·${group.members.length}`:'关联';let budget=clone.querySelector('[data-budget-effect]');if(budget)budget.value=rc12BudgetChoice(r);
  let del=clone.querySelector('#rc12DeleteDraft');if(del)del.textContent=draft?.existingId?'移出':'删除';
  let ledger=clone.querySelector('#switchMain');if(ledger)ledger.textContent=prefs.mainName||'账本';
  let submit=clone.querySelector('button[type=submit]');if(submit)submit.textContent=`确认保存（${rc12Task?.drafts?.length||1}笔）`;
@@ -963,7 +989,7 @@ function rc12AddDraft(){if(!rc12Task)return;rc12CaptureDraft();let current=rc12T
 function rc12DeleteCurrentDraft(){if(!rc12Task||rc12Task.drafts.length<=1)return;rc12CaptureDraft();let removed=rc12Task.drafts.splice(rc12Task.active,1)[0];for(let g of rc12Task.groups){delete g.roles[removed.key];g.members=g.members.filter(k=>k!==removed.key)}rc12Task.groups=rc12Task.groups.filter(g=>g.members.length>=2);rc12Task.active=Math.min(rc12Task.active,rc12Task.drafts.length-1);rc12RenderTask(matchMedia('(max-width:760px)').matches?0:-1)}
 function rc12RoleSelect(key,current){return `<select data-rc12-role="${esc(key)}">${RC12_ROLE_OPTIONS.map(([v,l])=>`<option value="${v}" ${v===current?'selected':''}>${l}</option>`).join('')}</select>`}
 function rc12OpenRelationManager(){
- if(!rc12Task)return;rc12CaptureDraft();let activeKey=rc12Task.drafts[rc12Task.active].key,activeGroup=rc12TaskGroupForKey(activeKey),checked=new Set(activeGroup?.members||[]);$('#accountOverlay').innerHTML=`<div class="modalback entry-choice-back"><div class="modal entry-choice-card rc12-relation-sheet"><div class="sectionhead"><h2>关联本次账单</h2><button type="button" id="closeEntrySheet">完成</button></div><p class="muted">同一任务可以有多笔账单，只有选中的账单形成关联组。每笔账单最多属于一个组。</p><form id="rc12RelationForm"><div class="rc12-relation-list">${rc12Task.drafts.map((d,i)=>{let belongs=rc12TaskGroupForKey(d.key),groupNo=belongs?rc12Task.groups.indexOf(belongs)+1:0,current=belongs?.roles?.[d.key]||d.relationRole||rc12InferRole(d.record);return `<label class="rc12-relation-item"><input type="checkbox" name="member" value="${esc(d.key)}" ${checked.has(d.key)?'checked':''}><span><b>${esc(rc12TaskDraftLabel(d,i))}</b><small>${d.existingId?'已有账单':'本次新建'} · ${belongs?'关联组 '+groupNo:'未关联'}</small></span>${rc12RoleSelect(d.key,current)}</label>`}).join('')}</div><div class="rc12-relation-actions"><button type="button" class="button" id="rc12PickExisting">从查账添加</button><button type="button" class="button" id="rc12DetachSelected">解除所选关联</button><button type="submit" class="button primary">建立／更新关联</button></div></form></div></div>`;activateEntryTertiary()
+ if(!rc12Task)return;rc12CaptureDraft();let activeKey=rc12Task.drafts[rc12Task.active].key,activeGroup=rc12TaskGroupForKey(activeKey),checked=new Set(activeGroup?.members||[]);$('#accountOverlay').innerHTML=`<div class="modalback entry-choice-back"><div class="modal entry-choice-card rc12-relation-sheet"><div class="sectionhead"><h2>关联本次账单</h2><button type="button" id="closeEntrySheet">完成</button></div><p class="muted">关联只用于一起查看账单。预算影响请在各笔账单的“预算”选项中设置，旧关联角色不会自动改变预算。</p><form id="rc12RelationForm"><div class="rc12-relation-list">${rc12Task.drafts.map((d,i)=>{let belongs=rc12TaskGroupForKey(d.key),groupNo=belongs?rc12Task.groups.indexOf(belongs)+1:0,current=belongs?.roles?.[d.key]||d.relationRole||rc12InferRole(d.record);return `<label class="rc12-relation-item"><input type="checkbox" name="member" value="${esc(d.key)}" ${checked.has(d.key)?'checked':''}><span><b>${esc(rc12TaskDraftLabel(d,i))}</b><small>${d.existingId?'已有账单':'本次新建'} · ${belongs?'关联组 '+groupNo:'未关联'}</small></span>${rc12RoleSelect(d.key,current)}</label>`}).join('')}</div><div class="rc12-relation-actions"><button type="button" class="button" id="rc12PickExisting">从查账添加</button><button type="button" class="button" id="rc12DetachSelected">解除所选关联</button><button type="submit" class="button primary">建立／更新关联</button></div></form></div></div>`;activateEntryTertiary()
 }
 function rc12OpenExistingPicker(){
  if(!rc12Task)return;let existing=new Set(rc12Task.drafts.map(d=>d.existingId).filter(Boolean)),q=rc12RelationPickerQuery.trim().toLowerCase(),items=rows.filter(r=>!existing.has(r.id)&&(!q||[r.note,r.merchant,r.category,r.subcategory,r.account,r.amount,r.date].some(v=>String(v||'').toLowerCase().includes(q)))).slice(0,120);$('#accountOverlay').innerHTML=`<div class="modalback entry-choice-back"><div class="modal entry-choice-card rc12-existing-picker"><div class="sectionhead"><h2>从查账添加</h2><button type="button" id="rc12BackToRelations">返回</button></div><input id="rc12ExistingSearch" class="account-search" type="search" placeholder="搜索账单" value="${esc(rc12RelationPickerQuery)}"><form id="rc12ExistingPickerForm"><div class="rc12-existing-list">${items.map(r=>`<label><input type="checkbox" name="bill" value="${esc(r.id)}"><span><b>${esc(recordHeadline(r))} · ${money(amount(r),r.currency)}</b><small>${esc(r.date)} · ${esc(r.account)}</small></span></label>`).join('')||'<p class="muted">没有匹配账单</p>'}</div><div class="modalfooter"><button type="submit" class="button primary">加入本次任务</button></div></form></div></div>`;activateEntryTertiary()
@@ -1011,7 +1037,7 @@ async function rc12RelateSelected(){
  let all=rc12AllGroups(),touch=[...new Set(ids.map(id=>rc12GroupForBill(id)).filter(Boolean))],same=touch.length===1&&ids.every(id=>touch[0].members.some(m=>m.id===id)),groups=(rc12Relations.groups||[]).map(g=>({...g,members:g.members.map(m=>({...m}))})),suppressed=new Set(rc12Relations.suppressedLegacy||[]);
  if(same){let target=touch[0],remove=new Set(ids),next=groups.filter(g=>g.id!==target.id);if(target.legacy){suppressed.add(target.id);let kept=target.members.filter(m=>!remove.has(m.id));if(kept.length>=2)next.push({id:rc12Uid('RG'),type:'compound',members:kept.map(m=>({...m})),createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()})}else{let kept=target.members.filter(m=>!remove.has(m.id));if(kept.length>=2)next.push({...target,members:kept,updatedAt:new Date().toISOString()})}await rc12SaveRelations({groups:next,suppressedLegacy:[...suppressed]});selection.clear();renderSelection();toast('已解除所选账单的关联');return}
  if(ids.length<2){toast('至少选择 2 笔账单才能建立关联');return}
- let mergeIds=new Set(ids),roles=new Map(),explicitTouch=new Set();for(let g of touch){for(let m of g.members){mergeIds.add(m.id);roles.set(m.id,m.role||'auto')}if(g.legacy)suppressed.add(g.id);else explicitTouch.add(g.id)}let next=groups.filter(g=>!explicitTouch.has(g.id)),members=[...mergeIds].map(id=>({id,role:roles.get(id)||rc12InferRole(rows.find(r=>r.id===id))}));next.push({id:touch.find(g=>!g.legacy)?.id||rc12Uid('RG'),type:'compound',members,createdAt:touch.find(g=>!g.legacy)?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()});await rc12SaveRelations({groups:next,suppressedLegacy:[...suppressed]});selection.clear();renderSelection();toast(`已关联 ${members.length} 笔账单`)
+ let mergeIds=new Set(ids),roles=new Map(),explicitTouch=new Set();for(let g of touch){for(let m of g.members){mergeIds.add(m.id);roles.set(m.id,m.role||'auto')}if(g.legacy)suppressed.add(g.id);else explicitTouch.add(g.id)}let next=groups.filter(g=>!explicitTouch.has(g.id)),members=[...mergeIds].map(id=>({id,role:roles.get(id)||'auto'}));next.push({id:touch.find(g=>!g.legacy)?.id||rc12Uid('RG'),type:'compound',members,createdAt:touch.find(g=>!g.legacy)?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()});await rc12SaveRelations({groups:next,suppressedLegacy:[...suppressed]});selection.clear();renderSelection();toast(`已关联 ${members.length} 笔账单`)
 }
 
 performDelete=async function(){let ids=pendingDeleteIds?[...pendingDeleteIds]:[];await rc12BasePerformDelete();if(ids.length&&pendingDeleteIds===null){let remove=new Set(ids),groups=(rc12Relations.groups||[]).map(g=>({...g,members:g.members.filter(m=>!remove.has(m.id))})).filter(g=>g.members.length>=2);if(JSON.stringify(groups)!==JSON.stringify(rc12Relations.groups))rc12SaveRelations({groups,suppressedLegacy:rc12Relations.suppressedLegacy||[]}).catch(()=>{})}};

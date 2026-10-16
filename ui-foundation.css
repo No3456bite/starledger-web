@@ -1215,3 +1215,25 @@ main {
     transition: none;
   }
 }
+
+.entry-tag-row .entry-budget-control {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.entry-tag-row .entry-budget-control select {
+  max-width: 146px;
+  min-height: 34px;
+  padding: 5px 8px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--ink);
+  font-size: 13px;
+}
