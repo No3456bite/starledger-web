@@ -449,6 +449,25 @@ function detectUnionPayTransfer(text,lines,context,evidence){
 function historyRows(context){
  return Array.isArray(context?.history)?context.history:Array.isArray(context?.rows)?context.rows:[]
 }
+function amountHistoryMatch(amount,type,account,context,evidence){
+ if(!['支出','收入'].includes(type)||!Number.isFinite(Number(amount))||Number(amount)<=0)return null;
+ let cents=Math.round(Number(amount)*100);
+ if(Math.abs(Number(amount)*100-cents)>1e-6)return null;
+ let matches=historyRows(context).filter(row=>{
+  if(!row||row.type!==type||!['','人民币','CNY'].includes(String(row.currency||'')))return false;
+  let n=Number(row.amount);return Number.isFinite(n)&&n>0&&Math.abs(n*100-cents)<=1e-6
+ });
+ if(!matches.length)return null;
+ // Any incomplete or conflicting match makes amount alone too weak to choose a preset.
+ let choices=matches.map(row=>[String(row.account||'').trim(),String(row.category||'').trim(),String(row.subcategory||'').trim()]);
+ if(choices.some(parts=>parts.some(part=>!part)))return null;
+ let key=choices[0].join('\u0000');if(choices.some(parts=>parts.join('\u0000')!==key))return null;
+ let [matchedAccount,category,subcategory]=choices[0],accounts=(context?.accounts||[]).map(x=>typeof x==='string'?x:x?.name);
+ if(!accounts.includes(matchedAccount))return null;
+ if(account.value&&account.source!=='platform-default'&&!accountEquivalent(account.value,matchedAccount,context?.accountAliases))return null;
+ evidence.push('同金额历史预填：'+matchedAccount+' / '+category+' / '+subcategory+'（'+matches.length+' 笔一致）');
+ return {account:matchedAccount,category,subcategory,count:matches.length}
+}
 function validHistoryTerm(v){
  let s=compact(v);return s.length>=2&&!/^\d+$/.test(s)&&!/^20\d{2}(?:\d{2}){0,5}$/.test(s)&&!/^(?:微信|支付宝|云闪付|支付|付款|账单|订单|商家|商品|人民币|日常账本|消费时间|交易时间|支付时间)$/.test(s)?s:''
 }
@@ -862,6 +881,16 @@ function recognizeSingle(source,context={}){
  if(account.value&&!account.matched&&Array.isArray(context.accounts)&&context.accounts.length)warnings.push('识别到付款方式，但未匹配现有账户：'+account.suggested);
  if(amountInfo.amounts.refund!=null&&!transfer){if(type.value==='支出')type=field('收入',Math.max(type.confidence,.72),'refund-override',['退款金额']);amountInfo.amount=field(round2(amountInfo.amounts.refund),.9,'refund-amount',['退款金额']);evidence.push('退款金额存在：主金额采用退款金额')}
  let historyCategory=transfer?null:categoryHistoryMatch(text,merchant.value,account.value,type.value,context,evidence),category=historyCategory?.category||field('',0,transfer?'transfer-no-category':'history-category'),subcategory=historyCategory?.subcategory||field('',0,transfer?'transfer-no-category':'history-category');
+ let amountHistoryMatched=false;
+ if(!transfer&&!historyCategory&&amountInfo.amount.confidence>=.65&&type.confidence>=.6&&!warnings.some(w=>w.includes('多个接近的主金额候选'))){
+  let match=amountHistoryMatch(amountInfo.amount.value,type.value,account,context,evidence);
+  if(match){
+   if(!account.value||account.source==='platform-default')account={...field(match.account,.72,'history-exact-amount',['同金额历史账单']),matched:true,suggested:match.account,paymentMethod:account.paymentMethod||''};
+   category=field(match.category,.72,'history-exact-amount',['同金额历史账单']);
+   subcategory=field(match.subcategory,.72,'history-exact-amount',['同金额历史账单']);
+   amountHistoryMatched=true
+  }
+ }
  let duplicate=duplicateHistoryMatch(date,amountInfo.amount.value,merchant.value,account.value,type.value,context,evidence,warnings);
  let result={
   version:VERSION,
@@ -878,18 +907,19 @@ function recognizeSingle(source,context={}){
   subcategory,
   date,
   duplicate,
+  amountHistoryMatched,
   warnings:[...new Set(warnings)],
   evidence:[...new Set(evidence)],
   debug:{lineCount:lines.length,normalizedLines:lines.slice(0,240),platformScores:platform.scores||{},typeScores:type.scores||{},paymentMethod:account.paymentMethod||'',accountSuggested:account.suggested||'',account2:account2.value||'',transfer:transfer?{source:transfer.rawSource,destination:transfer.rawDestination}:null,accountMatchKind:account.matchKind||'',accountMethodSource:account.methodSource||'',accountCandidates:account.candidates||[],categoryHistory:historyCategory?.debug||null,duplicate:duplicate||null}
  };
- let multi=rc12MultiRecords(result,text,lines,amountInfo,transfer);result.records=multi.records;result.relationHints=multi.relationHints;return result
+ let multi=rc12MultiRecords(result,text,lines,amountInfo,transfer);if(amountHistoryMatched)multi.records[0].amountHistoryMatched=true;result.records=multi.records;result.relationHints=multi.relationHints;return result
 }
 
 function recognize(source,context={}){
  let doc=groupDocument(source,context);
  if(!doc.detected)return recognizeSingle(source,context);
  let parsed=doc.groups.map(g=>({group:g,result:recognizeSingle(groupSyntheticText(g,doc),context)})),first=parsed[0]?.result||recognizeSingle(source,context);
- let records=parsed.map(({group:g,result:r})=>({type:r.type,amount:r.amount,date:r.date,merchant:r.merchant,note:r.note,account:r.account,account2:r.account2,category:r.category,subcategory:r.subcategory,relationRole:'auto',needsConfirmation:!g.merchant||Number(r.amount?.confidence||0)<.6}));
+ let records=parsed.map(({group:g,result:r})=>({type:r.type,amount:r.amount,date:r.date,merchant:r.merchant,note:r.note,account:r.account,account2:r.account2,category:r.category,subcategory:r.subcategory,amountHistoryMatched:r.amountHistoryMatched,relationRole:'auto',needsConfirmation:!g.merchant||Number(r.amount?.confidence||0)<.6}));
  let summaries=parsed.map(({group:g,result:r},i)=>({index:i+1,date:g.date,signedAmount:g.signedAmount,merchant:g.merchant,type:r.type?.value||g.type,amount:r.amount?.value??g.amount,account:r.account?.value||'',category:r.category?.value||'',subcategory:r.subcategory?.value||'',warnings:r.warnings||[],source:g.source}));
  return {...first,version:VERSION,records,relationHints:[],warnings:[...new Set([`识别为${doc.pageType}，拆分 ${records.length} 笔`,...(first.warnings||[])])],evidence:[`文档分组：${doc.pageType} → ${records.length} 笔`,...(first.evidence||[])],documentGrouping:{detected:true,pageType:doc.pageType,platform:doc.platform,accountHint:doc.accountHint,lineCount:doc.lineCount,anchorCount:doc.anchorCount,signedAmountCount:doc.signedAmountCount,merchantCandidateCount:doc.merchantCandidateCount,groups:summaries},debug:{...(first.debug||{}),documentGrouping:{pageType:doc.pageType,groups:summaries}}}
 }

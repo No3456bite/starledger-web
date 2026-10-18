@@ -54,6 +54,9 @@ jobs:
       - name: Check budget impact rules
         run: node scripts/test-budget.cjs
 
+      - name: Check OCR amount history matching
+        run: node scripts/test-recognizer-history.cjs
+
   deploy:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: validate

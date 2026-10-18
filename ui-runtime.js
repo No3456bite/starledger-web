@@ -1012,7 +1012,7 @@ form=function(record){
  if(record?.id){let group=rc12GroupForBill(record.id);if(group){let members=group.members.map(m=>rows.find(r=>r.id===m.id)).filter(Boolean),active=Math.max(0,members.findIndex(r=>r.id===record.id));if(members.length>=2){rc12StartTask(members,{source:'compound',active,groups:[group]});return}}}
  rc12StartTask([record||{}],{source:record?.id?'edit':'new'})
 };
-window.entryTaskOpenFromOCR=function(payload){let records=Array.isArray(payload?.records)&&payload.records.length?payload.records:[{}];rc12StartTask(records,{source:'ocr',active:0,relationHints:payload?.relationHints||[]});toast(records.length>1?`OCR 识别到 ${records.length} 笔流水，请逐张核对`:'已预填识别结果，请核对后保存')};
+window.entryTaskOpenFromOCR=function(payload){let records=Array.isArray(payload?.records)&&payload.records.length?payload.records:[{}];rc12StartTask(records,{source:'ocr',active:0,relationHints:payload?.relationHints||[]});toast(payload?.amountHistoryMatchCount?`已按同金额历史预填 ${payload.amountHistoryMatchCount} 笔的账户和分类，请核对后保存`:records.length>1?`OCR 识别到 ${records.length} 笔流水，请逐张核对`:'已预填识别结果，请核对后保存')};
 close=function(){if(rc12Task&&$('#entry'))rc12Task=null;return rc12BaseClose()};
 
 async function rc12RelateSelected(){

@@ -597,7 +597,7 @@ function recognizeOCRText(text){
  if(!engine?.recognize)return {records:[parseOCRLegacy(text)],relationHints:[],warnings:['OCR 识别器未载入，已使用基础解析']};
  let result=engine.recognize(text,ocrContext()),sourceRecords=Array.isArray(result.records)&&result.records.length?result.records:[result];
  let records=sourceRecords.map(ocrSuggestionToRecord);
- return {records,relationHints:Array.isArray(result.relationHints)?result.relationHints:[],warnings:result.warnings||[],result}
+ return {records,relationHints:Array.isArray(result.relationHints)?result.relationHints:[],warnings:result.warnings||[],amountHistoryMatchCount:sourceRecords.filter(item=>item.amountHistoryMatched).length,result}
 }
 function openPendingPrefill(){
  if(!prefs.mainName||!pendingPrefill)return;

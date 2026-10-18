@@ -25,9 +25,9 @@ const mobileCompat = read('mobile-compat.css');
 const pagesWorkflow = read('.github/workflows/pages.yml');
 
 const externalScripts = [
-  './recognizer.js?v=ocr1',
-  './app.js?v=data-safety1',
-  './ui-runtime.js?v=budget2',
+  './recognizer.js?v=ocr2',
+  './app.js?v=ocr-match1',
+  './ui-runtime.js?v=ocr-match1',
   './backup-zip.js?v=zip1',
   './books-stats.js?v=midterm2'
 ];

@@ -1,11 +1,11 @@
-const CACHE='starledger-web-v075-budget-toggle';
+const CACHE='starledger-web-v076-ocr-amount-history';
 const ASSETS=[
   './',
   './index.html',
   './manifest.webmanifest',
-  './recognizer.js?v=ocr1',
-  './app.js?v=data-safety1',
-  './ui-runtime.js?v=budget2',
+  './recognizer.js?v=ocr2',
+  './app.js?v=ocr-match1',
+  './ui-runtime.js?v=ocr-match1',
   './backup-zip.js?v=zip1',
   './books-stats.js?v=midterm2',
   './ui-foundation.css?v=budget2',
