@@ -593,7 +593,7 @@ const RC12_RELATIONS_FILE='StarLedgerRelations.json';
 const RC12_ROLE_LABELS={auto:'自动',transfer:'转账本金',expense:'消费',fee:'手续费',refund:'退款',rebate:'返现/红包',normal:'普通关联'};
 const RC12_ROLE_OPTIONS=Object.entries(RC12_ROLE_LABELS);
 let rc12Relations=rc12NormalizeRelations(BOOT?.relations||{}),rc12RelationsLoaded=!!BOOT?.relations,rc12Task=null,rc12TaskInternal=false,rc12TaskSeq=0,rc12RelationPickerQuery='',rc12PickedExistingIds=new Set();
-const rc12BaseEntryForm=entryForm,rc12BaseForm=form,rc12BaseRecords=records,rc12BaseRenderSelection=renderSelection,rc12BaseClose=close,rc12BaseBudgetState=budgetState,rc12BaseConnectFolder=connectFolder,rc12BaseRefreshDelta=refreshDelta,rc12BasePerformDelete=performDelete,rc12BaseNativeCommand=nativeCommand;
+const rc12BaseEntryForm=entryForm,rc12BaseForm=form,rc12BaseRecords=records,rc12BaseClose=close,rc12BaseBudgetState=budgetState,rc12BaseConnectFolder=connectFolder,rc12BaseRefreshDelta=refreshDelta,rc12BasePerformDelete=performDelete,rc12BaseNativeCommand=nativeCommand;
 
 function rc12Uid(prefix='D'){return prefix+'-'+Date.now().toString(36)+'-'+(++rc12TaskSeq).toString(36)+'-'+Math.random().toString(36).slice(2,7)}
 function rc12NormalizeRelations(value){
@@ -791,9 +791,9 @@ window.__slBulkEdit={
  apply:applyBulkEditSelection
 };
 
-renderSelection=function(){
- document.body.classList.toggle('selecting',selection.size>0);let ids=[...selection],groups=ids.map(rc12GroupForBill).filter(Boolean),same=ids.length>=2&&groups.length===ids.length&&groups.every(g=>g.id===groups[0].id),relLabel=same?'解除关联':'关联';
- $('#selectionBar').innerHTML=selection.size?`<button class="button" id="selectAllVisible">全选</button><button class="button" id="cancelSelection">取消</button><button class="button" id="bulkEditSelection">修改</button><button class="button selection-relate" id="rc12RelateSelection" ${selection.size<2&&!same?'disabled':''}>${relLabel}</button><button class="button danger selection-delete" id="deleteSelection">删除 ${selection.size} 笔</button>`:'';document.querySelectorAll('.rowcheck').forEach(input=>{input.checked=selection.has(input.dataset.check);input.closest('.row').classList.toggle('selected',input.checked)});document.body.classList.toggle('selection-all-visible',!!document.querySelectorAll('#searchResults .rowcheck').length&&[...document.querySelectorAll('#searchResults .rowcheck')].every(input=>selection.has(input.dataset.check)))
+window.__slSelectionRelationLabel=ids=>{
+ let groups=ids.map(rc12GroupForBill).filter(Boolean);
+ return ids.length>=2&&groups.length===ids.length&&groups.every(g=>g.id===groups[0].id)?'解除关联':'关联'
 };
 
 function rc12TaskKey(record,index=0){return record?.id?'bill:'+record.id:rc12Uid('draft')}

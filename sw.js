@@ -1,15 +1,15 @@
-const CACHE='starledger-web-v079-entry-relation-motion';
+const CACHE='starledger-web-v080-selection-keypad';
 const ASSETS=[
   './',
   './index.html',
   './manifest.webmanifest',
   './history-predictor.js?v=hist1',
   './recognizer.js?v=ocr3',
-  './app.js?v=entry2',
-  './ui-runtime.js?v=relation-motion1',
+  './app.js?v=selection1',
+  './ui-runtime.js?v=selection1',
   './backup-zip.js?v=zip1',
   './books-stats.js?v=midterm2',
-  './ui-foundation.css?v=entry-motion1',
+  './ui-foundation.css?v=selection1',
   './mobile-compat.css?v=css3'
 ];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting())));

@@ -12,6 +12,33 @@ function functionBlock(source, start, end) {
 const ui = fs.readFileSync('ui-runtime.js', 'utf8');
 const app = fs.readFileSync('app.js', 'utf8');
 
+test('Home and Search render the same bulk actions and select visible rows on the active page', () => {
+  const bar = {innerHTML: ''};
+  const checks = ['first', 'second'].map(id => ({dataset: {check: id}, closest: () => ({classList: {toggle() {}}})}));
+  const classes = new Map();
+  const context = {
+    selection: new Set(['first', 'second']), section: 'home',
+    window: {__slSelectionRelationLabel: () => '关联'},
+    document: {
+      body: {classList: {toggle: (name, value) => classes.set(name, value)}},
+      querySelectorAll: selector => selector === '.rowcheck' || selector === '#pageBody .rowcheck' ? checks : []
+    },
+    $: () => bar
+  };
+  vm.createContext(context);
+  vm.runInContext(functionBlock(app, 'function visibleSelectionChecks()', 'function toggleSelection('), context);
+  vm.runInContext('renderSelection()', context);
+  for (const action of ['selectAllVisible', 'cancelSelection', 'bulkEditSelection', 'rc12RelateSelection', 'deleteSelection']) {
+    assert.match(bar.innerHTML, new RegExp(`id="${action}"`));
+  }
+  assert.equal(classes.get('selection-all-visible'), true);
+  context.section = 'search';
+  context.document.querySelectorAll = selector => selector === '.rowcheck' || selector === '#searchResults .rowcheck' ? checks : [];
+  vm.runInContext('renderSelection()', context);
+  assert.match(bar.innerHTML, /id="bulkEditSelection"/);
+  assert.equal(classes.get('selection-all-visible'), true);
+});
+
 test('adding a new entry moves directly to the new card', () => {
   const task = {drafts: [{key: 'first', record: {amount: '5', account: '零钱', book: '日常'}}], active: 0};
   let renders = 0;

@@ -1262,6 +1262,28 @@ main {
 }
 #accountOverlay #rc12ToggleRoles[aria-expanded="true"] { color: var(--green); }
 
+/* Home and Search share the same five bulk actions and text baseline. */
+.selecting #selectionBar {
+  display: grid!important;
+  grid-template-columns: repeat(5,minmax(0,1fr))!important;
+  width: min(420px,calc(100vw - 28px))!important;
+  max-width: calc(100vw - 28px)!important;
+  align-items: stretch!important;
+}
+.selecting #selectionBar>.button {
+  display: flex!important;
+  align-items: center!important;
+  justify-content: center!important;
+  width: 100%!important;
+  min-width: 0!important;
+  height: 52px!important;
+  padding: 0 4px!important;
+  font-size: clamp(12px,3.2vw,14px)!important;
+  line-height: 1!important;
+  font-weight: 650!important;
+  white-space: nowrap!important;
+}
+
 /* Keep the existing-bill confirmation visible while its results scroll. */
 #accountOverlay .rc12-existing-picker form {
   display: flex;
@@ -1432,12 +1454,12 @@ main {
     display: grid!important;
     grid-template-columns: repeat(4,minmax(0,1fr))!important;
     gap: 5px!important;
-    max-height: 400px;
+    max-height: 310px;
     opacity: 1;
     visibility: visible;
     overflow: hidden;
     transform: translateY(0);
-    transition: max-height .26s ease, opacity .18s ease, transform .26s ease, margin .26s ease;
+    transition: max-height .34s cubic-bezier(.22,.61,.36,1), opacity .24s ease, transform .34s cubic-bezier(.22,.61,.36,1), margin .34s ease;
   }
   #overlay .entryback.keypad-hidden .entry[data-rc12-task="1"] .keypad {
     display: grid!important;
@@ -1446,9 +1468,9 @@ main {
     padding: 0!important;
     opacity: 0;
     visibility: hidden;
-    transform: translateY(12px);
+    transform: translateY(18px);
     pointer-events: none;
-    transition: max-height .26s ease, opacity .18s ease, transform .26s ease, margin .26s ease, visibility 0s linear .26s;
+    transition: max-height .34s cubic-bezier(.22,.61,.36,1), opacity .24s ease, transform .34s cubic-bezier(.22,.61,.36,1), margin .34s ease, visibility 0s linear .34s;
   }
   #overlay .entryback.editing-text .entry[data-rc12-task="1"] .keypad { display: none!important; }
   #overlay .entry[data-rc12-task="1"] .keypad button {
@@ -1467,12 +1489,13 @@ main {
   }
   #overlay .entry[data-rc12-task="1"] .keypad .keyzero,
   #overlay .entry[data-rc12-task="1"] .keypad .keydot { grid-column: auto!important; }
-  #overlay .entry[data-rc12-task="1"] .keypad [data-key="清空"] { font-size: 14px!important; }
-  #overlay .entry[data-rc12-task="1"] .keypad .keyhide { font-size: 14px!important; color: var(--muted)!important; }
+  #overlay .entry[data-rc12-task="1"] .keypad [data-key="清空"],
+  #overlay .entry[data-rc12-task="1"] .keypad .keyhide { font-size: 21px!important; }
+  #overlay .entry[data-rc12-task="1"] .keypad .keyhide { color: var(--muted)!important; }
   #overlay .entry[data-rc12-task="1"] .keypad .keyconfirm {
     background: var(--green)!important;
     color: #fff!important;
-    font-size: 16px!important;
+    font-size: 21px!important;
     font-weight: 700;
   }
   #overlay .entryback:not(.keypad-hidden):not(.editing-text) .entry[data-rc12-task="1"] .entrysave {
