@@ -39,6 +39,19 @@ test('picking an old bill establishes the relation and opens its card', () => {
   assert.match(message, /保存后生效/);
 });
 
+test('a single entry opens the bill picker before the relation manager', () => {
+  const task = {drafts: [{key: 'new'}], active: 0};
+  let picker = 0, manager = 0;
+  const context = {rc12Task: task, rc12TaskGroupForKey: () => null, rc12OpenExistingPicker() {picker++}, rc12OpenRelationManager() {manager++}};
+  vm.createContext(context);
+  vm.runInContext(functionBlock(ui, 'function rc12OpenRelationPickerOrManager()', 'function rc12OpenRelationManager()'), context);
+  vm.runInContext('rc12OpenRelationPickerOrManager()', context);
+  assert.equal(picker, 1);
+  task.drafts.push({key: 'second'});
+  vm.runInContext('rc12OpenRelationPickerOrManager()', context);
+  assert.equal(manager, 1);
+});
+
 test('first keypad digit replaces an amount, while later digits continue it', () => {
   const input = {value: '435.01', blur() {}};
   const back = {classList: {remove() {}, add() {}}};

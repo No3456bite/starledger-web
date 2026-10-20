@@ -592,7 +592,7 @@ document.addEventListener('change',e=>{
 const RC12_RELATIONS_FILE='StarLedgerRelations.json';
 const RC12_ROLE_LABELS={auto:'自动',transfer:'转账本金',expense:'消费',fee:'手续费',refund:'退款',rebate:'返现/红包',normal:'普通关联'};
 const RC12_ROLE_OPTIONS=Object.entries(RC12_ROLE_LABELS);
-let rc12Relations=rc12NormalizeRelations(BOOT?.relations||{}),rc12RelationsLoaded=!!BOOT?.relations,rc12Task=null,rc12TaskInternal=false,rc12TaskSeq=0,rc12RelationPickerQuery='';
+let rc12Relations=rc12NormalizeRelations(BOOT?.relations||{}),rc12RelationsLoaded=!!BOOT?.relations,rc12Task=null,rc12TaskInternal=false,rc12TaskSeq=0,rc12RelationPickerQuery='',rc12PickedExistingIds=new Set();
 const rc12BaseEntryForm=entryForm,rc12BaseForm=form,rc12BaseRecords=records,rc12BaseRenderSelection=renderSelection,rc12BaseClose=close,rc12BaseBudgetState=budgetState,rc12BaseConnectFolder=connectFolder,rc12BaseRefreshDelta=refreshDelta,rc12BasePerformDelete=performDelete,rc12BaseNativeCommand=nativeCommand;
 
 function rc12Uid(prefix='D'){return prefix+'-'+Date.now().toString(36)+'-'+(++rc12TaskSeq).toString(36)+'-'+Math.random().toString(36).slice(2,7)}
@@ -973,11 +973,17 @@ function rc12SwitchDraft(index,direction=0){if(!rc12Task||index<0||index>=rc12Ta
 function rc12AddDraft(){if(!rc12Task)return;rc12CaptureDraft();let current=rc12Task.drafts[rc12Task.active]?.record||{},from=rc12Task.active,now=new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,19),record={type:'支出',amount:'',date:now,account:current.account||'',book:current.book||unique('book')[0]||'',currency:current.currency||'人民币',category:'',subcategory:'',merchant:'',note:'',tags:''},draft=rc12NewDraft(record);rc12Task.drafts.splice(from+1,0,draft);rc12Task.active=from+1;rc12RenderTask(1)}
 function rc12DeleteCurrentDraft(){if(!rc12Task||rc12Task.drafts.length<=1)return;rc12CaptureDraft();let removed=rc12Task.drafts.splice(rc12Task.active,1)[0];for(let g of rc12Task.groups){delete g.roles[removed.key];g.members=g.members.filter(k=>k!==removed.key)}rc12Task.groups=rc12Task.groups.filter(g=>g.members.length>=2);rc12Task.active=Math.min(rc12Task.active,rc12Task.drafts.length-1);rc12RenderTask(matchMedia('(max-width:760px)').matches?0:-1)}
 function rc12RoleSelect(key,current){return `<select data-rc12-role="${esc(key)}">${RC12_ROLE_OPTIONS.map(([v,l])=>`<option value="${v}" ${v===current?'selected':''}>${l}</option>`).join('')}</select>`}
-function rc12OpenRelationManager(){
- if(!rc12Task)return;rc12CaptureDraft();let activeKey=rc12Task.drafts[rc12Task.active].key,activeGroup=rc12TaskGroupForKey(activeKey),checked=new Set(activeGroup?.members||[]);$('#accountOverlay').innerHTML=`<div class="modalback entry-choice-back"><div class="modal entry-choice-card rc12-relation-sheet"><div class="sectionhead"><h2>关联本次账单</h2><button type="button" id="closeEntrySheet">完成</button></div><p class="muted">关联只用于一起查看账单。收入不影响预算；支出默认计入，可在该笔账单点按“计入预算”切换。</p><form id="rc12RelationForm"><div class="rc12-relation-list">${rc12Task.drafts.map((d,i)=>{let belongs=rc12TaskGroupForKey(d.key),groupNo=belongs?rc12Task.groups.indexOf(belongs)+1:0,current=belongs?.roles?.[d.key]||d.relationRole||rc12InferRole(d.record);return `<label class="rc12-relation-item"><input type="checkbox" name="member" value="${esc(d.key)}" ${checked.has(d.key)?'checked':''}><span><b>${esc(rc12TaskDraftLabel(d,i))}</b><small>${d.existingId?'已有账单':'本次新建'} · ${belongs?'关联组 '+groupNo:'未关联'}</small></span>${rc12RoleSelect(d.key,current)}</label>`}).join('')}</div><div class="rc12-relation-actions"><button type="button" class="button" id="rc12PickExisting">从查账添加</button><button type="button" class="button" id="rc12DetachSelected">解除所选关联</button><button type="submit" class="button primary">建立／更新关联</button></div></form></div></div>`;activateEntryTertiary()
+function rc12OpenRelationPickerOrManager(){
+ if(!rc12Task)return;
+ let active=rc12Task.drafts[rc12Task.active];
+ if(rc12Task.drafts.length===1&&!rc12TaskGroupForKey(active.key))rc12OpenExistingPicker(true);
+ else rc12OpenRelationManager()
 }
-function rc12OpenExistingPicker(){
- if(!rc12Task)return;let existing=new Set(rc12Task.drafts.map(d=>d.existingId).filter(Boolean)),q=rc12RelationPickerQuery.trim().toLowerCase(),items=rows.filter(r=>!existing.has(r.id)&&(!q||[r.note,r.merchant,r.category,r.subcategory,r.account,r.amount,r.date].some(v=>String(v||'').toLowerCase().includes(q)))).slice(0,120);$('#accountOverlay').innerHTML=`<div class="modalback entry-choice-back"><div class="modal entry-choice-card rc12-existing-picker"><div class="sectionhead"><h2>从查账添加</h2><button type="button" id="rc12BackToRelations">返回</button></div><input id="rc12ExistingSearch" class="account-search" type="search" placeholder="搜索账单" value="${esc(rc12RelationPickerQuery)}"><form id="rc12ExistingPickerForm"><div class="rc12-existing-list">${items.map(r=>`<label><input type="checkbox" name="bill" value="${esc(r.id)}"><span><b>${esc(recordHeadline(r))} · ${money(amount(r),r.currency)}</b><small>${esc(r.date)} · ${esc(r.account)}</small></span></label>`).join('')||'<p class="muted">没有匹配账单</p>'}</div><div class="modalfooter"><button type="submit" class="button primary">加入本次任务</button></div></form></div></div>`;activateEntryTertiary()
+function rc12OpenRelationManager(){
+ if(!rc12Task)return;rc12CaptureDraft();let activeKey=rc12Task.drafts[rc12Task.active].key,activeGroup=rc12TaskGroupForKey(activeKey),checked=new Set(activeGroup?.members||[activeKey]);$('#accountOverlay').innerHTML=`<div class="modalback entry-choice-back"><div class="modal entry-choice-card rc12-relation-sheet"><div class="sectionhead"><h2>选择关联账单</h2><button type="button" id="closeEntrySheet">完成</button></div><p class="muted">勾选至少两笔账单，再点“保存关联”。要找以前的账单，点“从查账选择”。关联后可以一起查看，也可单独调整每笔支出的预算开关。</p><button type="button" id="rc12ToggleRoles" aria-expanded="false">关联类型（可选）</button><form id="rc12RelationForm"><div class="rc12-relation-list">${rc12Task.drafts.map((d,i)=>{let belongs=rc12TaskGroupForKey(d.key),groupNo=belongs?rc12Task.groups.indexOf(belongs)+1:0,current=belongs?.roles?.[d.key]||d.relationRole||rc12InferRole(d.record);return `<label class="rc12-relation-item"><input type="checkbox" name="member" value="${esc(d.key)}" ${checked.has(d.key)?'checked':''}><span><b>${esc(rc12TaskDraftLabel(d,i))}</b><small>${d.existingId?'已有账单':'本次新建'} · ${belongs?'关联组 '+groupNo:'未关联'}</small></span>${rc12RoleSelect(d.key,current)}</label>`}).join('')}</div><div class="rc12-relation-actions"><button type="button" class="button" id="rc12PickExisting">从查账选择</button><button type="button" class="button" id="rc12DetachSelected">解除所选关联</button><button type="submit" class="button primary">保存关联</button></div></form></div></div>`;activateEntryTertiary()
+}
+function rc12OpenExistingPicker(reset=false){
+ if(!rc12Task)return;if(reset){rc12RelationPickerQuery='';rc12PickedExistingIds.clear()}let existing=new Set(rc12Task.drafts.map(d=>d.existingId).filter(Boolean)),q=rc12RelationPickerQuery.trim().toLowerCase(),items=rows.filter(r=>!isDeletion(r)&&!existing.has(r.id)&&(!q||[r.note,r.merchant,r.category,r.subcategory,r.account,r.amount,r.date].some(v=>String(v||'').toLowerCase().includes(q)))).slice(0,120);$('#accountOverlay').innerHTML=`<div class="modalback entry-choice-back"><div class="modal entry-choice-card rc12-existing-picker"><div class="sectionhead"><h2>选择已有账单</h2><button type="button" id="rc12BackToRelations">返回</button></div><p class="muted">勾选要与当前账单一起查看的历史账单，然后点“关联所选”。</p><input id="rc12ExistingSearch" class="account-search" type="search" placeholder="搜索账单" value="${esc(rc12RelationPickerQuery)}"><form id="rc12ExistingPickerForm"><div class="rc12-existing-list">${items.map(r=>`<label><input type="checkbox" name="bill" value="${esc(r.id)}" ${rc12PickedExistingIds.has(r.id)?'checked':''}><span><b>${esc(recordHeadline(r))} · ${money(amount(r),r.currency)}</b><small>${esc(r.date)} · ${esc(r.account)}</small></span></label>`).join('')||'<p class="muted">没有匹配账单</p>'}</div><div class="modalfooter"><button type="submit" class="button primary">关联所选</button></div></form></div></div>`;activateEntryTertiary()
 }
 function rc12AddExistingBills(ids){
  if(!rc12Task)return 0;
@@ -1042,7 +1048,7 @@ refreshDelta=async function(auto=false){let r=await rc12BaseRefreshDelta(auto);i
 document.addEventListener('submit',e=>{
  if(e.target.id==='entry'&&rc12Task){e.preventDefault();e.stopImmediatePropagation();rc12CommitTask();return}
  if(e.target.id==='rc12RelationForm'){e.preventDefault();e.stopImmediatePropagation();rc12ApplyRelationForm(e.target);return}
- if(e.target.id==='rc12ExistingPickerForm'){e.preventDefault();e.stopImmediatePropagation();let ids=[...e.target.querySelectorAll('input[name=bill]:checked')].map(x=>x.value);if(!ids.length){toast('请先选择要关联的账单');return}if(!rc12AddExistingBills(ids))toast('所选账单已在本次任务中');return}
+ if(e.target.id==='rc12ExistingPickerForm'){e.preventDefault();e.stopImmediatePropagation();let ids=[...rc12PickedExistingIds];if(!ids.length){toast('请先选择要关联的账单');return}if(!rc12AddExistingBills(ids))toast('所选账单已在本次任务中');return}
 },true);
 
 document.addEventListener('click',e=>{let t=e.target.closest('button');if(!t)return;
@@ -1050,14 +1056,16 @@ document.addEventListener('click',e=>{let t=e.target.closest('button');if(!t)ret
  else if(t.id==='rc12NextDraft'){e.preventDefault();rc12SwitchDraft(rc12Task.active+1,1)}
  else if(t.id==='rc12AddDraft'){e.preventDefault();rc12AddDraft()}
  else if(t.id==='rc12DeleteDraft'){e.preventDefault();rc12DeleteCurrentDraft()}
- else if(t.id==='rc12ManageRelations'){e.preventDefault();rc12OpenRelationManager()}
- else if(t.id==='rc12PickExisting'){e.preventDefault();rc12OpenExistingPicker()}
- else if(t.id==='rc12BackToRelations'){e.preventDefault();rc12OpenRelationManager()}
+ else if(t.id==='rc12ManageRelations'){e.preventDefault();rc12OpenRelationPickerOrManager()}
+ else if(t.id==='rc12PickExisting'){e.preventDefault();rc12OpenExistingPicker(true)}
+ else if(t.id==='rc12ToggleRoles'){e.preventDefault();let sheet=t.closest('.rc12-relation-sheet'),expanded=sheet?.classList.toggle('show-roles');t.setAttribute('aria-expanded',String(!!expanded));t.textContent=expanded?'收起关联类型':'关联类型（可选）'}
+ else if(t.id==='rc12BackToRelations'){e.preventDefault();if(rc12Task?.drafts.length===1&&!rc12TaskGroupForKey(rc12Task.drafts[rc12Task.active].key))rc21CloseAccountOverlay();else rc12OpenRelationManager()}
  else if(t.id==='rc12DetachSelected'){e.preventDefault();let form=$('#rc12RelationForm'),keys=[...form.querySelectorAll('input[name=member]:checked')].map(x=>x.value);if(!keys.length){toast('先选择要解除的账单');return}rc12DetachMembers(keys)}
  else if(t.id==='rc12RelateSelection'){e.preventDefault();rc12RelateSelected().catch(err=>toast('关联失败：'+err.message))}
 },true);
 
 document.addEventListener('input',e=>{if(e.target.id==='rc12ExistingSearch'){rc12RelationPickerQuery=e.target.value;let pos=e.target.selectionStart;rc12OpenExistingPicker();requestAnimationFrame(()=>{let q=$('#rc12ExistingSearch');q?.focus();try{q?.setSelectionRange(pos,pos)}catch(_e){}})}},true);
+document.addEventListener('change',e=>{if(e.target.matches?.('#rc12ExistingPickerForm input[name="bill"]')){if(e.target.checked)rc12PickedExistingIds.add(e.target.value);else rc12PickedExistingIds.delete(e.target.value)}},true);
 
 // Load the sidecar after browser folder initialization; native already received it in BOOT.
 setTimeout(()=>rc12LoadRelations(true).catch(()=>{}),native?120:900);
