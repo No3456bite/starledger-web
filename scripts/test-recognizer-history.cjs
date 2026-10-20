@@ -45,3 +45,10 @@ test('explicit payment account is not replaced by amount history', () => {
   assert.equal(result.account.value, '零钱');
   assert.equal(result.amountHistoryMatched, false);
 });
+
+test('deleted history cannot provide an amount match', () => {
+  const deleted = {...oldBill('435.01'), extras: JSON.stringify({_starDeleted: true})};
+  const result = scan(pay('435.01'), [deleted]);
+  assert.equal(result.amountHistoryMatched, false);
+  assert.equal(result.category.value, '');
+});
