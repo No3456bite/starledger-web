@@ -1,15 +1,15 @@
-const CACHE='starledger-web-v077-history-entry-flow';
+const CACHE='starledger-web-v078-entry-keypad-row';
 const ASSETS=[
   './',
   './index.html',
   './manifest.webmanifest',
   './history-predictor.js?v=hist1',
   './recognizer.js?v=ocr3',
-  './app.js?v=history1',
-  './ui-runtime.js?v=entry-flow1',
+  './app.js?v=entry2',
+  './ui-runtime.js?v=entry-flow2',
   './backup-zip.js?v=zip1',
   './books-stats.js?v=midterm2',
-  './ui-foundation.css?v=entry1',
+  './ui-foundation.css?v=entry2',
   './mobile-compat.css?v=css3'
 ];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting())));

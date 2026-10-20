@@ -825,7 +825,7 @@ function rc12AugmentEntry(direction=0){
  let h=entry.querySelector('.entryhead h2');if(h){h.hidden=false;h.textContent=mobile?'记一笔':(rc12Task.source==='compound'?'复合账单':'记一笔')+` · ${rc12Task.active+1}/${rc12Task.drafts.length}`}
  let close=entry.querySelector('#closeBtn');if(close&&mobile){close.textContent='×';close.setAttribute('aria-label','关闭记一笔')}
  let ledgerBtn=entry.querySelector('#switchMain');if(ledgerBtn&&mobile){ledgerBtn.textContent=prefs.mainName||'账本';ledgerBtn.title='切换账本';ledgerBtn.setAttribute('aria-label','切换账本')}
- let submit=f.querySelector('button[type=submit]');if(submit)submit.textContent=`确认保存（${rc12Task.drafts.length}笔）`;let keySave=f.querySelector('[data-key="保存账单"]');if(keySave)keySave.textContent=`保存 ${rc12Task.drafts.length} 笔`;
+ let submit=f.querySelector('button[type=submit]');if(submit)submit.textContent='保存';let keySave=f.querySelector('[data-key="保存账单"]');if(keySave)keySave.textContent='保存';
  entry.dataset.rc12Task='1';
  rc12BindMobileSwipe(entry)
 }
@@ -850,8 +850,8 @@ function rc123GhostHydrate(clone,draft,index){
  let group=rc12TaskGroupForKey(draft?.key),rel=clone.querySelector('#rc12ManageRelations');if(rel)rel.textContent=group?`关联账单 · ${group.members.length}`:'关联账单';let budget=clone.querySelector('.entry-budget-control');if(budget)budget.innerHTML=rc12BudgetControl(type,rc12BudgetChoice({...r,type}));
  let del=clone.querySelector('#rc12DeleteDraft');if(del)del.textContent=draft?.existingId?'移出':'删除';
  let ledger=clone.querySelector('#switchMain');if(ledger)ledger.textContent=prefs.mainName||'账本';
- let submit=clone.querySelector('button[type=submit]');if(submit)submit.textContent=`确认保存（${rc12Task?.drafts?.length||1}笔）`;
- let keySave=clone.querySelector('[data-key="保存账单"]');if(keySave)keySave.textContent=`保存 ${rc12Task?.drafts?.length||1} 笔`;
+ let submit=clone.querySelector('button[type=submit]');if(submit)submit.textContent='保存';
+ let keySave=clone.querySelector('[data-key="保存账单"]');if(keySave)keySave.textContent='保存';
  return clone
 }
 function rc123MakeGhost(entry,index,kind){
@@ -891,7 +891,7 @@ function rc124RefreshStackAfterInsert(entry,previousCount){
  if(!entry||!rc12Task)return;let back=entry.closest('.entryback');if(!back)return;back.classList.toggle('rc12-multi',rc12Task.drafts.length>1);
  let nav=entry.querySelector('.rc12-tasknav>b'),prevBtn=entry.querySelector('#rc12PrevDraft'),nextBtn=entry.querySelector('#rc12NextDraft'),delBtn=entry.querySelector('#rc12DeleteDraft');
  if(nav)nav.textContent=`${rc12Task.active+1}/${rc12Task.drafts.length}`;if(prevBtn)prevBtn.disabled=rc12Task.active<=0;if(nextBtn)nextBtn.disabled=rc12Task.active>=rc12Task.drafts.length-1;if(delBtn)delBtn.disabled=rc12Task.drafts.length<=1;
- let submit=entry.querySelector('button[type=submit]');if(submit)submit.textContent=`确认保存（${rc12Task.drafts.length}笔）`;let keySave=entry.querySelector('[data-key="保存账单"]');if(keySave)keySave.textContent=`保存 ${rc12Task.drafts.length} 笔`;
+ let submit=entry.querySelector('button[type=submit]');if(submit)submit.textContent='保存';let keySave=entry.querySelector('[data-key="保存账单"]');if(keySave)keySave.textContent='保存';
  rc123StopMotion();rc123Swipe=null;rc123Scalar=0;
  // A one-card task had no swipe listeners yet. Once the inserted card makes it a stack,
  // bind the existing gesture system in place instead of rebuilding the live form.

@@ -1409,9 +1409,9 @@ main {
   #overlay .entry[data-rc12-task="1"] .keypad button {
     height: clamp(44px,5.8dvh,52px)!important;
     min-height: 44px!important;
-    border: 1px solid var(--line)!important;
+    border: 0!important;
     border-radius: 11px!important;
-    background: var(--card)!important;
+    background: var(--pale)!important;
     color: var(--ink)!important;
     font-size: 21px!important;
   }
@@ -1421,22 +1421,38 @@ main {
     color: var(--green)!important;
   }
   #overlay .entry[data-rc12-task="1"] .keypad .keyzero,
-  #overlay .entry[data-rc12-task="1"] .keypad .keydot { grid-column: span 2!important; }
+  #overlay .entry[data-rc12-task="1"] .keypad .keydot { grid-column: auto!important; }
   #overlay .entry[data-rc12-task="1"] .keypad [data-key="清空"] { font-size: 14px!important; }
+  #overlay .entry[data-rc12-task="1"] .keypad .keyhide { font-size: 14px!important; color: var(--muted)!important; }
+  #overlay .entry[data-rc12-task="1"] .keypad .keyconfirm {
+    background: var(--green)!important;
+    color: #fff!important;
+    font-size: 16px!important;
+    font-weight: 700;
+  }
+  #overlay .entryback:not(.keypad-hidden):not(.editing-text) .entry[data-rc12-task="1"] .entrysave { display: none!important; }
   #overlay .entry[data-rc12-task="1"] .entrysave {
     display: grid!important;
-    grid-template-columns: minmax(0,1fr) minmax(0,1.45fr);
+    grid-template-columns: minmax(0,1fr);
     gap: 8px;
     min-height: 52px;
     margin: 8px 0 0;
   }
+  #overlay .entry[data-rc12-task="1"] .entrysave:has(#deleteBtn) { grid-template-columns: minmax(0,1fr) minmax(0,1.45fr); }
   #overlay .entry[data-rc12-task="1"] .entrysave button { min-height: 52px!important; border-radius: 13px!important; font-size: 15px!important; font-weight: 700; }
   #overlay .entry[data-rc12-task="1"] .entrysave .entry-hide-action { border: 1px solid var(--line); background: var(--card); color: var(--ink); }
   #overlay .entry[data-rc12-task="1"] .entrysave .button.primary { padding: 9px!important; font-size: 16px!important; }
 }
 
 @media (max-width: 760px) and (max-height: 710px) {
-  #overlay .entry[data-rc12-task="1"] .keypad button { height: 35px!important; min-height: 35px!important; }
+  /* Safari's expanded bottom bar leaves less visible height; shorten the form,
+     keeping the keypad targets at their established size. */
+  #overlay .entry[data-rc12-task="1"] .amount-control { min-height: 58px; padding-bottom: 4px; }
+  #overlay .entry[data-rc12-task="1"] .entry-history-suggestions { margin: 2px 0 5px; }
+  #overlay .entry[data-rc12-task="1"] .entry-history-suggestions button { min-height: 28px; padding: 3px 7px; }
+  #overlay .entry[data-rc12-task="1"] .entry-note-card { min-height: 59px!important; margin-top: 6px!important; }
+  #overlay .entry[data-rc12-task="1"] .entry-task-primary-actions { margin-top: 3px; }
+  #overlay .entry[data-rc12-task="1"] .keypad button { height: 39px!important; min-height: 39px!important; }
   #overlay .entry[data-rc12-task="1"] .entry-task-primary-actions button { min-height: 42px; }
   #overlay .entry[data-rc12-task="1"] .entrysave { min-height: 46px; margin-top: 5px; }
   #overlay .entry[data-rc12-task="1"] .entrysave button { min-height: 46px!important; }
