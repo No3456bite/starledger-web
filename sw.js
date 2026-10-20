@@ -1,14 +1,15 @@
-const CACHE='starledger-web-v076-ocr-amount-history';
+const CACHE='starledger-web-v077-history-entry-flow';
 const ASSETS=[
   './',
   './index.html',
   './manifest.webmanifest',
-  './recognizer.js?v=ocr2',
-  './app.js?v=ocr-match1',
-  './ui-runtime.js?v=ocr-match1',
+  './history-predictor.js?v=hist1',
+  './recognizer.js?v=ocr3',
+  './app.js?v=history1',
+  './ui-runtime.js?v=entry-flow1',
   './backup-zip.js?v=zip1',
   './books-stats.js?v=midterm2',
-  './ui-foundation.css?v=budget2',
+  './ui-foundation.css?v=entry1',
   './mobile-compat.css?v=css3'
 ];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting())));

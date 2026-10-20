@@ -33,6 +33,7 @@ jobs:
           node --check ui-runtime.js
           node --check books-stats.js
           node --check recognizer.js
+          node --check history-predictor.js
           node --check sw.js
           node --check scripts/validate-build.mjs
 
@@ -56,6 +57,11 @@ jobs:
 
       - name: Check OCR amount history matching
         run: node scripts/test-recognizer-history.cjs
+
+      - name: Check entry flow and history suggestions
+        run: |
+          node scripts/test-entry-flow.cjs
+          node scripts/test-history-predictor.cjs
 
   deploy:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
