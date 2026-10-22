@@ -1,11 +1,11 @@
-const CACHE='starledger-web-v081-safari-entry-edge';
+const CACHE='starledger-web-v082-safari-chrome-tint';
 const ASSETS=[
   './',
   './index.html',
   './manifest.webmanifest',
   './history-predictor.js?v=hist1',
   './recognizer.js?v=ocr3',
-  './app.js?v=selection1',
+  './app.js?v=selection2',
   './ui-runtime.js?v=selection1',
   './backup-zip.js?v=zip1',
   './books-stats.js?v=midterm2',

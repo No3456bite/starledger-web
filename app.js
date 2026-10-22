@@ -407,7 +407,18 @@ let accountZeroCollapsed=false;
 try{accountZeroCollapsed=localStorage.getItem(ACCOUNT_ZERO_COLLAPSE_KEY)==='1'}catch(e){}
 let prefs={...DEFAULT_PREFS,...(BOOT?.settings||{}),...(BOOT?.mainName?{mainName:BOOT.mainName}:{})},folderHandle=null,entryKind='支出',entryCategory='',busy=false,ocrReviewText='',pendingPrefill=BOOT?.prefillText||'';
 const systemScheme=matchMedia('(prefers-color-scheme: dark)');
-function applyTheme(){let mode=prefs.appearance==='system'?(systemScheme.matches?'dark':'light'):prefs.appearance;document.documentElement.dataset.mode=mode;document.documentElement.dataset.theme='neutral';document.documentElement.style.colorScheme=mode;document.documentElement.style.backgroundColor=mode==='dark'?'#000000':'#f7f7f5';document.querySelectorAll('meta[name="theme-color"]').forEach(meta=>meta.content=mode==='dark'?'#000000':'#f7f7f5')}
+function applyTheme(){
+ let mode=prefs.appearance==='system'?(systemScheme.matches?'dark':'light'):prefs.appearance;
+ let safariTab=document.documentElement.classList.contains('browser-tab');
+ // Safari samples the document edge and theme-color for its browser toolbar.
+ // Keep the app canvas black; give only browser-tab chrome a neutral tint.
+ let chromeColor=mode==='dark'?(safariTab?'#171717':'#000000'):'#f7f7f5';
+ document.documentElement.dataset.mode=mode;
+ document.documentElement.dataset.theme='neutral';
+ document.documentElement.style.colorScheme=mode;
+ document.documentElement.style.backgroundColor=chromeColor;
+ document.querySelectorAll('meta[name="theme-color"]').forEach(meta=>meta.content=chromeColor)
+}
 if(systemScheme.addEventListener)systemScheme.addEventListener('change',()=>{if(prefs.appearance==='system')applyTheme()});else if(systemScheme.addListener)systemScheme.addListener(()=>{if(prefs.appearance==='system')applyTheme()});
 applyTheme();
 // Web v0.2: IndexedDB is the canonical ledger store; localStorage is an emergency fallback.
