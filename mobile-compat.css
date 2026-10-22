@@ -52,6 +52,20 @@
     overflow-y:auto!important;
     touch-action:pan-y!important;
   }
+  /* The entry card stops above Safari's bottom chrome. Its transparent
+     clearance exposes the pure-black page after navigation fades, leaving
+     a black edge for Safari to sample. Tint only that edge with the editor's
+     neutral surface; keep the rest of the overlay transparent. */
+  html.browser-tab[data-mode="dark"] #overlay.safari-document-modal>.entryback::after{
+    content:"";
+    position:absolute;
+    left:0;
+    right:0;
+    bottom:0;
+    height:calc(var(--sl-browser-chrome-gap) + 32px);
+    background:linear-gradient(to bottom,transparent,var(--card) 32px);
+    pointer-events:none;
+  }
   html.browser-tab #overlay.safari-document-modal>.entryback>.entry{
     max-height:none!important;
     margin:auto!important;

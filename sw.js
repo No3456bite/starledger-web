@@ -1,4 +1,4 @@
-const CACHE='starledger-web-v080-selection-keypad';
+const CACHE='starledger-web-v081-safari-entry-edge';
 const ASSETS=[
   './',
   './index.html',
@@ -10,7 +10,7 @@ const ASSETS=[
   './backup-zip.js?v=zip1',
   './books-stats.js?v=midterm2',
   './ui-foundation.css?v=selection1',
-  './mobile-compat.css?v=css3'
+  './mobile-compat.css?v=css4'
 ];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
