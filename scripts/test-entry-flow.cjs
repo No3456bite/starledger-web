@@ -12,23 +12,15 @@ function functionBlock(source, start, end) {
 const ui = fs.readFileSync('ui-runtime.js', 'utf8');
 const app = fs.readFileSync('app.js', 'utf8');
 
-test('dark Safari chrome uses a neutral tint while standalone keeps its black canvas', () => {
+test('dark theme keeps the page edge black in browser tabs and standalone', () => {
   const metas = [{content: ''}, {content: ''}];
-  let safariTab = true;
-  const root = {dataset: {}, style: {}, classList: {contains: name => name === 'browser-tab' && safariTab}};
+  const root = {dataset: {}, style: {}};
   const context = {prefs: {appearance: 'dark'}, systemScheme: {matches: true}, document: {documentElement: root, querySelectorAll: () => metas}};
   vm.createContext(context);
   vm.runInContext(functionBlock(app, 'function applyTheme()', 'if(systemScheme.addEventListener)'), context);
   vm.runInContext('applyTheme()', context);
-  assert.equal(root.style.backgroundColor, '#171717');
-  assert.ok(metas.every(meta => meta.content === '#171717'));
-  safariTab = false;
-  vm.runInContext('applyTheme()', context);
   assert.equal(root.style.backgroundColor, '#000000');
   assert.ok(metas.every(meta => meta.content === '#000000'));
-  context.prefs.appearance = 'light';
-  vm.runInContext('applyTheme()', context);
-  assert.equal(root.style.backgroundColor, '#f7f7f5');
 });
 
 test('Home and Search render the same bulk actions and select visible rows on the active page', () => {

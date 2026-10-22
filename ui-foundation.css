@@ -1381,9 +1381,9 @@ main {
     transform: translateY(0);
     transition: opacity .25s ease, transform .25s cubic-bezier(.22,.61,.36,1);
   }
-  /* The old visibility toggle made the bottom bar flash after the entry closed. */
-  body:has(#overlay>.entryback) .mobilebar { visibility: visible!important; }
-  body:has(#overlay>.entryback.rc21-closing) .mobilebar {
+  /* PWA keeps the nav fade; Safari browser tabs remove the glass layer below. */
+  html:not(.browser-tab) body:has(#overlay>.entryback) .mobilebar { visibility: visible!important; }
+  html:not(.browser-tab) body:has(#overlay>.entryback.rc21-closing) .mobilebar {
     opacity: 1!important;
     transform: translateY(0)!important;
   }

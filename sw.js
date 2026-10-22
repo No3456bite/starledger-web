@@ -1,16 +1,16 @@
-const CACHE='starledger-web-v082-safari-chrome-tint';
+const CACHE='starledger-web-v083-safari-nav-layer';
 const ASSETS=[
   './',
   './index.html',
   './manifest.webmanifest',
   './history-predictor.js?v=hist1',
   './recognizer.js?v=ocr3',
-  './app.js?v=selection2',
+  './app.js?v=selection3',
   './ui-runtime.js?v=selection1',
   './backup-zip.js?v=zip1',
   './books-stats.js?v=midterm2',
-  './ui-foundation.css?v=selection1',
-  './mobile-compat.css?v=css4'
+  './ui-foundation.css?v=selection2',
+  './mobile-compat.css?v=css5'
 ];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
