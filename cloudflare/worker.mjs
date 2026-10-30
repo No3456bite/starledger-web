@@ -1,5 +1,6 @@
 // StarLedger manual backup relay. Configure credentials as Worker secrets.
 const primaryOrigin = 'https://no3456bite.github.io';
+const publicPagesOrigin = 'https://starledger-web-dhp.pages.dev';
 
 function pagesOrigin(value) {
   try {
@@ -14,7 +15,7 @@ export default {
     const url = new URL(request.url);
     const origin = request.headers.get('Origin');
     const secondaryOrigin = pagesOrigin(env.PAGES_ORIGIN);
-    if (origin && origin !== primaryOrigin && origin !== secondaryOrigin) return new Response('Origin not allowed', { status: 403, headers: { 'Cache-Control': 'no-store', Vary: 'Origin' } });
+    if (origin && origin !== primaryOrigin && origin !== publicPagesOrigin && origin !== secondaryOrigin) return new Response('Origin not allowed', { status: 403, headers: { 'Cache-Control': 'no-store', Vary: 'Origin' } });
     const reply = (body, status = 200, extra = {}) => new Response(body, { status, headers: {
       'Access-Control-Allow-Origin': origin || primaryOrigin,
       'Access-Control-Allow-Methods': 'GET, PUT, OPTIONS',

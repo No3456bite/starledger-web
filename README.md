@@ -4,7 +4,7 @@
 
 > **这是一个全 Codex 开发项目。** 从需求拆解、产品与交互设计、UI 实现、功能开发、Safari 兼容性修复，到自动化校验和文档维护，均由 OpenAI Codex 在用户的方向指导与实际验收下完成。StarLedger 是独立项目，并非 OpenAI 官方产品。
 
-**在线体验：<https://no3456bite.github.io/starledger-web/>**
+**在线体验：<https://no3456bite.github.io/starledger-web/> · <https://starledger-web-dhp.pages.dev/>**
 
 ## Cloudflare Pages 备用网址
 
@@ -20,7 +20,7 @@ Cloudflare Pages 与 GitHub Pages 可以从同一 `main` 分支各自自动发�
 
 `dist` 仅包含运行网页需要的 11 个静态文件，不会把测试、文档、Worker 源码或项目配置作为网站资源公开。Cloudflare Pages 项目与已有的 `starledger-webdav-relay` Worker 是两个独立项目；这里不要选“创建 Worker”，也不要在 Pages 项目填写坚果云密码或同步令牌。以后 `main` 更新时两站会分别发布，时间可能短暂不同；GitHub 故障期间 Cloudflare 已发布的网页仍可访问，但新版本可能要等代码源恢复才能发布。
 
-新网址的浏览器存储与 GitHub Pages 分开。**先在旧网址导出完整 ZIP，确认备份可读，再在新网址恢复；不要仅凭新站首页正常就清除旧站数据。**如使用坚果云同步，还需在现有 Worker 的 Production `Settings → Runtime variables and secrets` 添加普通变量 `PAGES_ORIGIN`，值为新站完整来源（例如 `https://starledger-backup.pages.dev`，不含路径），保存并确认 Production 部署。然后在新网址的设置页重新填写原 Worker 地址及同步令牌，测试连接并读取云端备份。若以后换成自定义域名，须把 `PAGES_ORIGIN` 改成实际使用的网址；Worker 同时保留旧 GitHub Pages 来源。不要把令牌发到聊天或提交进仓库。
+新网址的浏览器存储与 GitHub Pages 分开。**先在旧网址导出完整 ZIP，确认备份可读，再在新网址恢复；不要仅凭新站首页正常就清除旧站数据。**现有 Worker 已允许 `https://starledger-web-dhp.pages.dev`；确认 Worker 的 Production 部署更新后，在新网址的设置页重新填写原 Worker 地址及同步令牌，测试连接并读取云端备份。若以后换成自定义域名，可在 Worker 的 Production `Settings → Runtime variables and secrets` 添加普通变量 `PAGES_ORIGIN`，值为该域名的 HTTPS 来源（不含路径）。Worker 同时保留旧 GitHub Pages 来源。不要把令牌发到聊天或提交进仓库。
 
 ## 主要功能
 
@@ -81,7 +81,7 @@ Cloudflare Pages 与 GitHub Pages 可以从同一 `main` 分支各自自动发�
 
 “测试连接”会先确认 Worker 可达，再检查坚果云，并在按钮下方保留每一步结果。`401` 通常是星账本中填写的 `SYNC_TOKEN` 与 Worker Secret 不一致；`503` 表示 Worker 的四个 Secret 尚未配置齐全；`502` 且提示 WebDAV `401` 时，应核对坚果云邮箱和第三方应用密码。若第一步超时，检查 Worker 的 Production `workers.dev` 开关、完整 HTTPS 地址及网络；若第二步返回 `504`，则是 Worker 已连接、坚果云在 12 秒内未响应。
 
-Worker 只允许星账本 GitHub Pages 以及 `PAGES_ORIGIN` 指定的一个 Pages 来源发起跨域浏览器请求，且所有操作都需要令牌；令牌是主要的访问保护，请妥善保管。坚果云应用密码仅留在 Worker Secret 中。跨设备首次设置仍需安全地自行传递 Worker 地址和令牌。Worker 或坚果云如返回错误，网页不会自动清除本机账本。上传前请留意：远端只有一份，旧版会被覆盖。
+Worker 只允许星账本 GitHub Pages、当前 Cloudflare Pages 网址以及可选的 `PAGES_ORIGIN` 来源发起跨域浏览器请求，且所有操作都需要令牌；令牌是主要的访问保护，请妥善保管。坚果云应用密码仅留在 Worker Secret 中。跨设备首次设置仍需安全地自行传递 Worker 地址和令牌。Worker 或坚果云如返回错误，网页不会自动清除本机账本。上传前请留意：远端只有一份，旧版会被覆盖。
 
 公开网站不会自动连接项目作者的 Worker。每个浏览器只有在自行填写 Worker 地址和令牌后才会使用它。当前 Worker 是**单人单备份**设计，不提供多用户账号隔离：不要把同一个令牌提供给其他用户；若其他人需要云备份，应各自部署 Worker 并配置自己的坚果云。未知请求即使未通过令牌验证，也可能消耗 Worker 请求额度；大量恶意请求可能导致免费额度耗尽或暂时不可用，但不会因此让攻击者读取账本。令牌泄露则可能导致远端 ZIP 被读取或覆盖，应立即轮换令牌及坚果云应用密码。
 
