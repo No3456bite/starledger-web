@@ -40,6 +40,9 @@ jobs:
       - name: Check build invariants
         run: node scripts/validate-build.mjs
 
+      - name: Check Cloudflare Pages static bundle
+        run: node scripts/build-site.mjs
+
       - name: Check complete backup ZIP codec
         run: node scripts/test-backup-zip.cjs
 

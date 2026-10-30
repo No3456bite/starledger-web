@@ -9,6 +9,7 @@ const env = {
 };
 const base = 'https://example.workers.dev';
 const origin = 'https://no3456bite.github.io';
+const pagesSite = 'https://starledger-backup.pages.dev';
 const headers = { Origin: origin, Authorization: 'Bearer test-secret' };
 const originalFetch = globalThis.fetch;
 const originalSetTimeout = globalThis.setTimeout;
@@ -25,6 +26,13 @@ try {
   assert.equal(response.status, 403);
   response = await worker.fetch(new Request(base + '/status', { headers: { Origin: origin } }), env);
   assert.equal(response.status, 401);
+  response = await worker.fetch(new Request(base + '/health', { headers: { Origin: pagesSite, Authorization: 'Bearer test-secret' } }), { ...env, PAGES_ORIGIN: pagesSite });
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('Access-Control-Allow-Origin'), pagesSite);
+  response = await worker.fetch(new Request(base + '/health', { headers: { Origin: 'https://evil.example', Authorization: 'Bearer test-secret' } }), { ...env, PAGES_ORIGIN: pagesSite });
+  assert.equal(response.status, 403);
+  response = await worker.fetch(new Request(base + '/health', { headers: { Origin: pagesSite, Authorization: 'Bearer test-secret' } }), { ...env, PAGES_ORIGIN: 'https://starledger-backup.pages.dev/other' });
+  assert.equal(response.status, 403);
   call = null;
   response = await worker.fetch(new Request(base + '/health', { headers }), env);
   assert.deepEqual(await response.json(), { ok: true });

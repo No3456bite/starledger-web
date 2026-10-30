@@ -1,21 +1,28 @@
-// StarLedger manual backup relay. Configure all values as Worker secrets.
-const allowOrigin = 'https://no3456bite.github.io';
-const cors = {
-  'Access-Control-Allow-Origin': allowOrigin,
-  'Access-Control-Allow-Methods': 'GET, PUT, OPTIONS',
-  'Access-Control-Allow-Headers': 'Authorization, Content-Type',
-  'Cache-Control': 'no-store',
-  Vary: 'Origin'
-};
+// StarLedger manual backup relay. Configure credentials as Worker secrets.
+const primaryOrigin = 'https://no3456bite.github.io';
 
-function reply(body, status = 200, extra = {}) {
-  return new Response(body, { status, headers: { ...cors, ...extra } });
+function pagesOrigin(value) {
+  try {
+    const url = new URL(value);
+    if (url.protocol === 'https:' && !url.username && !url.password && url.pathname === '/' && !url.search && !url.hash) return url.origin;
+  } catch {}
+  return '';
 }
 
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
-    if (request.headers.get('Origin') && request.headers.get('Origin') !== allowOrigin) return reply('Origin not allowed', 403);
+    const origin = request.headers.get('Origin');
+    const secondaryOrigin = pagesOrigin(env.PAGES_ORIGIN);
+    if (origin && origin !== primaryOrigin && origin !== secondaryOrigin) return new Response('Origin not allowed', { status: 403, headers: { 'Cache-Control': 'no-store', Vary: 'Origin' } });
+    const reply = (body, status = 200, extra = {}) => new Response(body, { status, headers: {
+      'Access-Control-Allow-Origin': origin || primaryOrigin,
+      'Access-Control-Allow-Methods': 'GET, PUT, OPTIONS',
+      'Access-Control-Allow-Headers': 'Authorization, Content-Type',
+      'Cache-Control': 'no-store',
+      Vary: 'Origin',
+      ...extra
+    } });
     if (request.method === 'OPTIONS') return reply(null, 204);
     if (!env.SYNC_TOKEN) return reply('Worker secrets are incomplete', 503);
     if (request.headers.get('Authorization') !== `Bearer ${env.SYNC_TOKEN}`) return reply('Unauthorized', 401);
