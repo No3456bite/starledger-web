@@ -1,0 +1,11 @@
+{
+  "name": "starledger-web",
+  "private": true,
+  "scripts": {
+    "test:e2e": "playwright test --project=chromium",
+    "test:e2e:webkit": "playwright test --project=webkit"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56.1"
+  }
+}

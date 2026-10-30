@@ -158,6 +158,16 @@ node scripts/test-cloudflare-worker.mjs
 node scripts/test-auto-backup.cjs
 ```
 
+浏览器冒烟回归使用独立的本地浏览器数据，不读取线上账本或 WebDAV：
+
+```bash
+npm ci
+npx playwright install chromium
+npm run test:e2e
+```
+
+`npm run test:e2e` 会自行启动 `127.0.0.1:4173` 静态服务，只运行 4 个 Chromium 场景。桌面 WebKit 可手动执行 `npx playwright install webkit` 和 `npm run test:e2e:webkit`；其结果不能替代 iPhone Safari 真机验收。失败时的 trace 与截图保存在 `test-results/`，详见 [回归清单](./tests/REGRESSION_CHECKLIST.md)。PR 和 `main` 提交会自动运行 Chromium 测试；只有原有校验与浏览器测试都通过，`main` 的 Pages 部署才会开始。
+
 ## 部署与版本保护
 
 - `main` 每次提交后由 GitHub Actions 自动校验并部署到 GitHub Pages。

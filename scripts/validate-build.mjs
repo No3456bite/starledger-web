@@ -121,7 +121,8 @@ for (const marker of ['--sl-browser-chrome-gap','browser-pager-filter-current','
 
 for (const marker of [
   "github.event_name == 'push' && github.ref == 'refs/heads/main'",
-  'needs: validate'
+  'needs: [validate, smoke]',
+  'npm run test:e2e'
 ]) {
   if (!pagesWorkflow.includes(marker)) fail(`Pages deployment condition is missing: ${marker}`);
 }
