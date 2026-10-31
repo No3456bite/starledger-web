@@ -52,6 +52,9 @@ jobs:
       - name: Check automatic backup decisions
         run: node scripts/test-auto-backup.cjs
 
+      - name: Check OCR URL handoff
+        run: node scripts/test-ocr-prefill.cjs
+
       - name: Check data safety and recovery
         run: node scripts/test-data-safety.cjs
 

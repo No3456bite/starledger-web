@@ -1,4 +1,4 @@
-const CACHE='starledger-web-v084-duplicate-id-review';
+const CACHE='starledger-web-v085-ocr-prefill-recovery';
 const ASSETS=[
   './',
   './index.html',

@@ -90,6 +90,22 @@ test('a single entry opens the bill picker before the relation manager', () => {
   assert.equal(manager, 1);
 });
 
+test('a relation badge only appears when at least two distinct bills can open', () => {
+  const context = {
+    rows: [{id: 'duplicate'}, {id: 'duplicate'}],
+    rc12Relations: {groups: [{id: 'relation', members: [{id: 'duplicate'}, {id: 'missing'}]}], suppressedLegacy: []},
+    rc12ParseExtras: () => ({})
+  };
+  vm.createContext(context);
+  vm.runInContext(functionBlock(ui, 'function rc12LegacyGroups()', 'function rc12InferRole('), context);
+  assert.equal(vm.runInContext("rc12GroupForBill('duplicate')", context), null,
+    'a duplicate ID and missing companion cannot produce an actionable relation');
+  context.rows = [{id: 'duplicate'}, {id: 'other'}];
+  context.rc12Relations.groups[0].members[1].id = 'other';
+  assert.equal(vm.runInContext("rc12GroupForBill('duplicate').members.length", context), 2,
+    'a valid pair remains visible');
+});
+
 test('first keypad digit replaces an amount, while later digits continue it', () => {
   const input = {value: '435.01', blur() {}};
   const back = {classList: {remove() {}, add() {}}};

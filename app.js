@@ -606,6 +606,12 @@ function exportStatus(){
 }
 function parseOCRLegacy(input){let text=String(input||'').slice(0,12000),lines=text.split(/[\r\n]+/).map(x=>x.trim()).filter(Boolean),type=/收款成功|收入|已到账|到账金额|收款金额/.test(text)&&!/付款成功|支付成功/.test(text)?'收入':'支出';let candidates=[];for(let i=0;i<lines.length;i++){let line=lines[i];if(/余额|优惠|原价|券|手续费|订单号|单号|积分/.test(line))continue;for(let m of line.matchAll(/(?:[¥￥]\s*)?(-?\d{1,7}(?:,\d{3})*(?:\.\d{1,2})?)/g)){let n=Math.abs(Number(m[1].replace(/,/g,'')));if(n<=0||n>1e7||(!m[0].includes('¥')&&!m[0].includes('￥')&&!m[1].includes('.')))continue;let context=lines.slice(Math.max(0,i-1),i+1).join(' '),score=/(实付|支付金额|付款金额|交易金额|收款金额|到账金额|总计|合计)/.test(context)?10:/(¥|￥)/.test(m[0])?5:1;if(/余额|优惠|原价|券|手续费/.test(context))score-=8;candidates.push({n,score,i})}}candidates.sort((a,b)=>b.score-a.score||a.i-b.i);let dateMatch=text.match(/(20\d{2})[年\/-](\d{1,2})[月\/-](\d{1,2})日?\s*(\d{1,2}):(\d{2})/),date=dateMatch?`${dateMatch[1]}-${dateMatch[2].padStart(2,'0')}-${dateMatch[3].padStart(2,'0')} ${dateMatch[4].padStart(2,'0')}:${dateMatch[5]}:00`:'';let merchantLine=lines.find(x=>/^(?:收款方|交易对象|商家|商品说明|商品)[:：]/.test(x)),merchant=merchantLine?.replace(/^[^:：]+[:：]\s*/,'').slice(0,60)||'';return {type,amount:candidates[0]?.n?.toFixed(2)||'',date,merchant,note:merchant}}
 
+const OCR_PENDING_KEY='star-ledger-ocr-pending-v1',OCR_PENDING_MAX_AGE=10*60*1000;
+function restorePendingOCRPrefill(){
+ try{let saved=JSON.parse(sessionStorage.getItem(OCR_PENDING_KEY)||'null');if(saved?.at&&Date.now()-saved.at<OCR_PENDING_MAX_AGE&&saved.payload?.action==='ocr'&&saved.payload.text)return saved.payload;sessionStorage.removeItem(OCR_PENDING_KEY)}catch(e){}
+ return ''
+}
+function clearPendingOCRPrefill(){try{sessionStorage.removeItem(OCR_PENDING_KEY)}catch(e){}}
 function consumeHashPrefill(){
  let hash=String(location.hash||''),payload=null;
  try{
@@ -616,7 +622,12 @@ function consumeHashPrefill(){
    if(obj&&Number(obj.v||1)>=1&&obj.action==='ocr'&&typeof obj.text==='string')payload=obj;
   }
  }catch(e){console.warn('OCR payload decode failed',e)}
- if(payload)try{history.replaceState(null,'',location.pathname+location.search)}catch(e){}
+ if(payload){
+  // Safari may reload while the local ledger or cloud snapshot is still loading.
+  // Keep this request in tab-local storage until the user saves or closes it.
+  try{sessionStorage.setItem(OCR_PENDING_KEY,JSON.stringify({at:Date.now(),payload}))}catch(e){}
+  try{history.replaceState(null,'',location.pathname+location.search)}catch(e){}
+ }
  return payload||''
 }
 function ocrFieldValue(v){return v&&typeof v==='object'&&Object.prototype.hasOwnProperty.call(v,'value')?v.value:(v??'')}
@@ -662,11 +673,9 @@ function recognizeOCRText(text){
  return {records,relationHints:Array.isArray(result.relationHints)?result.relationHints:[],warnings:result.warnings||[],amountHistoryMatchCount:sourceRecords.filter(item=>item.amountHistoryMatched).length,historyPredictionCount:sourceRecords.filter(item=>item.historyPredictionMatched).length,result}
 }
 function openPendingPrefill(){
- if(!prefs.mainName||!pendingPrefill)return;
+ if(!prefs.mainName||!pendingPrefill||!window.entryTaskOpenFromOCR)return;
  let payload=typeof pendingPrefill==='string'?{v:1,action:'ocr',source:'legacy',text:pendingPrefill}:pendingPrefill;
- // Consume first. No later lifecycle event may reuse this object.
- pendingPrefill='';
- if(payload?.action!=='ocr'||!payload?.text)return;
+ if(payload?.action!=='ocr'||!payload?.text){pendingPrefill='';return}
  try{
   let parsed=recognizeOCRText(payload.text);
   // Invalidate every pending close callback before replacing the old task.
@@ -678,8 +687,9 @@ function openPendingPrefill(){
   if(accountOverlay)accountOverlay.innerHTML='';
   document.body.classList.remove('dialog-open');
   ocrReviewText=payload.text;
-  if(window.entryTaskOpenFromOCR)window.entryTaskOpenFromOCR(parsed);
-  else entryForm(parsed.records[0]||{});
+  window.entryTaskOpenFromOCR(parsed);
+  if(!$('#entry'))throw Error('记账界面未能打开');
+  pendingPrefill='';
   if(parsed.warnings?.length)console.info('StarLedger OCR warnings',parsed.warnings);
  }catch(e){
   toast('OCR 解析失败：'+(e.message||e));
@@ -1056,7 +1066,7 @@ function homeActivityStrip(){
 }
 function homeV2(){let rs=filtered(rows,{monthOnly:true}),listRs=continuousBillRows(),f=financial();return `${homeActivityStrip()}<div class="home-metrics">${homeFinancialCard(f)}${homeMonthSummary(rs)}</div><div class="grid cols2 section home-overview-grid"><div class="card">${categoryPanel(rs,'home')}</div><div class="card"><div class="sectionhead"><h2>最近账单</h2></div>${records(listRs,8)}<button class="record-link" data-viewall="home">查看全部账单　›</button></div></div>`}
 function firstUsePage(){return `<div class="card importarea first-use-card">
- <div class="first-use-intro"><span class="first-use-kicker">第一次使用</span><h2>开始使用星账本</h2><p>选择适合你的开始方式。账单默认保存在当前浏览器，不会上传到服务器。</p></div>
+ <div class="first-use-intro"><span class="first-use-kicker">第一次使用</span><h2>开始使用星账本</h2><p>选择适合你的开始方式。账单默认保存在当前浏览器，不会上传到服务器。</p>${pendingPrefill?'<p class="notice" role="status">已收到截图识别内容。建立或恢复账本后，会自动打开记一笔。</p>':''}</div>
  <div class="first-use-options">
   <button type="button" class="first-use-option first-use-option-primary" id="newBook"><span class="first-use-icon" aria-hidden="true">＋</span><span><b>创建新账本</b><small>从空白账本开始，稍后再添加账户和账单</small></span><span class="first-use-arrow" aria-hidden="true">→</span></button>
   <button type="button" class="first-use-option" id="importFolder"><span class="first-use-icon" aria-hidden="true">↗</span><span><b>打开已有数据</b><small>选择包含 StarLedger CSV 与设置文件的工作区文件夹</small></span><span class="first-use-arrow" aria-hidden="true">→</span></button>
@@ -1728,7 +1738,7 @@ async function createBook(){
  workspace=nextWorkspace;prefs=nextPrefs;
  if(folderHandle)await writeSharedPrefs({...nextPrefs,mainName:name});
  rows=[];revision=digest(csvWrite([]));book='全部账本';query='';kind='全部类型';account='全部账户';category='全部分类';subcategory='全部小类';currencyFilter='全部币种';day='';page=0;
- applyTheme();render();window.dispatchEvent(new CustomEvent('star-ledger-main-changed',{detail:{name}}));toast('已新建主账本：'+name)
+ applyTheme();render();window.dispatchEvent(new CustomEvent('star-ledger-main-changed',{detail:{name}}));openPendingPrefill();toast('已新建主账本：'+name)
 }
 async function getFolder(){try{let d=await db(),v=await new Promise((res,rej)=>{let tx=d.transaction('state','readonly'),q=tx.objectStore('state').get('folder');q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)});d.close();return v||null}catch(e){return null}}
 async function storeFolder(handle){let d=await db();await new Promise((res,rej)=>{let tx=d.transaction('state','readwrite');tx.objectStore('state').put(handle,'folder');tx.oncomplete=res;tx.onerror=()=>rej(tx.error)});d.close()}
@@ -1954,6 +1964,7 @@ async function applyWorkspaceSnapshot(snapshot,{folderName='',mode='snapshot',re
  await putBundle(entries);
  workspace=nextWorkspace;prefs=activePrefs;applyTheme();takeCsv(activeCsv);
  window.dispatchEvent(new CustomEvent('star-ledger-main-changed',{detail:{name:active}}));
+ openPendingPrefill();
  if(snapshot.warnings?.length)toast('已读取工作区；'+snapshot.warnings.join('；'));
  else toast('已读取 '+names.length+' 个主账本');
  if(askIfMultiple&&names.length>1)setTimeout(workspacePicker,0)
@@ -2314,7 +2325,7 @@ function hasIncomingOCRHash(){
 window.addEventListener('hashchange',()=>{if(hasIncomingOCRHash())receiveHashPrefill()});
 window.addEventListener('pageshow',()=>{if(hasIncomingOCRHash())receiveHashPrefill()});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&hasIncomingOCRHash())receiveHashPrefill()});
-pendingPrefill=pendingPrefill||consumeHashPrefill();if(BOOT?.native){try{if(BOOT.deferCsv){$('#pageBody').innerHTML='<div class="card">正在载入账单…</div>'}else window.__ledgerInstallCsv(BOOT.csv||csvWrite([]))}catch(err){toast(err.message);render()}}else{$('#pageBody').innerHTML='<div class="card">正在读取星账本…</div>';initLocal().catch(err=>{toast(err.message);render()})}
+pendingPrefill=pendingPrefill||consumeHashPrefill()||restorePendingOCRPrefill();if(BOOT?.native){try{if(BOOT.deferCsv){$('#pageBody').innerHTML='<div class="card">正在载入账单…</div>'}else window.__ledgerInstallCsv(BOOT.csv||csvWrite([]))}catch(err){toast(err.message);render()}}else{$('#pageBody').innerHTML='<div class="card">正在读取星账本…</div>';initLocal().catch(err=>{toast(err.message);render()})}
 
 
 document.addEventListener('click',e=>{

@@ -70,6 +70,7 @@
     const back=e.target.closest?.('.modalback,.entryback');
     if(!back||e.target!==back)return;
     e.preventDefault();e.stopPropagation();
+    if(back.classList.contains('entryback')){close();return}
     closeBackdrop(back);
   },true);
 })();
@@ -610,7 +611,14 @@ function rc12LegacyGroups(){
  return [...map].filter(([rel,ids])=>ids.length>=2&&!suppressed.has('legacy:'+rel)).map(([rel,ids])=>({id:'legacy:'+rel,type:'legacy',members:ids.map(id=>({id,role:'auto'})),legacy:true,createdAt:'',updatedAt:''}))
 }
 function rc12AllGroups(){
- let explicit=rc12Relations.groups||[],claimed=new Set(explicit.flatMap(g=>g.members.map(m=>m.id))),legacy=rc12LegacyGroups().map(g=>({...g,members:g.members.filter(m=>!claimed.has(m.id))})).filter(g=>g.members.length>=2);return [...explicit,...legacy]
+ // A relation is actionable only when each member ID resolves to one bill.
+ // Older backups can contain a duplicated ID beside a missing companion ID.
+ let counts=new Map();for(let row of rows)counts.set(row.id,(counts.get(row.id)||0)+1);
+ let present=member=>counts.get(member.id)===1;
+ let explicit=(rc12Relations.groups||[]).map(g=>({...g,members:g.members.filter(present)})).filter(g=>g.members.length>=2);
+ let claimed=new Set(explicit.flatMap(g=>g.members.map(m=>m.id)));
+ let legacy=rc12LegacyGroups().map(g=>({...g,members:g.members.filter(m=>present(m)&&!claimed.has(m.id))})).filter(g=>g.members.length>=2);
+ return [...explicit,...legacy]
 }
 function rc12GroupForBill(id){return rc12AllGroups().find(g=>g.members.some(m=>m.id===id))||null}
 function rc12InferRole(r){
@@ -801,6 +809,7 @@ function rc12NewDraft(record={},index=0){let key=rc12TaskKey(record,index);retur
 function rc12TaskGroupForKey(key){return rc12Task?.groups?.find(g=>g.members.includes(key))||null}
 function rc12TaskDraftLabel(draft,index){let r=draft.record||{},name=r.note||r.merchant||r.subcategory||r.category||r.type||'新账单',amt=Number(r.amount);return `${index+1}. ${name}${amt>0?' · '+money(amt,r.currency||'人民币'):''}`}
 function rc12StartTask(recordsInput=[{}],opts={}){
+ if(rc12Task?.source==='ocr'&&opts.source!=='ocr')clearPendingOCRPrefill();
  let list=(Array.isArray(recordsInput)?recordsInput:[recordsInput]).map((r,i)=>rc12NewDraft(r||{},i));if(!list.length)list=[rc12NewDraft({},0)];rc12Task={drafts:list,active:Math.max(0,Math.min(list.length-1,Number(opts.active)||0)),groups:[],detached:new Set(),legacySources:new Set(),source:opts.source||'new'};
  if(Array.isArray(opts.groups))for(let g of opts.groups){if(g?.legacy||String(g?.id||'').startsWith('legacy:'))rc12Task.legacySources.add(String(g.id));let members=(g.members||[]).map(m=>{let id=typeof m==='string'?m:m.id,found=list.find(d=>d.existingId===id||d.key===id);return found?.key}).filter(Boolean);if(members.length>=2)rc12Task.groups.push({id:g.legacy?rc12Uid('RG'):String(g.id||rc12Uid('RG')),members,roles:Object.fromEntries(members.map(k=>{let d=list.find(x=>x.key===k),raw=(g.members||[]).find(m=>(typeof m==='string'?m:m.id)===d?.existingId);return[k,String(typeof raw==='object'&&raw.role||d?.relationRole||'auto')]})),sourceId:String(g.id||'')})}
  if(Array.isArray(opts.relationHints))for(let hint of opts.relationHints){let members=(hint.members||[]).map(i=>list[Number(i)]?.key).filter(Boolean);if(members.length>=2)rc12Task.groups.push({id:rc12Uid('RG'),members,roles:Object.fromEntries(members.map((k,i)=>[k,String(hint.roles?.[i]||list.find(d=>d.key===k)?.relationRole||'auto')])),sourceId:''})}
@@ -1016,7 +1025,7 @@ async function rc12DesktopBatchCommit(items,relationState){
 }
 async function rc12CommitTask(){
  if(!rc12Task)return;if(!rc12RelationsLoaded)await rc12LoadRelations(false);rc12CaptureDraft();let items=[];try{for(let [i,d] of rc12Task.drafts.entries())items.push({tempId:d.key,id:d.existingId||'',record:rc12RecordForSave(d,i)})}catch(e){toast(e.message);return}let relations=rc12TaskRelationsForCommit(),f=$('#entry');if(f?.dataset.saving==='1')return;if(f)f.dataset.saving='1';let submit=f?.querySelector('button[type=submit]');if(submit)submit.disabled=true;
- try{let result;if(native){result=await nativeCommand('batchCommit',null,null,{records:items,relationState:relations,relationGroups:relations.groups});prefs={...prefs,...(result.settings||{})};rc12Relations=rc12NormalizeRelations(result.relations||relations);if(result.csv!==undefined)takeCsv(result.csv)}else result=await rc12DesktopBatchCommit(items,relations);let count=items.length;rc12Task=null;ocrReviewText='';rc12BaseClose();render();toast(`已保存 ${count} 笔账单${relations.groups.length?'及关联关系':''}`)}catch(e){if(f){delete f.dataset.saving;if(submit)submit.disabled=false}toast('保存失败：'+(e.message||e))}
+ try{let result;if(native){result=await nativeCommand('batchCommit',null,null,{records:items,relationState:relations,relationGroups:relations.groups});prefs={...prefs,...(result.settings||{})};rc12Relations=rc12NormalizeRelations(result.relations||relations);if(result.csv!==undefined)takeCsv(result.csv)}else result=await rc12DesktopBatchCommit(items,relations);let count=items.length;if(rc12Task?.source==='ocr')clearPendingOCRPrefill();rc12Task=null;ocrReviewText='';rc12BaseClose();render();toast(`已保存 ${count} 笔账单${relations.groups.length?'及关联关系':''}`)}catch(e){if(f){delete f.dataset.saving;if(submit)submit.disabled=false}toast('保存失败：'+(e.message||e))}
 }
 
 entryForm=function(record){
@@ -1030,7 +1039,8 @@ form=function(record){
  rc12StartTask([record||{}],{source:record?.id?'edit':'new'})
 };
 window.entryTaskOpenFromOCR=function(payload){let records=Array.isArray(payload?.records)&&payload.records.length?payload.records:[{}];rc12StartTask(records,{source:'ocr',active:0,relationHints:payload?.relationHints||[]});toast(payload?.amountHistoryMatchCount?`已按同金额历史预填 ${payload.amountHistoryMatchCount} 笔的账户和分类，请核对后保存`:payload?.historyPredictionCount?`已按相似历史账单预填 ${payload.historyPredictionCount} 笔，请核对后保存`:records.length>1?`OCR 识别到 ${records.length} 笔流水，请逐张核对`:'已预填识别结果，请核对后保存')};
-close=function(){if(rc12Task&&$('#entry'))rc12Task=null;return rc12BaseClose()};
+close=function(){if(rc12Task&&$('#entry')){if(rc12Task.source==='ocr')clearPendingOCRPrefill();rc12Task=null}return rc12BaseClose()};
+openPendingPrefill();
 
 async function rc12RelateSelected(){
  let ids=[...selection];if(!ids.length){toast('没有选择账单');return}
