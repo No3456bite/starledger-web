@@ -3,9 +3,11 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 
 const source = fs.readFileSync('app.js', 'utf8');
+const verifyStart = source.indexOf('async function verifyCloudUpload(');
+const verifyEnd = source.indexOf('async function uploadCloudBackup(', verifyStart);
 const start = source.indexOf("const AUTO_BACKUP_KEY=");
 const end = source.indexOf('function showCloudSyncHelp(', start);
-assert(start > 0 && end > start, 'automatic backup module is present');
+assert(verifyStart > 0 && verifyEnd > verifyStart && start > 0 && end > start, 'automatic backup module is present');
 
 const stored = new Map();
 const nodes = {
@@ -62,7 +64,7 @@ const context = {
   prefs: { mainName: 'test' }
 };
 vm.createContext(context);
-vm.runInContext(source.slice(start, end), context);
+vm.runInContext(source.slice(verifyStart, verifyEnd) + source.slice(start, end), context);
 const run = expression => vm.runInContext(expression, context);
 
 (async () => {
@@ -115,5 +117,21 @@ const run = expression => vm.runInContext(expression, context);
   await run('runAutoBackup()');
   assert.equal(run('autoBackupPending()'), true, 'an edit made during upload remains pending');
   changeDuringUpload = false;
+
+  const previousRead = context.readCompleteBackup;
+  context.readCompleteBackup = async () => { throw Error('测试账本_desktop.csv：第 10 行金额无效'); };
+  remoteHash = 'BROKEN'; remoteTag = 'v9';
+  await run('checkRemoteBackupOnOpen(true)');
+  assert.match(run('autoBackupState.lastError'), /^云端备份无效：/,
+    'a failed cloud ZIP check identifies the remote source');
+
+  run("autoBackupState.baseHash='F';autoBackupState.remoteVersion='etag:v9';autoBackupRemoteReady=true;autoBackupConflict=''");
+  localHash = 'LOCAL'; run('markAutoBackupDirty()');
+  const uploadsBeforeFailure = uploads;
+  await run('runAutoBackup()');
+  assert.match(run('autoBackupState.lastError'), /^本机生成的备份无效：/,
+    'a failed generated ZIP check identifies the local source');
+  assert.equal(uploads, uploadsBeforeFailure, 'invalid local ZIP must not be uploaded');
+  context.readCompleteBackup = previousRead;
   console.log('Automatic backup content-hash decisions passed.');
 })().catch(error => { console.error(error.stack || error); process.exitCode = 1; });

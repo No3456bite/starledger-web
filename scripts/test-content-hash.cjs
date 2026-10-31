@@ -58,5 +58,8 @@ const hash = data => { context.testEntries = data; return vm.runInContext('backu
   context.zipWorkspaceFiles = async () => ({ contentEntries: original.slice(0, 3),
     manifest: { ...summary, contentHash: '0'.repeat(64) } });
   await assert.rejects(() => vm.runInContext("readCompleteBackup({},'tampered.zip')", context), /内容码与账本内容不一致/);
+  context.parseWorkspaceFiles = async () => ({ names: [], warnings: ['测试账本_desktop.csv：第 10 行金额无效'] });
+  await assert.rejects(() => vm.runInContext("readCompleteBackup({},'invalid.zip')", context), /测试账本_desktop\.csv：第 10 行金额无效/,
+    'a rejected ledger CSV must report its actual validation failure');
   console.log('Backup content-code normalization and manifest validation passed.');
 })().catch(error => { console.error(error.stack || error); process.exitCode = 1; });
