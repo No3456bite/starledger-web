@@ -1,4 +1,4 @@
-const CACHE='starledger-web-v083-safari-nav-layer';
+const CACHE='starledger-web-v084-duplicate-id-review';
 const ASSETS=[
   './',
   './index.html',

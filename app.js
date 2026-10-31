@@ -16,6 +16,7 @@ const BACK_ICON='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6
 const today=new Date(),cycleToday=new Date(today.getFullYear(),today.getMonth()-(today.getDate()<Number(BOOT?.settings?.monthStartDay||1)?1:0),1),nowYear=cycleToday.getFullYear(),nowMonth=cycleToday.getMonth()+1;
 let entryInstantRender=false;
 let rows=[],revision='',native=!!BOOT?.native,section='home',year=nowYear,month=nowMonth,book='全部账本',query='',kind='全部类型',account='全部账户',category='全部分类',subcategory='全部小类',currencyFilter='全部币种',day='',page=0,pending=new Map(),seq=0,configured={};
+let duplicateIdBooks=new Map(),duplicateScanVersion=0;
 let statsMode='month';
 
 const PRIMARY_PAGE_ORDER=['home','stats','books','accounts','search'];
@@ -234,9 +235,70 @@ function validateImportCsv(data,label='CSV'){
  }
  if(problems.length)throw Error(`${label} 有 ${problems.length} 项数据问题：${problems.slice(0,5).join('；')}${problems.length>5?'；请先修正后重新导入':''}`);
 }
+function duplicateIdGroups(data){
+ let byId=new Map();
+ for(let [index,row] of data.entries()){let id=String(row.id||'').trim();if(id){let indexes=byId.get(id)||[];indexes.push(index);byId.set(id,indexes)}}
+ return [...byId].filter(([,indexes])=>indexes.length>1).map(([id,indexes])=>{
+  let stamp=index=>{let raw=data[index].updated_at||data[index].created_at||'',time=Date.parse(raw);return Number.isFinite(time)?time:0};
+  let anchorIndex=indexes.reduce((best,index)=>stamp(index)>stamp(best)?index:best,indexes[0]);
+  return {id,anchorIndex,allIndexes:indexes,extraIndexes:indexes.filter(index=>index!==anchorIndex)}
+ });
+}
+function resolveDuplicateIds(data,decisions,createId){
+ let groups=duplicateIdGroups(data),used=new Set(data.map(row=>String(row.id||'').trim())),remove=new Set(),replace=new Map();
+ for(let group of groups)for(let index of group.extraIndexes){
+  let choice=decisions[index];
+  if(choice==='delete')remove.add(index);
+  else if(choice==='keep'){let id=String(createId()).trim();if(!id||used.has(id))throw Error('新账单 ID 必须唯一');used.add(id);replace.set(index,id)}
+  else throw Error('请逐条选择删除或保留重复账单');
+ }
+ return {rows:data.flatMap((row,index)=>remove.has(index)?[]:[replace.has(index)?{...row,id:replace.get(index)}:row]),deleted:remove.size,reassigned:replace.size};
+}
 function csvWrite(data){return '\uFEFF'+COLS.join(',')+'\r\n'+data.map(r=>COLS.map(k=>'"'+String(r[k]??'').replace(/"/g,'""')+'"').join(',')).join('\r\n')+'\r\n'}
 function digest(s){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return (h>>>0).toString(16)}
-function takeCsv(s){rows=csvParse(s);revision=digest(s);render()}
+function captureDuplicateIdIssues(data){return duplicateIdGroups(data).map(group=>({...group,items:group.allIndexes.map(index=>({index,row:{...data[index]}}))}))}
+function duplicateIdCount(){return [...duplicateIdBooks.values()].reduce((total,groups)=>total+groups.reduce((count,group)=>count+group.extraIndexes.length,0),0)}
+function renderSettingsButton(){
+ let button=$('#settingsBtn');if(!button)return;
+ let count=duplicateIdCount();
+ button.innerHTML=(section==='settings'?BACK_ICON:SETTINGS_ICON)+(count?'<span class="duplicate-id-badge" aria-hidden="true">!</span>':'');
+ button.setAttribute('aria-label',section==='settings'?'返回上一页'+(count?'，有重复账单待核对':''):'设置'+(count?'，有重复账单待核对':'') );
+}
+function duplicateBillDescription(row){
+ return `<b>${esc(row.type||'账单')} · ${esc(row.category||'未分类')}${row.subcategory?' / '+esc(row.subcategory):''} · ${esc(row.amount||'0')} ${esc(row.currency||'人民币')}</b><small>${esc(row.date||'无日期')} · ${esc(row.account||'无账户')}${row.merchant?' · '+esc(row.merchant):''}${row.note?' · '+esc(row.note):''}</small><small>最后修改：${esc(row.updated_at||row.created_at||'未记录')}</small>`;
+}
+function duplicateIdReviewCard(){
+ let count=duplicateIdCount();if(!count)return '';
+ let active=duplicateIdBooks.get(prefs.mainName)||[],other=[...duplicateIdBooks].filter(([name,groups])=>name!==prefs.mainName&&groups.length);
+ let groups=active.map((group,number)=>`<div class="duplicate-id-group"><h3>重复组 ${number+1} · ${group.allIndexes.length} 条记录</h3>${group.items.map(({index,row})=>`<div class="duplicate-id-item">${duplicateBillDescription(row)}${index===group.anchorIndex?'<span class="duplicate-id-anchor">较新记录：保留原 ID 和关联</span>':`<div class="duplicate-id-choices"><label><input type="radio" name="duplicate-${index}" value="delete">删除这条</label><label><input type="radio" name="duplicate-${index}" value="keep">保留，换新 ID</label></div>`}</div>`).join('')}</div>`).join('');
+ return `<div class="card section duplicate-id-review" role="alert"><div class="sectionhead"><h2>! 重复账单待核对</h2><p>共 ${count} 条记录需要处理</p></div><p>同一个账单 ID 被使用了多次，完整 ZIP 导入与云端备份因此会失败。请核对内容，再逐条选择删除或保留。保留会分配新 ID；原 ID 的账单关联留在较新记录上。</p>${active.length?`<div class="duplicate-id-groups">${groups}</div><button type="button" class="button primary" id="applyDuplicateIdReview" ${native||folderHandle?'disabled':''}>保存核对结果</button>`:''}${other.map(([name,issues])=>`<div class="duplicate-id-other"><span>${esc(name)} · ${issues.reduce((n,g)=>n+g.extraIndexes.length,0)} 条待核对</span><button type="button" class="button" data-duplicate-switch="${esc(name)}">切换并核对</button></div>`).join('')}${native||folderHandle?'<p class="muted">当前连接了外部工作区，暂不能只修改本机账本。</p>':''}</div>`;
+}
+async function applyDuplicateIdReview(){
+ if(busy)throw Error('另一项操作正在进行');if(native||folderHandle)throw Error('当前连接了外部工作区，无法只修改本机账本');
+ let groups=duplicateIdGroups(rows);if(!groups.length){refreshDuplicateIdBooks();return}
+ let decisions={};for(let group of groups)for(let index of group.extraIndexes)decisions[index]=document.querySelector(`input[name="duplicate-${index}"]:checked`)?.value;
+ let counter=0,result=resolveDuplicateIds(rows,decisions,()=>`REPAIR-${Date.now()}-${++counter}-${Math.random().toString(36).slice(2,10)}`);
+ validateImportCsv(result.rows,'核对后的账本');
+ let before=csvWrite(rows),saved=await get(ledgerCsvKey(prefs.mainName))||await get('csv');
+ if(!saved&&rows.length||saved&&JSON.stringify(csvParse(saved))!==JSON.stringify(rows))throw Error('本机账本已变化，请刷新页面后重新核对');
+ let button=$('#applyDuplicateIdReview');if(button)button.disabled=true;busy=true;
+ try{
+  let next=csvWrite(result.rows),nextPrefs={...prefs,lastChangeAt:Date.now(),undoBatch:null};
+  await putBundle({recovery:before,csv:next,prefs:nextPrefs});
+  prefs=nextPrefs;takeCsv(next);
+  toast(`已核对：删除 ${result.deleted} 条，保留并更换 ID ${result.reassigned} 条；可在设置中恢复上一步`);
+ }finally{busy=false;if(button?.isConnected)button.disabled=false}
+}
+async function refreshDuplicateIdBooks(){
+ let generation=++duplicateScanVersion,next=new Map(),names=[...new Set([...workspace.names,prefs.mainName].filter(Boolean))];
+ for(let name of names){
+  try{let data=name===prefs.mainName?rows:csvParse(await get(ledgerCsvKey(name))||csvWrite([]));next.set(name,captureDuplicateIdIssues(data))}
+  catch(error){console.warn('StarLedger duplicate ID scan:',error)}
+ }
+ if(generation!==duplicateScanVersion)return;
+ duplicateIdBooks=next;renderSettingsButton();let slot=$('#duplicateIdReviewSlot');if(slot)slot.innerHTML=duplicateIdReviewCard();
+}
+function takeCsv(s){rows=csvParse(s);revision=digest(s);if(prefs.mainName)duplicateIdBooks.set(prefs.mainName,captureDuplicateIdIssues(rows));render();refreshDuplicateIdBooks().catch(error=>console.warn('StarLedger duplicate ID scan:',error))}
 function amount(r){return Number(r.amount)||0}function isCNY(r){return !r.currency||r.currency==='人民币'||r.currency==='CNY'}
 const CURRENCY_NAMES={CNY:'人民币',USD:'美元',EUR:'欧元',JPY:'日元',HKD:'港币',GBP:'英镑',AUD:'澳元',CAD:'加拿大元',SGD:'新加坡元',TWD:'新台币',KRW:'韩元',CHF:'瑞士法郎',NZD:'新西兰元',THB:'泰铢',MYR:'马来西亚林吉特',MOP:'澳门元'};
 const POPULAR_CURRENCIES=['CNY','USD','EUR','JPY','HKD','GBP','AUD','CAD','SGD','TWD','KRW','CHF','NZD','THB','MYR','MOP'];
@@ -944,7 +1006,7 @@ async function runBatch(op){if(!op.target||['bookRename','tagRename','categoryRe
 function appearanceCard(){let mode=prefs.appearance==='light'?'light':prefs.appearance==='dark'?'dark':systemScheme.matches?'dark':'light';return `<div class="card section appearance-card"><div class="sectionhead"><h2>外观配色</h2></div><div class="appearance-choices">${[['light','亮色'],['dark','深色']].map(([key,label])=>`<button type="button" class="appearance-choice ${key} ${mode===key?'active':''}" data-appearancechoice="${key}" aria-pressed="${mode===key}"><span class="appearance-preview"></span>${label}</button>`).join('')}</div><p class="muted">收支金额固定为绿色和红色；切换配色不会改变账单。</p></div>`}
 function settingsPage(){
  let when=prefs.lastExportAt?new Date(prefs.lastExportAt).toLocaleString('zh-CN'):'尚无导出记录';
- return `<div class="card settings-basics"><div class="sectionhead"><h2>基础设置</h2></div>${cycleSetting()}${recordDisplaySetting()}</div>${bannerSettingsCard()}${configTools()}${accountManagementPage()}${managementPage()}${categoryManagementPage()}
+ return `<div id="duplicateIdReviewSlot">${duplicateIdReviewCard()}</div><div class="card settings-basics"><div class="sectionhead"><h2>基础设置</h2></div>${cycleSetting()}${recordDisplaySetting()}</div>${bannerSettingsCard()}${configTools()}${accountManagementPage()}${managementPage()}${categoryManagementPage()}
  <div class="grid cols2">${appearanceCard()}
   <div class="card"><div class="sectionhead"><h2>导出提醒</h2></div>
    <p class="muted">StarLedger Web 的数据保存在当前设备。完整 ZIP 包含全部本地主账本、配置与账单关联；主动清除网站数据前请先导出。</p>
@@ -1595,7 +1657,7 @@ function render(){
  $('#nav').innerHTML=nav;
  $('#mobileNav').innerHTML=Object.entries(labels).map(([k,v])=>`<button class="${section===k?'active':''}" data-go="${k}" ${!prefs.mainName&&k!=='home'?'disabled aria-disabled="true"':''}><span class="icon">${icons[k]}</span>${v}</button>`).join('');
  let titleNode=$('#title');if(titleNode){if(section==='stats')titleNode.innerHTML=`<span class="stats-title-switch"><button type="button" data-statsmode="month" class="${statsMode==='month'?'active':''}">月度</button><button type="button" data-statsmode="year" class="${statsMode==='year'?'active':''}">年度</button></span>`;else titleNode.textContent=section==='settings'?'设置':labels[section]}
- let settingsButton=$('#settingsBtn');if(settingsButton){settingsButton.innerHTML=section==='settings'?BACK_ICON:SETTINGS_ICON;settingsButton.setAttribute('aria-label',section==='settings'?'返回上一页':'设置')}
+ renderSettingsButton();
  let ledgerSwitch=$('#ledgerSwitch');if(ledgerSwitch){ledgerSwitch.hidden=section==='settings'||workspace.names.length<2;ledgerSwitch.textContent=(prefs.mainName||'主账本')+'　⌄'}
  let statusNode=$('#status');if(statusNode)statusNode.textContent=prefs.mainName?`${prefs.mainName} · ${rows.length.toLocaleString()} 笔 · ${workspace.readWrite?'工作区已连接':workspace.mode==='snapshot'?'文件夹快照':'浏览器本地'}`:'首次使用 · 数据默认保存在本机';
  $('#addBtn').hidden=section==='settings'||!prefs.mainName;
@@ -2153,6 +2215,8 @@ document.addEventListener('click',e=>{if(e.target.closest?.('.entry-date-action'
  else if(t.dataset.entrysub){if($('#entry [name=type]').value==='借贷'){let f=$('#entry'),r=Object.fromEntries(new FormData(f));r.id=f.dataset.id;r.subcategory=t.dataset.entrysub;entryForm(r)}else{$('#entry [name=subcategory]').value=t.dataset.entrysub;$('#subInput').value=t.dataset.entrysub;document.querySelectorAll('[data-entrysub]').forEach(b=>b.classList.toggle('active',b===t))}}
  else if(t.dataset.historycat){let f=$('#entry');if(f){f.elements.category.value=t.dataset.historycat;f.elements.subcategory.value=t.dataset.historysub||'';let sub=f.querySelector('#subInput');if(sub)sub.value=t.dataset.historysub||'';entryCategory=t.dataset.historycat;updateEntryChips();refreshEntryHistorySuggestions();toast('已采用历史分类建议，可继续修改')}}
  else if(t.dataset.key)pressAmountKey(t.dataset.key)
+ else if(t.dataset.duplicateSwitch)switchWorkspaceLedger(t.dataset.duplicateSwitch).catch(err=>toast(err.message))
+ else if(t.id==='applyDuplicateIdReview')applyDuplicateIdReview().catch(err=>toast(err.message))
  else if(t.id==='settingsBtn'){if(section==='settings'){rc20SetPage(rc21SettingsReturn||'home')}else{rc21SettingsReturn=PRIMARY_PAGE_ORDER.includes(section)?section:'home';rc20SetPage('settings')}render()}
  else if(t.id==='addBtn')form()
  else if(t.id==='closeBtn'||t.classList.contains('modalback')){let bf=t.closest('#bannerConfigForm'),bm=t.closest('[data-banner-modal]');let bk=bf?.dataset.bannerkey||bm?.dataset.bannerModal||'';if(bk)clearBannerDraft(bk,true);if(t.closest('.backup-import-modal')){pendingCompleteBackup=null;pendingCloudImportVersion='';pendingCloudImportHash=''}if(t.closest('#accountOverlay'))rc21CloseAccountOverlay();else close()}
