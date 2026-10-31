@@ -28,8 +28,8 @@ const pagesWorkflow = read('.github/workflows/pages.yml');
 const externalScripts = [
   './history-predictor.js?v=hist1',
   './recognizer.js?v=ocr3',
-  './app.js?v=selection3',
-  './ui-runtime.js?v=selection1',
+  './app.js?v=ocr-handoff1',
+  './ui-runtime.js?v=ocr-handoff1',
   './backup-zip.js?v=zip1',
   './books-stats.js?v=midterm2'
 ];

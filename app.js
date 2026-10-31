@@ -608,10 +608,11 @@ function parseOCRLegacy(input){let text=String(input||'').slice(0,12000),lines=t
 
 const OCR_PENDING_KEY='star-ledger-ocr-pending-v1',OCR_PENDING_MAX_AGE=10*60*1000;
 function restorePendingOCRPrefill(){
- try{let saved=JSON.parse(sessionStorage.getItem(OCR_PENDING_KEY)||'null');if(saved?.at&&Date.now()-saved.at<OCR_PENDING_MAX_AGE&&saved.payload?.action==='ocr'&&saved.payload.text)return saved.payload;sessionStorage.removeItem(OCR_PENDING_KEY)}catch(e){}
+ try{let saved=JSON.parse(sessionStorage.getItem(OCR_PENDING_KEY)||'null');if(saved?.at&&Date.now()-saved.at<OCR_PENDING_MAX_AGE&&(saved.payload?.action==='ocr'&&(saved.payload.text||saved.payload.records?.length)||saved.payload?.action==='ocr-clipboard'))return saved.payload;sessionStorage.removeItem(OCR_PENDING_KEY)}catch(e){}
  return ''
 }
 function clearPendingOCRPrefill(){try{sessionStorage.removeItem(OCR_PENDING_KEY)}catch(e){}}
+function legacyOCRPayload(obj){return obj?.kind==='starledger-ocr-prefill'&&Array.isArray(obj.records)&&obj.records.length?{v:1,action:'ocr',source:'legacy-scriptable',records:obj.records.slice(0,50),relationHints:Array.isArray(obj.relationHints)?obj.relationHints:[]}:null}
 function consumeHashPrefill(){
  let hash=String(location.hash||''),payload=null;
  try{
@@ -620,6 +621,12 @@ function consumeHashPrefill(){
   }else if(hash.startsWith('#sl=')){
    let raw=decodeURIComponent(hash.slice(4)),obj=JSON.parse(raw);
    if(obj&&Number(obj.v||1)>=1&&obj.action==='ocr'&&typeof obj.text==='string')payload=obj;
+  }else if(hash.startsWith('#sl-ocr=')){
+   // Older Scriptable shortcuts return ready-to-review records in this shape.
+   payload=legacyOCRPayload(JSON.parse(new URLSearchParams(hash.slice(1)).get('sl-ocr')||'null'));
+  }else if(hash.startsWith('#sl-ocr-clipboard=')){
+   // Long Scriptable results use the clipboard because Safari URLs have a size limit.
+   payload={v:1,action:'ocr-clipboard',source:'legacy-scriptable'};
   }
  }catch(e){console.warn('OCR payload decode failed',e)}
  if(payload){
@@ -675,9 +682,13 @@ function recognizeOCRText(text){
 function openPendingPrefill(){
  if(!prefs.mainName||!pendingPrefill||!window.entryTaskOpenFromOCR)return;
  let payload=typeof pendingPrefill==='string'?{v:1,action:'ocr',source:'legacy',text:pendingPrefill}:pendingPrefill;
- if(payload?.action!=='ocr'||!payload?.text){pendingPrefill='';return}
+ if(payload?.action==='ocr-clipboard'){
+  if(!$('#ocrClipboardInput'))$('#overlay').innerHTML='<div class="modalback"><div class="modal"><h2>读取 OCR 结果</h2><p class="muted">这次识别文字较长。请点“读取剪贴板”；若 Safari 不允许读取，也可粘贴后打开。</p><textarea id="ocrClipboardInput" aria-label="粘贴 OCR 结果" rows="4"></textarea><div class="modalfooter"><button type="button" class="button primary" id="ocrClipboardOpen">读取剪贴板并打开</button></div></div></div>';
+  return
+ }
+ if(payload?.action!=='ocr'||!(payload.text||payload.records?.length)){pendingPrefill='';return}
  try{
-  let parsed=recognizeOCRText(payload.text);
+  let parsed=payload.records?.length?{records:payload.records,relationHints:payload.relationHints||[],warnings:[]}:recognizeOCRText(payload.text);
   // Invalidate every pending close callback before replacing the old task.
   ocrOpenGeneration++;
   if(typeof rc12Task!=='undefined'&&rc12Task)rc12Task=null;
@@ -686,7 +697,7 @@ function openPendingPrefill(){
   let accountOverlay=$('#accountOverlay');
   if(accountOverlay)accountOverlay.innerHTML='';
   document.body.classList.remove('dialog-open');
-  ocrReviewText=payload.text;
+  ocrReviewText=payload.text||'';
   window.entryTaskOpenFromOCR(parsed);
   if(!$('#entry'))throw Error('记账界面未能打开');
   pendingPrefill='';
@@ -2320,8 +2331,18 @@ function receiveHashPrefill(){
 }
 function hasIncomingOCRHash(){
  let hash=String(location.hash||'');
- return hash.startsWith('#ocr=')||hash.startsWith('#sl=')
+ return hash.startsWith('#ocr=')||hash.startsWith('#sl=')||hash.startsWith('#sl-ocr=')||hash.startsWith('#sl-ocr-clipboard=')
 }
+document.addEventListener('click',async e=>{
+ if(e.target?.id!=='ocrClipboardOpen')return;
+ try{
+  let raw=$('#ocrClipboardInput')?.value.trim()||await navigator.clipboard.readText();
+  let payload=legacyOCRPayload(JSON.parse(raw));if(!payload)throw Error('剪贴板中没有有效的 OCR 账单');
+  pendingPrefill=payload;
+  try{sessionStorage.setItem(OCR_PENDING_KEY,JSON.stringify({at:Date.now(),payload}))}catch(_e){}
+  openPendingPrefill()
+ }catch(err){toast('读取 OCR 失败：'+(err.message||err))}
+});
 window.addEventListener('hashchange',()=>{if(hasIncomingOCRHash())receiveHashPrefill()});
 window.addEventListener('pageshow',()=>{if(hasIncomingOCRHash())receiveHashPrefill()});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&hasIncomingOCRHash())receiveHashPrefill()});

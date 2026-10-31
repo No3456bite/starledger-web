@@ -1,12 +1,12 @@
-const CACHE='starledger-web-v085-ocr-prefill-recovery';
+const CACHE='starledger-web-v086-ocr-handoff';
 const ASSETS=[
   './',
   './index.html',
   './manifest.webmanifest',
   './history-predictor.js?v=hist1',
   './recognizer.js?v=ocr3',
-  './app.js?v=selection3',
-  './ui-runtime.js?v=selection1',
+  './app.js?v=ocr-handoff1',
+  './ui-runtime.js?v=ocr-handoff1',
   './backup-zip.js?v=zip1',
   './books-stats.js?v=midterm2',
   './ui-foundation.css?v=selection2',

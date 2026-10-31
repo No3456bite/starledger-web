@@ -17,13 +17,14 @@ const storage = {
 };
 const text = '支付成功\n-32.30\n支付时间 2026年10月31日17:07:56';
 let hash = '#ocr=' + encodeURIComponent(text), opened = 0, entry = false;
+const overlay = {innerHTML: ''};
 const context = {
-  Date, JSON, console, sessionStorage: storage,
+  Date, JSON, URLSearchParams, console, sessionStorage: storage,
   location: {get hash() { return hash; }, pathname: '/', search: ''},
   history: {replaceState() { hash = ''; }},
   prefs: {mainName: 'ledger'}, pendingPrefill: '', ocrOpenGeneration: 0,
   window: {}, document: {body: {classList: {remove() {}}}},
-  $: selector => selector === '#entry' ? (entry ? {} : null) : {innerHTML: ''},
+  $: selector => selector === '#entry' ? (entry ? {} : null) : selector === '#ocrClipboardInput' ? null : selector === '#overlay' ? overlay : {innerHTML: ''},
   recognizeOCRText: input => ({records: [{amount: '32.3', text: input}], warnings: []}),
   toast() {}
 };
@@ -44,5 +45,24 @@ assert.equal(run('pendingPrefill'), '', 'a successful open consumes only the in-
 assert.equal(run('restorePendingOCRPrefill().text'), text, 'reload recovery remains until save or explicit close');
 run('clearPendingOCRPrefill()');
 assert.equal(run('restorePendingOCRPrefill()'), '', 'explicit completion clears the recovery request');
+
+// The archived Scriptable bridge still sends this URL shape from older shortcuts.
+hash = '#sl-ocr=' + encodeURIComponent(JSON.stringify({kind: 'starledger-ocr-prefill',version: 1,records: [{amount: '32.3',type: '支出'}]})) + '&t=123';
+const legacy = run('consumeHashPrefill()');
+assert.equal(legacy.records?.[0]?.amount, '32.3', 'legacy shortcut records are accepted');
+assert.equal(run('restorePendingOCRPrefill().records[0].amount'), '32.3');
+context.pendingPrefill = legacy;
+entry = false;
+run('openPendingPrefill()');
+assert.equal(opened, 2, 'legacy shortcut records open the same bill form');
+
+hash = '#sl-ocr-clipboard=1&t=123';
+const longPayload = run('consumeHashPrefill()');
+assert.equal(longPayload.action, 'ocr-clipboard', 'long Scriptable results request clipboard recovery');
+assert.equal(run('restorePendingOCRPrefill().action'), 'ocr-clipboard');
+context.pendingPrefill = longPayload;
+run('openPendingPrefill()');
+assert.equal(opened, 2, 'clipboard handoff waits for the user to read the data');
+assert.match(overlay.innerHTML, /ocrClipboardOpen/, 'long OCR results offer a visible recovery action');
 
 console.log('OCR URL handoff and reload recovery passed.');
