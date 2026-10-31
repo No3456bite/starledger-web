@@ -824,7 +824,9 @@ async function checkRemoteBackupOnOpen(force=false){
    persistAutoBackupState();return
   }
   autoBackupConflict=base?'本机和云端内容都与上次同步版本不同，请检查后选择合并或覆盖；自动上传已暂停。':'首次连接时本机与云端内容不同，请检查后选择合并或覆盖；自动上传已暂停。';
-  if(!autoBackupFirstReviewShown){autoBackupFirstReviewShown=true;pendingCloudImportVersion=version||'content-review';pendingCloudImportHash=hash;pendingCompleteBackup=remote.task;showCompleteBackupPreview(remote.task)}
+  // OCR may have opened an entry while the remote request was in flight. Keep
+  // the conflict in sync status instead of replacing the live entry overlay.
+  if(!autoBackupFirstReviewShown&&!$('#overlay')?.children.length){autoBackupFirstReviewShown=true;pendingCloudImportVersion=version||'content-review';pendingCloudImportHash=hash;pendingCompleteBackup=remote.task;showCompleteBackupPreview(remote.task)}
  }catch(err){autoBackupConflict='';autoBackupFirstReviewShown=false;autoBackupState.lastError=err.message||'检查云端失败';autoBackupState.retryAt=Date.now()+AUTO_BACKUP_RETRY;persistAutoBackupState();autoBackupCheckTimer=setTimeout(()=>checkRemoteBackupOnOpen(true),AUTO_BACKUP_RETRY)}
  finally{autoBackupChecking=false;showAutoBackupStatus();scheduleAutoBackup();if(generation!==autoBackupGeneration)setTimeout(()=>checkRemoteBackupOnOpen(true),0)}
 }
@@ -836,6 +838,7 @@ async function pullCloudBackupAutomatically(version,generation=autoBackupGenerat
  if(!autoBackupState.enabled||generation!==autoBackupGeneration)return;
  if(autoBackupPending()||$('#entry')){autoBackupConflict='建立恢复点期间本机发生变化，已暂停自动载入。请手动读取坚果云备份。';return}
  if(version?remoteBackupVersion(await cloudSyncJson('/status'))!==version:(await fetchCloudBackupTask()).task.contentHash!==task.contentHash){autoBackupConflict='建立恢复点期间云端备份发生变化，已暂停自动载入。请重新检查云端备份。';return}
+ if($('#entry')){autoBackupConflict='载入前正在填写账单，已暂停自动载入。请保存账单后重新检查云端备份。';return}
  folderHandle=null;stopAutoRefresh();clearTimeout(localHashTimer);localHashGeneration++;autoBackupSuppressWrites=true;
  try{await applyWorkspaceSnapshot(task.snapshot,{folderName:task.fileName,mode:'snapshot',readWrite:false,askIfMultiple:false})}finally{autoBackupSuppressWrites=false}
  autoBackupState.baseHash=task.contentHash;autoBackupState.localHash=await currentBackupHash();autoBackupState.remoteVersion=version;autoBackupState.savedId=autoBackupState.changeId;autoBackupState.lastPullAt=Date.now();autoBackupState.lastError='';autoBackupConflict='';autoBackupRemoteReady=true;

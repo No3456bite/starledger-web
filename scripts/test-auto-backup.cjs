@@ -133,5 +133,30 @@ const run = expression => vm.runInContext(expression, context);
     'a failed generated ZIP check identifies the local source');
   assert.equal(uploads, uploadsBeforeFailure, 'invalid local ZIP must not be uploaded');
   context.readCompleteBackup = previousRead;
+
+  // OCR can open the entry before the asynchronous cloud comparison finishes.
+  // A conflict review must not replace that live form in the shared overlay.
+  nodes.overlay = {children: [{}]};
+  localHash = 'OCR-LOCAL'; remoteHash = 'OCR-REMOTE'; remoteTag = 'v10';
+  run("autoBackupState.baseHash='OLDER';autoBackupState.remoteVersion='etag:v9';autoBackupConflict='';autoBackupFirstReviewShown=false");
+  const previewsBeforeEntry = previews;
+  await run('checkRemoteBackupOnOpen(true)');
+  assert.equal(previews, previewsBeforeEntry, 'cloud conflict must not replace an open OCR entry');
+  assert.match(nodes.autoCloudBackupStatus.textContent, /暂停/, 'conflict stays visible in sync status');
+  nodes.overlay.children = [];
+  await run('checkRemoteBackupOnOpen(true)');
+  assert.equal(previews, previewsBeforeEntry + 1, 'review can open once the entry closes');
+
+  // The form can also open during the final status request of an automatic pull.
+  run('autoBackupState.savedId=autoBackupState.changeId');
+  let statusReads = 0;
+  context.cloudSyncJson = async () => {
+    if (++statusReads === 2) nodes.entry = {};
+    return {exists: true, etag: 'v10'};
+  };
+  const pullsBeforeEntry = pulls;
+  await run('pullCloudBackupAutomatically("etag:v10",autoBackupGeneration,{task:{snapshot:{names:["test"]},fileName:"cloud.zip",contentHash:"OCR-REMOTE"}})');
+  assert.equal(pulls, pullsBeforeEntry, 'automatic pull must not replace a bill opened during its final request');
+  assert.match(run('autoBackupConflict'), /正在填写账单/);
   console.log('Automatic backup content-hash decisions passed.');
 })().catch(error => { console.error(error.stack || error); process.exitCode = 1; });
