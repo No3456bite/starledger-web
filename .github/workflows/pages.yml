@@ -94,3 +94,24 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+  cloudflare-live:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Check Cloudflare Pages serves this app version
+        run: |
+          expected=$(grep -oE 'app\.js\?v=[A-Za-z0-9-]+' index.html | head -1)
+          for attempt in {1..8}; do
+            live=$(curl --fail --silent --show-error --max-time 20 -H 'Cache-Control: no-cache' "https://starledger-web-dhp.pages.dev/?deploy_probe=${GITHUB_SHA}" || true)
+            if [[ "$live" == *"$expected"* ]]; then
+              echo "Cloudflare Pages serves $expected"
+              exit 0
+            fi
+            echo "Cloudflare Pages does not yet serve $expected (attempt $attempt/8)"
+            sleep 10
+          done
+          exit 1
