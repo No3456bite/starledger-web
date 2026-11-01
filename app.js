@@ -515,7 +515,10 @@ async function ensurePersistentStorage(){
   return !!(await navigator.storage.persist());
  }catch(e){return false}
 }
-function initLocal(){return (async()=>{
+let localInitPromise=null;
+function initLocal(){
+ if(localInitPromise)return localInitPromise;
+ localInitPromise=(async()=>{
  if(native)return;
  await ensurePersistentStorage();
  workspace=normalizeWorkspace(await get(WORKSPACE_KEY));
@@ -548,7 +551,9 @@ function initLocal(){return (async()=>{
  autoBackupReady=true;
  queueLocalHashRefresh();
  checkRemoteBackupOnOpen(true);
-})()}
+ })().finally(()=>{localInitPromise=null});
+ return localInitPromise
+}
 
 async function switchWorkspaceLedger(name,{silent=false}={}){
  name=String(name||'').trim();
@@ -2326,6 +2331,9 @@ function receiveHashPrefill(){
  if(!payload)return false;
  pendingPrefill=payload;
  console.info('StarLedger OCR URL received',{source:payload.source||'url',length:String(payload.text||'').length});
+ // Safari can reuse a tab that still shows first use after another tab restored
+ // the ledger. A fragment navigation does not reload that tab's IndexedDB state.
+ if(!native&&!prefs.mainName)initLocal().catch(err=>toast('读取本机账本失败：'+err.message));
  openPendingPrefill();
  return true
 }

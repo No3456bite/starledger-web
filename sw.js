@@ -1,11 +1,11 @@
-const CACHE='starledger-web-v086-ocr-handoff';
+const CACHE='starledger-web-v087-ocr-stale-tab';
 const ASSETS=[
   './',
   './index.html',
   './manifest.webmanifest',
   './history-predictor.js?v=hist1',
   './recognizer.js?v=ocr3',
-  './app.js?v=ocr-handoff1',
+  './app.js?v=ocr-stale-tab1',
   './ui-runtime.js?v=ocr-handoff1',
   './backup-zip.js?v=zip1',
   './books-stats.js?v=midterm2',

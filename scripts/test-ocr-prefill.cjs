@@ -7,7 +7,9 @@ const from = source.indexOf('const OCR_PENDING_KEY=');
 const to = source.indexOf('function ocrFieldValue(', from);
 const openFrom = source.indexOf('function openPendingPrefill(');
 const openTo = source.indexOf('function showExportConfirm(', openFrom);
-assert(from > 0 && to > from && openFrom > 0 && openTo > openFrom);
+const receiveFrom = source.indexOf('function receiveHashPrefill(');
+const receiveTo = source.indexOf('function hasIncomingOCRHash(', receiveFrom);
+assert(from > 0 && to > from && openFrom > 0 && openTo > openFrom && receiveFrom > 0 && receiveTo > receiveFrom);
 
 const saved = new Map();
 const storage = {
@@ -29,7 +31,7 @@ const context = {
   toast() {}
 };
 vm.createContext(context);
-vm.runInContext(source.slice(from, to) + source.slice(openFrom, openTo), context);
+vm.runInContext(source.slice(from, to) + source.slice(openFrom, openTo) + source.slice(receiveFrom, receiveTo), context);
 const run = code => vm.runInContext(code, context);
 
 run('pendingPrefill=consumeHashPrefill()');
@@ -64,5 +66,17 @@ context.pendingPrefill = longPayload;
 run('openPendingPrefill()');
 assert.equal(opened, 2, 'clipboard handoff waits for the user to read the data');
 assert.match(overlay.innerHTML, /ocrClipboardOpen/, 'long OCR results offer a visible recovery action');
+
+// A reused first-use tab can be stale after another tab restores IndexedDB.
+let reloaded = 0;
+context.native = false;
+context.prefs.mainName = '';
+context.initLocal = () => { reloaded++; context.prefs.mainName = 'ledger'; return Promise.resolve(); };
+context.pendingPrefill = '';
+entry = false;
+hash = '#ocr=' + encodeURIComponent(text);
+run('receiveHashPrefill()');
+assert.equal(reloaded, 1, 'a stale first-use tab reloads its local ledger on OCR navigation');
+assert.equal(opened, 3, 'OCR opens after the restored ledger becomes available');
 
 console.log('OCR URL handoff and reload recovery passed.');
