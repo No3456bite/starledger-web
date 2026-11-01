@@ -467,7 +467,7 @@ let workspace=normalizeWorkspace(null),pendingCompleteBackup=null,importRecovery
 const ACCOUNT_ZERO_COLLAPSE_KEY='star-ledger-accounts-zero-collapsed';
 let accountZeroCollapsed=false;
 try{accountZeroCollapsed=localStorage.getItem(ACCOUNT_ZERO_COLLAPSE_KEY)==='1'}catch(e){}
-let prefs={...DEFAULT_PREFS,...(BOOT?.settings||{}),...(BOOT?.mainName?{mainName:BOOT.mainName}:{})},folderHandle=null,entryKind='支出',entryCategory='',busy=false,ocrReviewText='',pendingPrefill=BOOT?.prefillText||'';
+let prefs={...DEFAULT_PREFS,...(BOOT?.settings||{}),...(BOOT?.mainName?{mainName:BOOT.mainName}:{})},folderHandle=null,entryKind='支出',entryCategory='',busy=false,ocrReviewText='',pendingPrefill=BOOT?.prefillText||'',localLedgerReady=!!native;
 const systemScheme=matchMedia('(prefers-color-scheme: dark)');
 function applyTheme(){let mode=prefs.appearance==='system'?(systemScheme.matches?'dark':'light'):prefs.appearance;document.documentElement.dataset.mode=mode;document.documentElement.dataset.theme='neutral';document.documentElement.style.colorScheme=mode;document.documentElement.style.backgroundColor=mode==='dark'?'#000000':'#f7f7f5';document.querySelectorAll('meta[name="theme-color"]').forEach(meta=>meta.content=mode==='dark'?'#000000':'#f7f7f5')}
 if(systemScheme.addEventListener)systemScheme.addEventListener('change',()=>{if(prefs.appearance==='system')applyTheme()});else if(systemScheme.addListener)systemScheme.addListener(()=>{if(prefs.appearance==='system')applyTheme()});
@@ -533,9 +533,11 @@ function initLocal(){
   let saved=await get(ledgerPrefsKey(active))||legacyPrefs;
   let csv=await get(ledgerCsvKey(active))||legacyCsv;
   prefs={...DEFAULT_PREFS,...(saved||{}),mainName:active};
+  localLedgerReady=true;
   if(csv){try{takeCsv(csv)}catch(e){toast('本机账本无法读取');render()}}else render();
  }else{
   if(legacyPrefs)prefs={...prefs,...legacyPrefs};
+  localLedgerReady=true;
   render()
  }
  folderHandle=null;
@@ -1688,7 +1690,7 @@ function render(){
  let titleNode=$('#title');if(titleNode){if(section==='stats')titleNode.innerHTML=`<span class="stats-title-switch"><button type="button" data-statsmode="month" class="${statsMode==='month'?'active':''}">月度</button><button type="button" data-statsmode="year" class="${statsMode==='year'?'active':''}">年度</button></span>`;else titleNode.textContent=section==='settings'?'设置':labels[section]}
  renderSettingsButton();
  let ledgerSwitch=$('#ledgerSwitch');if(ledgerSwitch){ledgerSwitch.hidden=section==='settings'||workspace.names.length<2;ledgerSwitch.textContent=(prefs.mainName||'主账本')+'　⌄'}
- let statusNode=$('#status');if(statusNode)statusNode.textContent=prefs.mainName?`${prefs.mainName} · ${rows.length.toLocaleString()} 笔 · ${workspace.readWrite?'工作区已连接':workspace.mode==='snapshot'?'文件夹快照':'浏览器本地'}`:'首次使用 · 数据默认保存在本机';
+ let statusNode=$('#status');if(statusNode)statusNode.textContent=!localLedgerReady?'正在读取本机账本…':prefs.mainName?`${prefs.mainName} · ${rows.length.toLocaleString()} 笔 · ${workspace.readWrite?'工作区已连接':workspace.mode==='snapshot'?'文件夹快照':'浏览器本地'}`:'首次使用 · 数据默认保存在本机';
  $('#addBtn').hidden=section==='settings'||!prefs.mainName;
  $('#addBtn').disabled=!!(native&&BOOT?.ledgerReady===false);
  $('#refreshBill').hidden=section==='settings'||!prefs.mainName||native;
@@ -1725,7 +1727,7 @@ function render(){
  const prefix=(volatileDeletion?'<div class="backup-alert">当前仅显示已导出的删除结果。手机原 CSV 未改变；请保存导出的 CSV，并重新导入后再继续记账。</div>':'')
   +(prefs.mainName&&section!=='settings'&&exportStatus()?exportStatus():'');
  const renderers={home:homeV2,stats:statsPage,books:bookPage,accounts:accountPage,search:searchPage,settings:settingsPage};
- $('#pageBody').innerHTML=prefix+(section==='settings'?settingsPage():!prefs.mainName?firstUsePage():(renderers[section]?.()||''));
+ $('#pageBody').innerHTML=prefix+(!localLedgerReady?'<div class="card" role="status">正在读取星账本…</div>':section==='settings'?settingsPage():!prefs.mainName?firstUsePage():(renderers[section]?.()||''));
  if(section==='settings')showAutoBackupStatus();
  [...$('#pageBody').querySelectorAll('.card')].forEach((el,i)=>{el.dataset.visualAnchor=section+':'+i});
 
@@ -2354,7 +2356,7 @@ document.addEventListener('click',async e=>{
 window.addEventListener('hashchange',()=>{if(hasIncomingOCRHash())receiveHashPrefill()});
 window.addEventListener('pageshow',()=>{if(hasIncomingOCRHash())receiveHashPrefill()});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&hasIncomingOCRHash())receiveHashPrefill()});
-pendingPrefill=pendingPrefill||consumeHashPrefill()||restorePendingOCRPrefill();if(BOOT?.native){try{if(BOOT.deferCsv){$('#pageBody').innerHTML='<div class="card">正在载入账单…</div>'}else window.__ledgerInstallCsv(BOOT.csv||csvWrite([]))}catch(err){toast(err.message);render()}}else{$('#pageBody').innerHTML='<div class="card">正在读取星账本…</div>';initLocal().catch(err=>{toast(err.message);render()})}
+pendingPrefill=pendingPrefill||consumeHashPrefill()||restorePendingOCRPrefill();if(BOOT?.native){try{if(BOOT.deferCsv){$('#pageBody').innerHTML='<div class="card">正在载入账单…</div>'}else window.__ledgerInstallCsv(BOOT.csv||csvWrite([]))}catch(err){toast(err.message);render()}}else{$('#pageBody').innerHTML='<div class="card">正在读取星账本…</div>';initLocal().catch(err=>{localLedgerReady=true;toast(err.message);render()})}
 
 
 document.addEventListener('click',e=>{
