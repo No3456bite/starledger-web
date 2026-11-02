@@ -521,6 +521,79 @@ main {
   content: "人";
 }
 
+.account-type-mark.account-icon-custom {
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", sans-serif;
+  font-size: 19px;
+}
+
+.account-type-mark.account-icon-custom::before {
+  content: none;
+}
+
+#overlay .account-icon-field {
+  display: block;
+  max-width: 180px;
+  margin-bottom: 12px;
+}
+
+#overlay .account-icon-field input {
+  max-width: 92px;
+  text-align: center;
+  font-size: 22px;
+}
+
+#overlay .account-icon-field small {
+  display: block;
+  width: 230px;
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+#accountOptions .account-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+#accountOptions .account-options button {
+  display: grid;
+  grid-template-columns: 27px minmax(0, 1fr);
+  gap: 1px 7px;
+  align-items: center;
+  width: 100%;
+  min-height: 56px;
+  padding: 7px 10px;
+  border-radius: 12px;
+  text-align: left;
+  mask-image: none;
+  -webkit-mask-image: none;
+}
+
+#accountOptions .account-choice-icon {
+  grid-row: 1 / 3;
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", sans-serif;
+  font-size: 20px;
+  text-align: center;
+}
+
+#accountOptions .account-choice-text,
+#accountOptions .account-choice-text.truncated {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  mask-image: none;
+  -webkit-mask-image: none;
+}
+
+#accountOptions .account-choice-count {
+  grid-column: 2;
+  color: var(--muted);
+  font-size: 11px;
+}
+
 .book-name > span:last-child,
 .account-name > span:last-child {
   min-width: 0;

@@ -148,3 +148,34 @@ test('last modification time updates for settings, but a backup alone does not c
   assert.equal(context.prefs.lastChangeAt, changedAt);
   assert.equal(dirty, 1);
 });
+
+test('entry account choices rank actual bill usage across account groups', () => {
+  const context = {
+    rows: [
+      {type: '支出', account: '常用'},
+      {type: '收入', account: '常用'},
+      {type: '转账', account: '少用', account2: '常用'},
+      {type: '支出', account: '少用'},
+      {type: '余额调整', account: '少用'},
+      {type: '支出', account: '少用', deleted: true}
+    ],
+    accountNames: () => ['少用', '未使用', '常用'],
+    isDeletion: row => !!row.deleted
+  };
+  vm.createContext(context);
+  vm.runInContext(functionBlock(app, 'function entryAccountUsage()', 'function accountCnyRate('), context);
+  const choices = vm.runInContext('entryAccountNames()', context);
+  assert.deepEqual(Array.from(choices, item => [item.name, item.count]), [['常用', 3], ['少用', 2], ['未使用', 0]]);
+});
+
+test('account icons use the same emoji rule as book icons and keep a fallback', () => {
+  const context = {
+    prefs: {accountProfiles: {零钱: {icon: '💰', type: 'stored'}, 信用卡: {type: 'credit'}}},
+    accountGroups: () => [{id: 'default'}],
+    currencyCode: () => 'CNY', currencySymbol: () => '¥'
+  };
+  vm.createContext(context);
+  vm.runInContext(functionBlock(app, 'function accountProfile(name)', 'function accountViewData(') + functionBlock(app, 'function normalizeBookIcon(', 'function bookProfile('), context);
+  assert.equal(vm.runInContext("accountDisplayIcon('零钱')", context), '💰');
+  assert.equal(vm.runInContext("accountDisplayIcon('信用卡')", context), '卡');
+});

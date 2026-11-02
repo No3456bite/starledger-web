@@ -1,15 +1,15 @@
-const CACHE='starledger-web-v088-ocr-startup';
+const CACHE='starledger-web-v089-account-icons';
 const ASSETS=[
   './',
   './index.html',
   './manifest.webmanifest',
   './history-predictor.js?v=hist1',
   './recognizer.js?v=ocr3',
-  './app.js?v=ocr-startup1',
+  './app.js?v=account-icons1',
   './ui-runtime.js?v=ocr-handoff1',
   './backup-zip.js?v=zip1',
   './books-stats.js?v=midterm2',
-  './ui-foundation.css?v=selection2',
+  './ui-foundation.css?v=account-icons1',
   './mobile-compat.css?v=css5'
 ];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting())));

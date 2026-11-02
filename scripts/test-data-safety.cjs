@@ -57,7 +57,7 @@ test('synthetic full ZIP restores CSV, account settings and relations in an isol
 });
 
 test('balances, transfer and loan semantics, edit and delete stay consistent',()=>{
- const code=section('function amount(','function currencyOptions(')+section('function fxInfo(','function dateOf(')+section('function stats(','function opts(')+section('function accountCurrency(','function accountForm(');
+ const code=section('function amount(','function currencyOptions(')+section('function fxInfo(','function dateOf(')+section('function stats(','function opts(')+section('function accountCurrency(','function accountForm(')+section('function normalizeBookIcon(','function bookProfile(');
  const profiles={现金:{currency:'CNY',calibration:{balance:0,baseline:0}},银行卡:{currency:'CNY',calibration:{balance:0,baseline:0}},朋友:{currency:'CNY',calibration:{balance:0,baseline:0}},美元账户:{currency:'USD',cnyRate:7,calibration:{balance:0,baseline:0}}};
  const c=context({rows:fixtureRows.slice(),prefs:{accountProfiles:profiles},POPULAR_CURRENCIES:[],ledgerRuntimeRates:{}},code);
  assert.equal(run(c,'accountRawNet("现金","CNY")'),50);
