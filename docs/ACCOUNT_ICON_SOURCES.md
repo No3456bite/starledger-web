@@ -10,3 +10,5 @@ The account picker and account page use the same local icon catalog. Icons are b
 The bank set covers ICBC, ABC, BOC, CCB, Bank of Communications, PSBC, CMB, SPDB, CITIC, CEB, CMBC, CIB, Ping An Bank, CGB, Huaxia Bank, Bank of Beijing, Bank of Shanghai, Bank of Jiangsu, Bank of Ningbo, Bank of Nanjing, and WeBank.
 
 Digital RMB has no verified exact app asset in this bundle; the picker offers a clearly marked generic ¥ badge. MYbank / 网商银行 has no verified asset and keeps the ordinary account icon or a user-selected Emoji. The 云闪付 entry uses the related UnionPay network mark, not the exact app badge.
+
+Pinduoduo / 拼多多: the exact app mark was not found in the checked offline icon catalogs. The picker uses a clearly labeled generic red 拼 badge, not an official logo.

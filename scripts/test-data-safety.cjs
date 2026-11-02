@@ -76,6 +76,21 @@ test('balances, transfer and loan semantics, edit and delete stay consistent',()
  assert.equal(run(c,'financial().net'),56,'same-currency transfer changes accounts, not net worth');
 });
 
+test('account filters ignore an old account2 value on income or expense',()=>{
+ const rows=[
+  {id:'income',date:'2026-11-01',type:'收入',account:'零钱',account2:'工作室'},
+  {id:'transfer',date:'2026-11-02',type:'转账',account:'零钱',account2:'工作室'},
+  {id:'direct',date:'2026-11-03',type:'收入',account:'工作室',account2:''}
+ ];
+ const c=context({rows,prefs:{accountProfiles:{}},account:'工作室',book:'全部账本',kind:'全部类型',category:'全部分类',subcategory:'全部小类',currencyFilter:'全部币种',searchTag:'全部标签',day:'',query:'',dateOf:r=>r.date,tagParts:()=>[],currencyCode:x=>x},section('function recordHidden(','function stats('));
+ assert.deepEqual(Array.from(run(c,'filtered(rows)'),r=>r.id),['direct','transfer']);
+ c.prefs.accountProfiles['工作室']={hidden:true};
+ assert.equal(run(c,'recordHidden(rows[0])'),false);
+ assert.equal(run(c,'recordHidden(rows[1])'),true);
+ const counts=context({rows,prefs:{accountProfiles:{工作室:{}}},accountRowAmount:()=>1,currencyCode:()=> 'CNY'},section('function accountData()','function accountGroups()'));
+ assert.equal(run(counts,"accountData().find(([name])=>name==='工作室')[1].count"),2);
+});
+
 const mergeCode=section('function sourceStamp(','async function folderReadCsv(');
 test('three-source merge honors newer deletion; ZIP without tombstones can resurrect an old bill',()=>{
  const c=context({isDeletion:r=>{try{return JSON.parse(r.extras||'{}')._starDeleted===true}catch{return false}}},mergeCode);

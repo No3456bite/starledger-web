@@ -552,6 +552,18 @@ main {
   font-size: 15px;
   font-weight: 700;
 }
+.account-generic-pdd {
+  display: grid;
+  place-items: center;
+  width: 23px;
+  height: 23px;
+  flex: 0 0 23px;
+  border-radius: 6px;
+  background: #e02e24;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 750;
+}
 .account-brand-glyph {
   background: var(--brand-color);
   mask-size: contain;
@@ -1609,7 +1621,7 @@ main {
     gap: 5px!important;
     max-height: 310px;
     opacity: 1;
-    visibility: visible;
+    visibility: inherit;
     overflow: hidden;
     transform: translateY(0);
     transition: max-height .34s cubic-bezier(.22,.61,.36,1), opacity .24s ease, transform .34s cubic-bezier(.22,.61,.36,1), margin .34s ease;

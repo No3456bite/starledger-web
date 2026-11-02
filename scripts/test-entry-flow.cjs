@@ -192,9 +192,19 @@ test('bank and payment icons match names without replacing a chosen emoji', () =
   assert.equal(vm.runInContext("accountBrandId('工商银行储蓄卡')", context), 'icbc');
   assert.equal(vm.runInContext("accountBrandId('数字人民币钱包')", context), 'digitalcny');
   assert.equal(vm.runInContext("accountBrandId('Apple Pay')", context), 'applepay');
+  assert.equal(vm.runInContext("accountBrandId('拼多多钱包')", context), 'pinduoduo');
   assert.equal(vm.runInContext("accountBrandId('个人')", context), '');
   assert.equal(vm.runInContext("accountBrandId('支付宝')", context), '');
   assert.match(vm.runInContext("accountIconHtml('工商银行储蓄卡')", context), /icbc\.png/);
   assert.match(vm.runInContext("accountIconHtml('数字人民币钱包')", context), /account-generic-yuan/);
+  assert.match(vm.runInContext("accountIconHtml('拼多多钱包')", context), /account-generic-pdd/);
   assert.equal(vm.runInContext("accountIconHtml('个人')", context), '🌟');
+});
+
+test('saving an income clears a hidden account2 left from an earlier transfer', () => {
+  const context = {amountSaveValue: value => ({ok: true, value: Number(value)}), currencyCode: () => 'CNY', validate() {}};
+  vm.createContext(context);
+  vm.runInContext(functionBlock(ui, 'function rc12RecordForSave(', 'function rc12AugmentEntry('), context);
+  const saved = vm.runInContext("rc12RecordForSave({record:{type:'收入',account:'零钱',account2:'工作室',amount:'1000',date:'2026-11-01 12:00:00',currency:'人民币'}},0)", context);
+  assert.equal(saved.account2, '');
 });

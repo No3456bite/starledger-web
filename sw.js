@@ -1,15 +1,15 @@
-const CACHE='starledger-web-v090-account-brands';
+const CACHE='starledger-web-v091-account-filter';
 const ASSETS=[
   './',
   './index.html',
   './manifest.webmanifest',
   './history-predictor.js?v=hist1',
   './recognizer.js?v=ocr3',
-  './app.js?v=account-brands1',
-  './ui-runtime.js?v=ocr-handoff1',
+  './app.js?v=account-filter2',
+  './ui-runtime.js?v=account-filter2',
   './backup-zip.js?v=zip1',
   './books-stats.js?v=midterm2',
-  './ui-foundation.css?v=account-brands1',
+  './ui-foundation.css?v=account-filter2',
   './mobile-compat.css?v=css5',
   './assets/account-icons/abc.png',
   './assets/account-icons/alipay.svg',
