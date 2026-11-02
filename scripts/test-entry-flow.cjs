@@ -196,8 +196,8 @@ test('bank and payment icons match names without replacing a chosen emoji', () =
   assert.equal(vm.runInContext("accountBrandId('个人')", context), '');
   assert.equal(vm.runInContext("accountBrandId('支付宝')", context), '');
   assert.match(vm.runInContext("accountIconHtml('工商银行储蓄卡')", context), /icbc\.png/);
-  assert.match(vm.runInContext("accountIconHtml('数字人民币钱包')", context), /account-generic-yuan/);
-  assert.match(vm.runInContext("accountIconHtml('拼多多钱包')", context), /account-generic-pdd/);
+  assert.match(vm.runInContext("accountIconHtml('数字人民币钱包')", context), /account-brand-tile.*digitalcny\.svg/);
+  assert.match(vm.runInContext("accountIconHtml('拼多多钱包')", context), /account-brand-tile.*pinduoduo\.svg/);
   assert.equal(vm.runInContext("accountIconHtml('个人')", context), '🌟');
 });
 

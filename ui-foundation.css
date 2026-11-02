@@ -531,7 +531,16 @@ main {
   content: none;
 }
 
-.account-brand-mark { background: #262626; }
+.account-brand-mark { background: transparent; }
+.account-brand-tile {
+  display: grid;
+  place-items: center;
+  width: 29px;
+  height: 29px;
+  flex: 0 0 29px;
+  border-radius: 8px;
+  background: var(--tile-color);
+}
 .account-brand-glyph,
 .account-brand-image {
   display: block;
@@ -540,32 +549,11 @@ main {
   flex: 0 0 23px;
   object-fit: contain;
 }
-.account-generic-yuan {
-  display: grid;
-  place-items: center;
-  width: 23px;
-  height: 23px;
-  flex: 0 0 23px;
-  border-radius: 50%;
-  background: #d63231;
-  color: #fff;
-  font-size: 15px;
-  font-weight: 700;
-}
-.account-generic-pdd {
-  display: grid;
-  place-items: center;
-  width: 23px;
-  height: 23px;
-  flex: 0 0 23px;
-  border-radius: 6px;
-  background: #e02e24;
-  color: #fff;
-  font-size: 16px;
-  font-weight: 750;
-}
 .account-brand-glyph {
-  background: var(--brand-color);
+  width: 23px;
+  height: 23px;
+  flex-basis: 23px;
+  background: var(--tile-ink);
   mask-size: contain;
   mask-position: center;
   mask-repeat: no-repeat;
@@ -624,6 +612,8 @@ main {
 }
 #overlay .account-icon-grid button.active { border-color: var(--green); color: var(--green); }
 #overlay .account-icon-grid-mark { display: grid; place-items: center; flex: 0 0 23px; }
+#overlay .account-icon-grid-mark .account-brand-tile { width: 23px; height: 23px; flex-basis: 23px; border-radius: 6px; }
+#overlay .account-icon-grid-mark .account-brand-glyph { width: 18px; height: 18px; flex-basis: 18px; }
 
 #accountOptions .account-options {
   display: flex;
@@ -654,6 +644,8 @@ main {
 }
 #accountOptions .account-choice-icon .account-brand-image,
 #accountOptions .account-choice-icon .account-brand-glyph { width: 21px; height: 21px; flex-basis: 21px; }
+#accountOptions .account-choice-icon .account-brand-tile { width: 22px; height: 22px; flex-basis: 22px; border-radius: 6px; }
+#accountOptions .account-choice-icon .account-brand-glyph { width: 17px; height: 17px; flex-basis: 17px; }
 #accountOptions .account-choice-text,
 #accountOptions .account-choice-text.truncated {
   display: block;
