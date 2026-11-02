@@ -21,4 +21,5 @@ const publicFiles = [
 rmSync(output, { recursive: true, force: true });
 mkdirSync(output);
 for (const file of publicFiles) cpSync(join(root, file), join(output, file));
+cpSync(join(root, 'assets/account-icons'), join(output, 'assets/account-icons'), { recursive: true });
 console.log(`Built ${publicFiles.length} public files in dist/`);

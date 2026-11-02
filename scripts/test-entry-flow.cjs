@@ -179,3 +179,22 @@ test('account icons use the same emoji rule as book icons and keep a fallback', 
   assert.equal(vm.runInContext("accountDisplayIcon('零钱')", context), '💰');
   assert.equal(vm.runInContext("accountDisplayIcon('信用卡')", context), '卡');
 });
+
+test('bank and payment icons match names without replacing a chosen emoji', () => {
+  const context = {
+    prefs: {accountProfiles: {微信钱包: {}, 工商银行储蓄卡: {}, 个人: {icon: '🌟'}, 支付宝: {iconId: 'none'}}},
+    accountGroups: () => [{id: 'default'}], currencyCode: () => 'CNY', currencySymbol: () => '¥',
+    esc: value => String(value)
+  };
+  vm.createContext(context);
+  vm.runInContext(functionBlock(app, 'function accountProfile(name)', 'function accountViewData(') + functionBlock(app, 'function normalizeBookIcon(', 'function bookProfile('), context);
+  assert.equal(vm.runInContext("accountBrandId('微信钱包')", context), 'wechat');
+  assert.equal(vm.runInContext("accountBrandId('工商银行储蓄卡')", context), 'icbc');
+  assert.equal(vm.runInContext("accountBrandId('数字人民币钱包')", context), 'digitalcny');
+  assert.equal(vm.runInContext("accountBrandId('Apple Pay')", context), 'applepay');
+  assert.equal(vm.runInContext("accountBrandId('个人')", context), '');
+  assert.equal(vm.runInContext("accountBrandId('支付宝')", context), '');
+  assert.match(vm.runInContext("accountIconHtml('工商银行储蓄卡')", context), /icbc\.png/);
+  assert.match(vm.runInContext("accountIconHtml('数字人民币钱包')", context), /account-generic-yuan/);
+  assert.equal(vm.runInContext("accountIconHtml('个人')", context), '🌟');
+});

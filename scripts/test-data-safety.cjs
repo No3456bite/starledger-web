@@ -43,7 +43,7 @@ test('import diagnoses missing and duplicate IDs, impossible dates and nonnumeri
 });
 
 test('synthetic full ZIP restores CSV, account settings and relations in an isolated context',async()=>{
- const c=csvContext(),settings={mainName:'测试账本',accountProfiles:{'美元账户':{currency:'USD',cnyRate:7}}},relations={format:'star-ledger-relations',version:1,items:[{id:'r1'}]};c.fixtureRows=fixtureRows;
+ const c=csvContext(),settings={mainName:'测试账本',accountProfiles:{'美元账户':{currency:'USD',cnyRate:7,iconId:'paypal'}}},relations={format:'star-ledger-relations',version:1,items:[{id:'r1'}]};c.fixtureRows=fixtureRows;
  const archived=Zip.create([
   {name:'测试账本_desktop.csv',data:run(c,'csvWrite(fixtureRows)')},
   {name:'StarLedgerConfig.json',data:JSON.stringify(settings)},
@@ -53,6 +53,7 @@ test('synthetic full ZIP restores CSV, account settings and relations in an isol
  const isolated=csvContext();isolated.backupCsv=files['测试账本_desktop.csv'];
  assert.equal(run(isolated,'csvParse(backupCsv)').length,fixtureRows.length);
  assert.equal(JSON.parse(files['StarLedgerConfig.json']).accountProfiles['美元账户'].currency,'USD');
+ assert.equal(JSON.parse(files['StarLedgerConfig.json']).accountProfiles['美元账户'].iconId,'paypal');
  assert.equal(JSON.parse(files['StarLedgerRelations.json']).items[0].id,'r1');
 });
 

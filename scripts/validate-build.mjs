@@ -28,12 +28,43 @@ const pagesWorkflow = read('.github/workflows/pages.yml');
 const externalScripts = [
   './history-predictor.js?v=hist1',
   './recognizer.js?v=ocr3',
-  './app.js?v=account-icons1',
+  './app.js?v=account-brands1',
   './ui-runtime.js?v=ocr-handoff1',
   './backup-zip.js?v=zip1',
   './books-stats.js?v=midterm2'
 ];
-const precacheAssets = [...externalScripts,'./ui-foundation.css?v=account-icons1','./mobile-compat.css?v=css5'];
+const accountIconAssets = [
+  './assets/account-icons/abc.png',
+  './assets/account-icons/alipay.svg',
+  './assets/account-icons/apple.svg',
+  './assets/account-icons/applepay.svg',
+  './assets/account-icons/bjb.png',
+  './assets/account-icons/boc.png',
+  './assets/account-icons/bocom.png',
+  './assets/account-icons/ccb.png',
+  './assets/account-icons/ceb.png',
+  './assets/account-icons/cgb.png',
+  './assets/account-icons/douyin.svg',
+  './assets/account-icons/cib.png',
+  './assets/account-icons/citic.png',
+  './assets/account-icons/cmb.png',
+  './assets/account-icons/cmbc.png',
+  './assets/account-icons/hxb.png',
+  './assets/account-icons/icbc.png',
+  './assets/account-icons/jsb.png',
+  './assets/account-icons/meituan.svg',
+  './assets/account-icons/nbb.png',
+  './assets/account-icons/njb.png',
+  './assets/account-icons/pab.png',
+  './assets/account-icons/paypal.svg',
+  './assets/account-icons/psbc.png',
+  './assets/account-icons/shb.png',
+  './assets/account-icons/spdb.png',
+  './assets/account-icons/unionpay.svg',
+  './assets/account-icons/webank.png',
+  './assets/account-icons/wechat.svg'
+];
+const precacheAssets = [...externalScripts,'./ui-foundation.css?v=account-brands1','./mobile-compat.css?v=css5',...accountIconAssets];
 
 let last = -1;
 for (const src of externalScripts) {
@@ -94,6 +125,9 @@ if (!app.includes('function accountShowsZeroBalance(') || !app.includes('id="tog
 if (!recognizer.includes('StarLedger')) fail('recognizer.js looks unexpectedly empty or replaced');
 if (!historyPredictor.includes('StarLedgerHistoryPredictor')) fail('history predictor looks unexpectedly empty or replaced');
 
+for (const asset of accountIconAssets) {
+  if (!fs.existsSync(asset.slice(2))) fail(`account icon asset is missing: ${asset}`);
+}
 for (const asset of precacheAssets) {
   if (!sw.includes(`'${asset}'`) && !sw.includes(`"${asset}"`)) {
     fail(`service worker precache is missing ${asset}`);
@@ -101,7 +135,7 @@ for (const asset of precacheAssets) {
 }
 
 if (!index.includes('href="./mobile-compat.css?v=css5"')) fail('index.html does not load mobile-compat.css');
-if (!index.includes('href="./ui-foundation.css?v=account-icons1"')) fail('index.html does not load ui-foundation.css');
+if (!index.includes('href="./ui-foundation.css?v=account-brands1"')) fail('index.html does not load ui-foundation.css');
 if (!uiFoundation.includes('StarLedger modern UI foundation')) fail('ui-foundation.css lost its ownership marker');
 if (!uiFoundation.includes('--bg: #000000') || !uiFoundation.includes('--card: #171717')) fail('dark mode lost its full-black canvas and near-black cards');
 if (!uiFoundation.includes('ChatGPT-like dark mode uses flat, neutral surfaces')) fail('flat dark surface ownership marker is missing');
@@ -109,7 +143,7 @@ if (!uiFoundation.includes('background: #242424') || !uiFoundation.includes('.ho
 if (!app.includes('group-account-option-wide') || !uiFoundation.includes('.group-choice > div') || !uiFoundation.includes('.group-choice .group-account-option-wide')) fail('compact group account selector is missing');
 if (!uiFoundation.includes('writing-mode: horizontal-tb') || !uiFoundation.includes('@media (max-width: 460px)')) fail('mobile search filter wrapping guard is missing');
 if (!uiFoundation.includes('#pageBody[data-page="settings"] > .grid.cols2') || !uiFoundation.includes('width: min(100%, 820px)')) fail('Chrome settings column layout guard is missing');
-if (index.lastIndexOf('href="./ui-foundation.css?v=account-icons1"') > index.lastIndexOf('href="./mobile-compat.css?v=css5"')) fail('ui-foundation.css must load before mobile-compat.css');
+if (index.lastIndexOf('href="./ui-foundation.css?v=account-brands1"') > index.lastIndexOf('href="./mobile-compat.css?v=css5"')) fail('ui-foundation.css must load before mobile-compat.css');
 if (index.lastIndexOf('href="./mobile-compat.css?v=css5"') < index.lastIndexOf('</style>')) fail('mobile-compat.css must load after inline style layers');
 
 if (!index.includes('id="web-v051-safari-document-modal"')) {
