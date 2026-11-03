@@ -1592,6 +1592,34 @@ main {
   body:has(#pageBody[data-page="settings"]) .mobilebar {
     display: none!important;
   }
+  /* One mobile frame for secondary screens; no space reserved for hidden nav.
+     Long forms scroll within the same safe viewport as the bill editor. */
+  #overlay {
+    --sl-secondary-top: 8px;
+    --sl-secondary-side: 10px;
+    --sl-secondary-bottom: max(8px, env(safe-area-inset-bottom, 0px));
+    --sl-secondary-height: calc(var(--sl-modal-height, 100dvh) - var(--sl-secondary-top) - var(--sl-secondary-bottom));
+  }
+  #overlay > :is(.entryback, .modalback) {
+    box-sizing: border-box!important;
+    display: flex!important;
+    align-items: center!important;
+    padding: var(--sl-secondary-top) var(--sl-secondary-side) var(--sl-secondary-bottom)!important;
+  }
+  #overlay > .modalback > .modal {
+    box-sizing: border-box!important;
+    width: 100%!important;
+    max-width: 560px!important;
+    touch-action: pan-y!important;
+    max-height: var(--sl-secondary-height)!important;
+    margin: auto!important;
+    padding: 13px 14px!important;
+    border: 1px solid var(--line)!important;
+    border-radius: 22px!important;
+    background: var(--card)!important;
+    overflow: auto!important;
+    overscroll-behavior: contain;
+  }
   #overlay .entry[data-rc12-task="1"] .entryhead { gap: 7px!important; min-height: 38px!important; }
   #overlay .entry[data-rc12-task="1"] .entryhead>#closeBtn {
     display: grid!important;

@@ -41,13 +41,16 @@
    * Reserve browser-chrome clearance at the overlay edge and let the editor
    * itself scroll internally. This replaces the old bulk-edit-only workaround.
    */
-  html.browser-tab #overlay.safari-document-modal>.entryback,
-  html.browser-tab #overlay.safari-document-modal>.account-dialog-back{
-    box-sizing:border-box!important;
+  html.browser-tab #overlay.safari-document-modal{
+    --sl-secondary-bottom:var(--sl-browser-chrome-gap);
   }
-
-  html.browser-tab #overlay.safari-document-modal>.entryback{
-    padding:8px 10px var(--sl-browser-chrome-gap)!important;
+  html.browser-tab #overlay.safari-document-modal>:is(.entryback,.modalback){
+    position:absolute!important;
+    inset:0!important;
+    width:auto!important;
+    height:auto!important;
+    box-sizing:border-box!important;
+    padding:var(--sl-secondary-top) var(--sl-secondary-side) var(--sl-secondary-bottom)!important;
     overflow-x:hidden!important;
     overflow-y:auto!important;
     touch-action:pan-y!important;
@@ -56,17 +59,9 @@
     max-height:none!important;
     margin:auto!important;
   }
-
-  html.browser-tab #overlay.safari-document-modal>.account-dialog-back{
-    padding:10px 10px var(--sl-browser-chrome-gap)!important;
-  }
-  html.browser-tab #overlay.safari-document-modal>.account-dialog-back>.modal{
-    max-height:min(calc(var(--sl-modal-height,100vh) - var(--sl-browser-chrome-gap) - 20px),720px)!important;
+  html.browser-tab #overlay.safari-document-modal>.modalback>.modal{
+    max-height:var(--sl-secondary-height)!important;
     margin:auto!important;
-  }
-
-  html.browser-tab #overlay.safari-document-modal>.bulk-edit-back>.bulk-edit-sheet{
-    max-height:min(calc(var(--sl-modal-height,100vh) - var(--sl-browser-chrome-gap) - 20px),680px)!important;
   }
 
   /* The software keyboard covers secondary cards. Keep their pre-keyboard
@@ -79,7 +74,7 @@
     overflow:auto!important;
   }
   html.browser-tab #overlay.safari-document-modal.keyboard-cover-modal>.modalback>.modal{
-    max-height:min(calc(var(--sl-modal-height,100vh) - 32px),720px)!important;
+    max-height:var(--sl-secondary-height)!important;
     margin:auto!important;
   }
   html.browser-tab #overlay.safari-document-modal.keyboard-cover-modal #accountOverlay{
@@ -115,9 +110,8 @@
   }
   html.standalone-webapp #overlay.keyboard-cover-modal>.modalback>.modal,
   html.standalone-webapp #overlay.keyboard-cover-modal>.account-dialog-back>.modal,
-  html.standalone-webapp #overlay.keyboard-cover-modal>.search-modalback>.modal,
-  html.standalone-webapp #overlay.keyboard-cover-modal>.entryback>.entry{
-    max-height:min(calc(var(--sl-modal-height,100vh) - 32px),720px)!important;
+  html.standalone-webapp #overlay.keyboard-cover-modal>.search-modalback>.modal{
+    max-height:var(--sl-secondary-height)!important;
   }
   html.standalone-webapp #overlay.keyboard-cover-modal #accountOverlay>.entry-choice-back{
     position:fixed!important;

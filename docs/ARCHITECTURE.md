@@ -74,3 +74,10 @@ Before merging UI work, verify at least:
 - standalone/PWA and Safari browser-tab modes when the change touches viewport or navigation behavior.
 
 The GitHub workflow catches structural and JavaScript failures. The iPhone pass remains required for Safari chrome, keyboard and visualViewport behavior.
+
+## Secondary screens and entry keypad
+
+- Mobile primary overlays share `--sl-secondary-*` frame tokens in `ui-foundation.css`; Safari supplies browser-chrome clearance in `mobile-compat.css`. Bottom navigation stays hidden throughout the overlay lifecycle. Child pickers retain their existing nested lifecycle.
+- `app.js` owns keypad visibility. `beginEntryKeypad({source, page, keypadOpen})` initializes a task; `setEntryKeypadOpen` handles explicit user toggles. The task controller initializes once, while form/card rerenders reuse the current visibility.
+- Home new entries and OCR start open. Browsing/editing entries remember the explicit toggle in local browser storage; Home/OCR never overwrite that browsing preference. A caller can override initial visibility with `keypadOpen`.
+- Device regression: collapse in Search, close/reopen another bill, switch related bills and change category/type; then open Home new entry and OCR, and return to Search. Check secondary cards with short screens, Safari chrome expanded/collapsed, and standalone mode, including text keyboard focus and dismissal.

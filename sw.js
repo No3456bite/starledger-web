@@ -1,16 +1,16 @@
-const CACHE='starledger-web-v097-account-choice-no-placeholder';
+const CACHE='starledger-web-v098-secondary-layout-keypad';
 const ASSETS=[
   './',
   './index.html',
   './manifest.webmanifest',
   './history-predictor.js?v=hist1',
   './recognizer.js?v=ocr3',
-  './app.js?v=account-choice-no-placeholder1',
-  './ui-runtime.js?v=keyboard-cover1',
+  './app.js?v=entry-keypad-state1',
+  './ui-runtime.js?v=entry-keypad-state1',
   './backup-zip.js?v=zip1',
   './books-stats.js?v=midterm2',
-  './ui-foundation.css?v=secondary-nav1',
-  './mobile-compat.css?v=secondary-nav1',
+  './ui-foundation.css?v=secondary-layout1',
+  './mobile-compat.css?v=secondary-layout1',
   './assets/account-icons/abc.png',
   './assets/account-icons/alipay.svg',
   './assets/account-icons/apple.svg',

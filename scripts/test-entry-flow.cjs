@@ -147,9 +147,10 @@ test('a relation badge only appears when at least two distinct bills can open', 
 
 test('first keypad digit replaces an amount, while later digits continue it', () => {
   const input = {value: '435.01', blur() {}};
-  const back = {classList: {remove() {}, add() {}}};
+  const back = {classList: {remove() {}, add() {}, toggle() {}}};
   const context = {replaceAmountOnNextKey: true, $: selector => selector === '#amountInput' ? input : selector === '.entryback' ? back : null, normalizeAmountExpression: value => value, setAmountExpression: value => {input.value = value}, amountSegment: value => value.split(/[+−×÷]/).at(-1), toast() {}};
   vm.createContext(context);
+  vm.runInContext(functionBlock(app, 'let browseEntryKeypadOpen=', 'function entryForm(record)'), context);
   vm.runInContext(functionBlock(app, 'function pressAmountKey(v)', 'function reconcileForm('), context);
   vm.runInContext("pressAmountKey('2'); pressAmountKey('5')", context);
   assert.equal(input.value, '25');
@@ -283,4 +284,59 @@ test('saving an income clears a hidden account2 left from an earlier transfer', 
   vm.runInContext(functionBlock(ui, 'function rc12RecordForSave(', 'function rc12AugmentEntry('), context);
   const saved = vm.runInContext("rc12RecordForSave({record:{type:'收入',account:'零钱',account2:'工作室',amount:'1000',date:'2026-11-01 12:00:00',currency:'人民币'}},0)", context);
   assert.equal(saved.account2, '');
+});
+
+test('browse keypad preference survives tasks and rerenders, while Home and OCR start open', () => {
+  const storage = new Map(), classes = new Set();
+  const back = {classList: {toggle(name, on) {on ? classes.add(name) : classes.delete(name)}, remove(name) {classes.delete(name)}}};
+  const context = {
+    section: 'search', localStorage: {getItem: key => storage.get(key), setItem: (key, value) => storage.set(key, value)},
+    $: selector => selector === '.entryback' ? back : null,
+    rc12Task: null, rc12NewDraft: record => ({record}), clearPendingOCRPrefill() {},
+    rc12RenderTask() {context.renders++}, renders: 0
+  };
+  vm.createContext(context);
+  const stateCode = functionBlock(app, 'let browseEntryKeypadOpen=', 'function entryForm(record)');
+  vm.runInContext(stateCode, context);
+  vm.runInContext(functionBlock(ui, 'function rc12StartTask(', 'function rc12CaptureDraft('), context);
+  const run = code => vm.runInContext(code, context);
+  const isOpen = () => run('entryKeypadOpen');
+  run("rc12StartTask([{}], {source:'edit'}); setEntryKeypadOpen(false)");
+  assert.ok(classes.has('keypad-hidden'));
+  for (const source of ['edit', 'compound', 'new']) {
+    run(`rc12StartTask([{}], {source:'${source}'})`);
+    assert.equal(isOpen(), false);
+  }
+  // New Home entries and OCR bypass the browsing preference without overwriting it.
+  context.section = 'home';
+  run("rc12StartTask([{}], {source:'new'})");
+  assert.equal(isOpen(), true);
+  run('setEntryKeypadOpen(true)');
+  run("rc12StartTask([{}], {source:'edit'})");
+  assert.equal(isOpen(), false);
+  run("rc12StartTask([{}], {source:'ocr'})");
+  assert.equal(isOpen(), true);
+  run('setEntryKeypadOpen(false)');
+  run("rc12StartTask([{}], {source:'ocr'})");
+  assert.equal(isOpen(), true);
+  assert.equal(storage.get('star-ledger-browse-keypad'), 'closed');
+  const restarted = {localStorage: context.localStorage};
+  vm.createContext(restarted);
+  vm.runInContext(stateCode, restarted);
+  assert.equal(vm.runInContext('browseEntryKeypadOpen', restarted), false);
+  context.section = 'search';
+  run("rc12StartTask([{}], {source:'edit'}); setEntryKeypadOpen(true)");
+  run("rc12StartTask([{}], {source:'compound'})");
+  assert.equal(isOpen(), true);
+  run("rc12StartTask([{}], {source:'ocr', keypadOpen:false})");
+  assert.equal(isOpen(), false, 'callers may explicitly set initial visibility');
+  // Exercise the same base-form call used by switching cards and changing type/category.
+  Object.assign(context, {
+    entryInstantRender:false, rc12TaskInternal:false, rc123StopMotion() {},
+    rc123Swipe:null, rc123Scalar:0, matchMedia: () => ({matches:true}),
+    rc12BaseEntryForm() {context.renderedOpen = isOpen()}, rc12AugmentEntry() {}
+  });
+  vm.runInContext(functionBlock(ui, 'function rc12RenderTask(', 'function rc12SwitchDraft('), context);
+  run('rc12RenderTask(); rc12RenderTask()');
+  assert.equal(context.renderedOpen, false);
 });
