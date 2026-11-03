@@ -1,15 +1,15 @@
-const CACHE='starledger-web-v093-app-store-icons';
+const CACHE='starledger-web-v094-entry-account-order';
 const ASSETS=[
   './',
   './index.html',
   './manifest.webmanifest',
   './history-predictor.js?v=hist1',
   './recognizer.js?v=ocr3',
-  './app.js?v=app-icons4',
+  './app.js?v=entry-account-order1',
   './ui-runtime.js?v=account-filter2',
   './backup-zip.js?v=zip1',
   './books-stats.js?v=midterm2',
-  './ui-foundation.css?v=app-icons4',
+  './ui-foundation.css?v=entry-account-order1',
   './mobile-compat.css?v=css5',
   './assets/account-icons/abc.png',
   './assets/account-icons/alipay.svg',

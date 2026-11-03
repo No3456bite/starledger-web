@@ -149,23 +149,57 @@ test('last modification time updates for settings, but a backup alone does not c
   assert.equal(dirty, 1);
 });
 
-test('entry account choices rank actual bill usage across account groups', () => {
+test('entry accounts keep group order and switch between frequency and manual order', () => {
   const context = {
+    prefs: {entryAccountSortMode: 'suggested'},
     rows: [
       {type: '支出', account: '常用'},
       {type: '收入', account: '常用'},
       {type: '转账', account: '少用', account2: '常用'},
       {type: '支出', account: '少用'},
+      ...Array.from({length: 4}, () => ({type: '支出', account: '第二组常用'})),
       {type: '余额调整', account: '少用'},
       {type: '支出', account: '少用', deleted: true}
     ],
-    accountNames: () => ['少用', '未使用', '常用'],
+    accountNames: () => ['少用', '未使用', '常用', '第二组常用'],
+    accountProfile: name => ({groupId: name === '第二组常用' ? 'second' : 'first'}),
     isDeletion: row => !!row.deleted
   };
   vm.createContext(context);
   vm.runInContext(functionBlock(app, 'function entryAccountUsage()', 'function accountCnyRate('), context);
   const choices = vm.runInContext('entryAccountNames()', context);
-  assert.deepEqual(Array.from(choices, item => [item.name, item.count]), [['常用', 3], ['少用', 2], ['未使用', 0]]);
+  assert.deepEqual(Array.from(choices, item => [item.name, item.count]), [['常用', 3], ['少用', 2], ['未使用', 0], ['第二组常用', 4]]);
+  context.prefs.entryAccountSortMode = 'manual';
+  assert.deepEqual(Array.from(vm.runInContext('entryAccountNames()', context), item => item.name), ['少用', '未使用', '常用', '第二组常用']);
+});
+
+test('entry account sheet shows each account only inside its configured group', () => {
+  const overlay = {dataset: {}, innerHTML: ''};
+  const context = {
+    $: selector => selector === '#accountOverlay' ? overlay : {value: ''},
+    accountGroups: () => [{id: 'first', name: '储蓄'}, {id: 'second', name: '信用卡'}],
+    entryAccountNames: () => [{name: '零钱', count: 4}, {name: '工资卡', count: 7}, {name: '建行卡', count: 2}],
+    accountProfile: name => ({groupId: name === '建行卡' ? 'second' : 'first'}),
+    accountIconHtml: () => '', esc: value => value,
+    requestAnimationFrame: () => {}
+  };
+  vm.createContext(context);
+  vm.runInContext(functionBlock(app, 'function openAccountSheet(', 'function bookPicker('), context);
+  vm.runInContext("openAccountSheet('account')", context);
+  assert.ok(overlay.innerHTML.indexOf('储蓄 · 2') < overlay.innerHTML.indexOf('信用卡 · 1'));
+  assert.equal((overlay.innerHTML.match(/data-chooseaccount="工资卡"/g) || []).length, 1);
+  assert.doesNotMatch(overlay.innerHTML, /常用账户/);
+});
+
+test('entry account sort mode survives settings export and accepts older settings', () => {
+  const context = {prefs: {accountGroups: [{id: 'default', name: '默认分组'}], accountProfiles: {}, entryAccountSortMode: 'manual'}};
+  vm.createContext(context);
+  vm.runInContext(functionBlock(app, 'function configBackup(', 'function accountManagementPage('), context);
+  const backup = vm.runInContext('configBackup()', context);
+  assert.equal(backup.settings.entryAccountSortMode, 'manual');
+  assert.equal(vm.runInContext(`validateConfigBackup(${JSON.stringify(JSON.stringify(backup))}).entryAccountSortMode`, context), 'manual');
+  delete backup.settings.entryAccountSortMode;
+  assert.equal(vm.runInContext(`validateConfigBackup(${JSON.stringify(JSON.stringify(backup))}).entryAccountSortMode`, context), undefined);
 });
 
 test('account icons use the same emoji rule as book icons and keep a fallback', () => {

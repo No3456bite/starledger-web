@@ -939,6 +939,42 @@ main {
   min-height: 70px;
   padding: 14px 0;
 }
+.entry-account-sort-setting {
+  min-width: 0;
+  margin: 16px 0 0;
+  padding: 0;
+  border: 0;
+}
+.entry-account-sort-setting legend {
+  margin-bottom: 10px;
+  font-weight: 700;
+}
+.entry-account-sort-choices {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.entry-account-sort-choices label {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  cursor: pointer;
+}
+.entry-account-sort-choices input {
+  flex: 0 0 auto;
+  margin: 2px 0 0;
+  accent-color: var(--green);
+}
+.entry-account-sort-choices small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  line-height: 1.4;
+}
 
 .banner-setting-row {
   min-height: 66px;
