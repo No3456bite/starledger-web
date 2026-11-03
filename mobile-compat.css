@@ -77,6 +77,72 @@
     max-height:min(calc(var(--sl-modal-height,100vh) - var(--sl-browser-chrome-gap) - 20px),680px)!important;
   }
 
+  /* The software keyboard covers secondary cards. Keep their pre-keyboard
+     frame instead of centering them again in the shorter visual viewport. */
+  html.browser-tab #overlay.safari-document-modal.keyboard-cover-modal>.modalback{
+    position:absolute!important;
+    inset:0!important;
+    width:auto!important;
+    height:auto!important;
+    overflow:auto!important;
+  }
+  html.browser-tab #overlay.safari-document-modal.keyboard-cover-modal>.modalback>.modal{
+    max-height:min(calc(var(--sl-modal-height,100vh) - 32px),720px)!important;
+    margin:auto!important;
+  }
+  html.browser-tab #overlay.safari-document-modal.keyboard-cover-modal #accountOverlay{
+    position:absolute!important;
+    inset:0!important;
+  }
+  html.browser-tab #overlay.safari-document-modal.keyboard-cover-modal #accountOverlay>.entry-choice-back{
+    position:absolute!important;
+    inset:0!important;
+    width:100%!important;
+    height:100%!important;
+  }
+  html.browser-tab #overlay.safari-document-modal.keyboard-cover-modal #accountOverlay>.entry-choice-back>.entry-choice-card{
+    max-height:min(calc(var(--sl-modal-height,100vh) - 48px),720px)!important;
+  }
+  html.browser-tab #overlay.safari-document-modal.keyboard-cover-modal .entry-account-groups{
+    max-height:var(--sl-modal-list-height,48vh)!important;
+  }
+  html.browser-tab #overlay.safari-document-modal.keyboard-cover-modal .entry-category-columns{
+    height:min(var(--sl-modal-category-height,42vh),420px)!important;
+  }
+
+  /* Standalone/PWA pages use fixed backdrops. Give them the same frozen height
+     while an input is focused so the keyboard covers, rather than lifts, cards. */
+  html.standalone-webapp #overlay.keyboard-cover-modal>.modalback,
+  html.standalone-webapp #overlay.keyboard-cover-modal>.entryback,
+  html.standalone-webapp #overlay.keyboard-cover-modal>.account-dialog-back,
+  html.standalone-webapp #overlay.keyboard-cover-modal>.search-modalback{
+    position:fixed!important;
+    inset:0 auto auto 0!important;
+    width:100vw!important;
+    height:var(--sl-modal-height,100vh)!important;
+  }
+  html.standalone-webapp #overlay.keyboard-cover-modal>.modalback>.modal,
+  html.standalone-webapp #overlay.keyboard-cover-modal>.account-dialog-back>.modal,
+  html.standalone-webapp #overlay.keyboard-cover-modal>.search-modalback>.modal,
+  html.standalone-webapp #overlay.keyboard-cover-modal>.entryback>.entry{
+    max-height:min(calc(var(--sl-modal-height,100vh) - 32px),720px)!important;
+  }
+  html.standalone-webapp #overlay.keyboard-cover-modal #accountOverlay>.entry-choice-back{
+    position:fixed!important;
+    inset:0 auto auto 0!important;
+    width:100vw!important;
+    height:var(--sl-modal-height,100vh)!important;
+  }
+  html.standalone-webapp #overlay.keyboard-cover-modal #accountOverlay>.entry-choice-back>.entry-choice-card{
+    max-height:min(calc(var(--sl-modal-height,100vh) - 48px),720px)!important;
+  }
+  html.standalone-webapp #overlay.keyboard-cover-modal .entry-account-groups{
+    max-height:var(--sl-modal-list-height,48vh)!important;
+  }
+  html.standalone-webapp #overlay.keyboard-cover-modal .entry-category-columns{
+    height:min(var(--sl-modal-category-height,42vh),420px)!important;
+  }
+
   /* Search filters must not leave a fixed blurred compositor at the Safari
      viewport edge. Pin them in document coordinates and use a plain dimmer. */
   html.browser-tab #overlay.safari-document-modal:has(>.search-modalback){

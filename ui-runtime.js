@@ -1091,11 +1091,12 @@ if('serviceWorker' in navigator&&location.protocol==='https:')window.addEventLis
 (()=>{
   const root=document.documentElement;
   const overlay=document.getElementById('overlay');
-  if(!overlay||!root.classList.contains('browser-tab'))return;
+  if(!overlay)return;
 
-  let modalActive=false;
+  let modalActive=false, keyboardCover=false, baseHeight=0, baseWidth=0;
   const isPhone=()=>matchMedia('(max-width:760px)').matches;
-  const hasPrimaryModal=()=>!!overlay.querySelector(':scope > .entryback, :scope > .account-dialog-back, :scope > .search-modalback');
+  const hasPrimaryModal=()=>!!overlay.querySelector(':scope > .entryback, :scope > .account-dialog-back, :scope > .search-modalback, :scope > .modalback');
+  const keyboardField=el=>!!el?.matches?.('textarea,[contenteditable="true"],input:not([readonly]):not([type="checkbox"]):not([type="radio"]):not([type="date"]):not([type="datetime-local"]):not([type="time"]):not([type="file"])');
 
   const place=()=>{
     if(!modalActive||!isPhone())return;
@@ -1104,18 +1105,24 @@ if('serviceWorker' in navigator&&location.protocol==='https:')window.addEventLis
     const scrollY=window.scrollY||document.documentElement.scrollTop||0;
     const left=scrollX+(vv?.offsetLeft||0);
     const top=scrollY+(vv?.offsetTop||0);
-    const width=vv?.width||document.documentElement.clientWidth||window.innerWidth;
-    const height=vv?.height||window.innerHeight;
+    const liveWidth=vv?.width||document.documentElement.clientWidth||window.innerWidth;
+    const liveHeight=vv?.height||window.innerHeight;
+    if(!keyboardCover&&!keyboardField(document.activeElement)){baseWidth=liveWidth;baseHeight=liveHeight}
+    const width=keyboardCover&&baseWidth?baseWidth:liveWidth;
+    const height=keyboardCover&&baseHeight?baseHeight:liveHeight;
     overlay.style.setProperty('--sl-modal-left',left+'px');
     overlay.style.setProperty('--sl-modal-top',top+'px');
     overlay.style.setProperty('--sl-modal-width',width+'px');
     overlay.style.setProperty('--sl-modal-height',height+'px');
+    overlay.style.setProperty('--sl-modal-list-height',Math.round(height*.48)+'px');
+    overlay.style.setProperty('--sl-modal-category-height',Math.round(height*.42)+'px');
   };
 
   const clear=()=>{
     modalActive=false;
-    overlay.classList.remove('safari-document-modal');
-    for(const name of ['--sl-modal-left','--sl-modal-top','--sl-modal-width','--sl-modal-height']){
+    keyboardCover=false;baseHeight=0;baseWidth=0;
+    overlay.classList.remove('safari-document-modal','keyboard-cover-modal');
+    for(const name of ['--sl-modal-left','--sl-modal-top','--sl-modal-width','--sl-modal-height','--sl-modal-list-height','--sl-modal-category-height']){
       overlay.style.removeProperty(name);
     }
   };
@@ -1124,17 +1131,36 @@ if('serviceWorker' in navigator&&location.protocol==='https:')window.addEventLis
     const active=isPhone()&&hasPrimaryModal();
     if(active){
       modalActive=true;
-      overlay.classList.add('safari-document-modal');
+      if(root.classList.contains('browser-tab'))overlay.classList.add('safari-document-modal');
       place();
     }else if(modalActive){
       clear();
     }
   };
 
+  const releaseKeyboardCover=()=>{
+    if(!keyboardCover||keyboardField(document.activeElement)&&overlay.contains(document.activeElement))return;
+    const liveHeight=window.visualViewport?.height||window.innerHeight;
+    if(liveHeight<baseHeight-40)return; // Wait until the keyboard has actually finished closing.
+    keyboardCover=false;
+    overlay.classList.remove('keyboard-cover-modal');
+    place();
+  };
+
   new MutationObserver(sync).observe(overlay,{childList:true});
+  document.addEventListener('focusin',e=>{
+    if(!isPhone()||!overlay.contains(e.target)||!keyboardField(e.target))return;
+    if(!modalActive)sync();
+    keyboardCover=true;
+    overlay.classList.add('keyboard-cover-modal');
+    place();
+  },true);
+  document.addEventListener('focusout',e=>{
+    if(keyboardCover&&overlay.contains(e.target))requestAnimationFrame(releaseKeyboardCover);
+  },true);
   window.addEventListener('resize',place,{passive:true});
   window.addEventListener('orientationchange',place,{passive:true});
-  window.visualViewport?.addEventListener('resize',place,{passive:true});
+  window.visualViewport?.addEventListener('resize',()=>{releaseKeyboardCover();place()},{passive:true});
   window.visualViewport?.addEventListener('scroll',place,{passive:true});
   sync();
 })();

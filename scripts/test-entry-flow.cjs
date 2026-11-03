@@ -12,6 +12,45 @@ function functionBlock(source, start, end) {
 const ui = fs.readFileSync('ui-runtime.js', 'utf8');
 const app = fs.readFileSync('app.js', 'utf8');
 
+test('browser-tab and standalone cards keep their height while the keyboard covers them', () => {
+ for (const mode of ['browser-tab', 'standalone-webapp']) {
+  const documentEvents = new Map(), viewportEvents = new Map(), windowEvents = new Map(), vars = new Map(), classes = new Set();
+  const field = {matches: selector => selector.includes('textarea')};
+  const viewport = {width: 390, height: 780, offsetLeft: 0, offsetTop: 0, addEventListener: (name, fn) => viewportEvents.set(name, fn)};
+  const overlay = {
+    classList: {add: (...names) => names.forEach(name => classes.add(name)), remove: (...names) => names.forEach(name => classes.delete(name))},
+    style: {setProperty: (name, value) => vars.set(name, value), removeProperty: name => vars.delete(name)},
+    querySelector: () => ({}), contains: target => target === field
+  };
+  const document = {
+    documentElement: {classList: {contains: name => name === mode}, clientWidth: 390, scrollTop: 0, scrollLeft: 0},
+    getElementById: () => overlay, addEventListener: (name, fn) => documentEvents.set(name, fn), activeElement: null
+  };
+  const context = {
+    document, window: {visualViewport: viewport, innerWidth: 390, innerHeight: 780, scrollX: 0, scrollY: 0, addEventListener: (name, fn) => windowEvents.set(name, fn)},
+    matchMedia: () => ({matches: true}), requestAnimationFrame: fn => fn(), MutationObserver: class {observe() {}}
+  };
+  vm.createContext(context);
+  vm.runInContext(functionBlock(ui, '/* web-v051-safari-document-modal-controller */', '/* web-v044-browser-tab-interactions */'), context);
+  assert.equal(vars.get('--sl-modal-height'), '780px');
+  assert.equal(classes.has('safari-document-modal'), mode === 'browser-tab');
+  document.activeElement = field;
+  documentEvents.get('focusin')({target: field});
+  viewport.height = 430;
+  viewport.offsetTop = 12;
+  viewportEvents.get('resize')();
+  assert.equal(vars.get('--sl-modal-height'), '780px');
+  assert.equal(vars.get('--sl-modal-top'), '12px');
+  assert.ok(classes.has('keyboard-cover-modal'));
+  document.activeElement = null;
+  documentEvents.get('focusout')({target: field});
+  assert.ok(classes.has('keyboard-cover-modal'));
+  viewport.height = 780;
+  viewportEvents.get('resize')();
+  assert.ok(!classes.has('keyboard-cover-modal'));
+ }
+});
+
 test('dark theme keeps the page edge black in browser tabs and standalone', () => {
   const metas = [{content: ''}, {content: ''}];
   const root = {dataset: {}, style: {}};

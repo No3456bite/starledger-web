@@ -1,4 +1,4 @@
-const CACHE='starledger-web-v094-entry-account-order';
+const CACHE='starledger-web-v095-keyboard-cover';
 const ASSETS=[
   './',
   './index.html',
@@ -6,11 +6,11 @@ const ASSETS=[
   './history-predictor.js?v=hist1',
   './recognizer.js?v=ocr3',
   './app.js?v=entry-account-order1',
-  './ui-runtime.js?v=account-filter2',
+  './ui-runtime.js?v=keyboard-cover1',
   './backup-zip.js?v=zip1',
   './books-stats.js?v=midterm2',
   './ui-foundation.css?v=entry-account-order1',
-  './mobile-compat.css?v=css5',
+  './mobile-compat.css?v=keyboard-cover1',
   './assets/account-icons/abc.png',
   './assets/account-icons/alipay.svg',
   './assets/account-icons/apple.svg',
