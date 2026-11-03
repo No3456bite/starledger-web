@@ -7,14 +7,6 @@
  * overrides here so later UI work does not accidentally outrank them.
  */
 @media(max-width:760px){
-  /* A transparent fixed navigation bar still keeps its WebKit blur layer.
-     Safari can sample that layer as a solid bottom chrome color during an
-     editor, then retain the tint after closing. Remove the layer from paint
-     for the entire editor lifecycle. */
-  html.browser-tab body:has(#overlay>.entryback) .mobilebar{
-    display:none!important;
-  }
-
   html.browser-tab{
     /*
      * iPhone Safari's bottom browser chrome can visually overlap the page even

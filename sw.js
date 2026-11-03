@@ -1,4 +1,4 @@
-const CACHE='starledger-web-v095-keyboard-cover';
+const CACHE='starledger-web-v096-secondary-nav';
 const ASSETS=[
   './',
   './index.html',
@@ -9,8 +9,8 @@ const ASSETS=[
   './ui-runtime.js?v=keyboard-cover1',
   './backup-zip.js?v=zip1',
   './books-stats.js?v=midterm2',
-  './ui-foundation.css?v=entry-account-order1',
-  './mobile-compat.css?v=keyboard-cover1',
+  './ui-foundation.css?v=secondary-nav1',
+  './mobile-compat.css?v=secondary-nav1',
   './assets/account-icons/abc.png',
   './assets/account-icons/alipay.svg',
   './assets/account-icons/apple.svg',
