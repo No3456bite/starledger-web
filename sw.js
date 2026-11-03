@@ -1,11 +1,11 @@
-const CACHE='starledger-web-v096-secondary-nav';
+const CACHE='starledger-web-v097-account-choice-no-placeholder';
 const ASSETS=[
   './',
   './index.html',
   './manifest.webmanifest',
   './history-predictor.js?v=hist1',
   './recognizer.js?v=ocr3',
-  './app.js?v=entry-account-order1',
+  './app.js?v=account-choice-no-placeholder1',
   './ui-runtime.js?v=keyboard-cover1',
   './backup-zip.js?v=zip1',
   './books-stats.js?v=midterm2',

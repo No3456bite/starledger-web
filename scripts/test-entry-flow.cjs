@@ -219,7 +219,7 @@ test('entry account sheet shows each account only inside its configured group', 
     accountGroups: () => [{id: 'first', name: '储蓄'}, {id: 'second', name: '信用卡'}],
     entryAccountNames: () => [{name: '零钱', count: 4}, {name: '工资卡', count: 7}, {name: '建行卡', count: 2}],
     accountProfile: name => ({groupId: name === '建行卡' ? 'second' : 'first'}),
-    accountIconHtml: () => '', esc: value => value,
+    accountBrandId: () => '', accountIconHtml: () => '', esc: value => value,
     requestAnimationFrame: () => {}
   };
   vm.createContext(context);

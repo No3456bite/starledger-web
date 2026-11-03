@@ -1393,7 +1393,8 @@ function openEntryDatePicker(){
 }
 function openAccountSheet(field){
  let entries=entryAccountNames(),current=$('#entry [name="'+field+'"]')?.value||'',groups=accountGroups();
- let choice=({name,count})=>`<button type="button" data-chooseaccount="${esc(name)}" class="${name===current?'active':''}" aria-label="${esc(name)}，使用 ${count} 笔"><span class="account-choice-icon" aria-hidden="true">${accountIconHtml(name)}</span><span class="account-choice-text">${esc(name)}</span></button>`;
+ // Keep unbranded accounts text-only here; generic currency/type symbols are not picker icons.
+ let choice=({name,count})=>{let profile=accountProfile(name),hasIcon=profile.icon||accountBrandId(name,profile);return `<button type="button" data-chooseaccount="${esc(name)}" class="${name===current?'active':''}" aria-label="${esc(name)}，使用 ${count} 笔">${hasIcon?`<span class="account-choice-icon" aria-hidden="true">${accountIconHtml(name,profile)}</span>`:''}<span class="account-choice-text">${esc(name)}</span></button>`};
  let sections=groups.map(group=>{let members=entries.filter(item=>accountProfile(item.name).groupId===group.id);return members.length?`<section class="entry-account-group"><h3>${esc(group.name)} · ${members.length}</h3><div class="account-options">${members.map(choice).join('')}</div></section>`:''}).join('');
  $('#accountOverlay').dataset.field=field;
  $('#accountOverlay').innerHTML=`<div class="modalback entry-choice-back"><div class="modal entry-choice-card account-sheet"><div class="sectionhead"><h2>选择账户</h2><button type="button" id="closeAccountSheet">完成</button></div><input class="account-search" id="accountSearch" type="search" placeholder="搜索账户，也可输入新账户" autocomplete="off"><div class="entry-account-groups" id="accountOptions">${sections}</div><button type="button" class="button" id="useNewAccount" style="margin-top:10px;display:none">使用输入的新账户</button></div></div>`;
