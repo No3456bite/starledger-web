@@ -193,11 +193,14 @@ test('bank and payment icons match names without replacing a chosen emoji', () =
   assert.equal(vm.runInContext("accountBrandId('数字人民币钱包')", context), 'digitalcny');
   assert.equal(vm.runInContext("accountBrandId('Apple Pay')", context), 'applepay');
   assert.equal(vm.runInContext("accountBrandId('拼多多钱包')", context), 'pinduoduo');
+  assert.equal(vm.runInContext("accountBrandId('京东钱包')", context), 'jd');
+  assert.equal(vm.runInContext("accountBrandId('得物')", context), 'dewu');
   assert.equal(vm.runInContext("accountBrandId('个人')", context), '');
   assert.equal(vm.runInContext("accountBrandId('支付宝')", context), '');
   assert.match(vm.runInContext("accountIconHtml('工商银行储蓄卡')", context), /icbc\.png/);
   assert.match(vm.runInContext("accountIconHtml('数字人民币钱包')", context), /account-brand-tile.*digitalcny\.svg/);
   assert.match(vm.runInContext("accountIconHtml('拼多多钱包')", context), /account-brand-tile.*pinduoduo\.svg/);
+  assert.match(vm.runInContext("accountIconHtml('京东钱包')", context), /has-official-artwork.*mzstatic\.com.*jd\.svg/);
   assert.equal(vm.runInContext("accountIconHtml('个人')", context), '🌟');
 });
 

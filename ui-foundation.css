@@ -533,6 +533,7 @@ main {
 
 .account-brand-mark { background: transparent; }
 .account-brand-tile {
+  position: relative;
   display: grid;
   place-items: center;
   width: 29px;
@@ -540,6 +541,16 @@ main {
   flex: 0 0 29px;
   border-radius: 8px;
   background: var(--tile-color);
+  overflow: hidden;
+}
+.account-brand-tile.has-official-artwork::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: var(--official-icon);
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
 }
 .account-brand-glyph,
 .account-brand-image {
