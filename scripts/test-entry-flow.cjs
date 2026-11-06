@@ -12,15 +12,18 @@ function functionBlock(source, start, end) {
 const ui = fs.readFileSync('ui-runtime.js', 'utf8');
 const app = fs.readFileSync('app.js', 'utf8');
 
-test('browser-tab and standalone cards keep their height while the keyboard covers them', () => {
+test('browser-tab and standalone cards keep height and top position while the keyboard covers them', () => {
  for (const mode of ['browser-tab', 'standalone-webapp']) {
   const documentEvents = new Map(), viewportEvents = new Map(), windowEvents = new Map(), vars = new Map(), classes = new Set();
   const field = {matches: selector => selector.includes('textarea')};
   const viewport = {width: 390, height: 780, offsetLeft: 0, offsetTop: 0, addEventListener: (name, fn) => viewportEvents.set(name, fn)};
+  const card = {getBoundingClientRect: () => ({top: 220})};
+  const backdrop = {getBoundingClientRect: () => ({top: 0}), querySelector: () => card};
   const overlay = {
-    classList: {add: (...names) => names.forEach(name => classes.add(name)), remove: (...names) => names.forEach(name => classes.delete(name))},
-    style: {setProperty: (name, value) => vars.set(name, value), removeProperty: name => vars.delete(name)},
-    querySelector: () => ({}), contains: target => target === field
+    classList: {add: (...names) => names.forEach(name => classes.add(name)), remove: (...names) => names.forEach(name => classes.delete(name)), contains: name => classes.has(name)},
+    style: {setProperty: (name, value) => vars.set(name, value), removeProperty: name => vars.delete(name), getPropertyValue: name => vars.get(name) || ''},
+    querySelector: selector => selector.startsWith('#accountOverlay') ? null : backdrop,
+    contains: target => target === field
   };
   const document = {
     documentElement: {classList: {contains: name => name === mode}, clientWidth: 390, scrollTop: 0, scrollLeft: 0},
@@ -28,7 +31,7 @@ test('browser-tab and standalone cards keep their height while the keyboard cove
   };
   const context = {
     document, window: {visualViewport: viewport, innerWidth: 390, innerHeight: 780, scrollX: 0, scrollY: 0, addEventListener: (name, fn) => windowEvents.set(name, fn)},
-    matchMedia: () => ({matches: true}), requestAnimationFrame: fn => fn(), MutationObserver: class {observe() {}}
+    matchMedia: () => ({matches: true}), getComputedStyle: () => ({paddingTop: '8px'}), requestAnimationFrame: fn => fn(), MutationObserver: class {observe() {}}
   };
   vm.createContext(context);
   vm.runInContext(functionBlock(ui, '/* web-v051-safari-document-modal-controller */', '/* web-v044-browser-tab-interactions */'), context);
@@ -42,12 +45,16 @@ test('browser-tab and standalone cards keep their height while the keyboard cove
   assert.equal(vars.get('--sl-modal-height'), '780px');
   assert.equal(vars.get('--sl-modal-top'), '12px');
   assert.ok(classes.has('keyboard-cover-modal'));
+  assert.ok(classes.has('keyboard-anchor-modal'));
+  assert.equal(vars.get('--sl-keyboard-card-top'), '212px');
+  assert.equal(vars.get('--sl-modal-key-height'), Math.max(44, Math.min(52, 780 * .058)) + 'px');
   document.activeElement = null;
   documentEvents.get('focusout')({target: field});
   assert.ok(classes.has('keyboard-cover-modal'));
   viewport.height = 780;
   viewportEvents.get('resize')();
   assert.ok(!classes.has('keyboard-cover-modal'));
+  assert.ok(classes.has('keyboard-anchor-modal')); // Blur must not recenter a growing card.
  }
 });
 

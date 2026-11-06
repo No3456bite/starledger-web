@@ -1094,7 +1094,7 @@ if('serviceWorker' in navigator&&location.protocol==='https:')window.addEventLis
   const overlay=document.getElementById('overlay');
   if(!overlay)return;
 
-  let modalActive=false, keyboardCover=false, baseHeight=0, baseWidth=0;
+  let modalActive=false, keyboardCover=false, baseHeight=0, baseWidth=0, anchoredBack=null, anchoredChild=null;
   const isPhone=()=>matchMedia('(max-width:760px)').matches;
   const hasPrimaryModal=()=>!!overlay.querySelector(':scope > .entryback, :scope > .account-dialog-back, :scope > .search-modalback, :scope > .modalback');
   const keyboardField=el=>!!el?.matches?.('textarea,[contenteditable="true"],input:not([readonly]):not([type="checkbox"]):not([type="radio"]):not([type="date"]):not([type="datetime-local"]):not([type="time"]):not([type="file"])');
@@ -1117,13 +1117,15 @@ if('serviceWorker' in navigator&&location.protocol==='https:')window.addEventLis
     overlay.style.setProperty('--sl-modal-height',height+'px');
     overlay.style.setProperty('--sl-modal-list-height',Math.round(height*.48)+'px');
     overlay.style.setProperty('--sl-modal-category-height',Math.round(height*.42)+'px');
+    overlay.style.setProperty('--sl-modal-key-height',Math.max(44,Math.min(52,height*.058))+'px');
+    overlay.style.setProperty('--sl-modal-note-height',Math.max(54,Math.min(70,height*.08))+'px');
   };
 
   const clear=()=>{
     modalActive=false;
-    keyboardCover=false;baseHeight=0;baseWidth=0;
-    overlay.classList.remove('safari-document-modal','keyboard-cover-modal');
-    for(const name of ['--sl-modal-left','--sl-modal-top','--sl-modal-width','--sl-modal-height','--sl-modal-list-height','--sl-modal-category-height']){
+    keyboardCover=false;baseHeight=0;baseWidth=0;anchoredBack=null;anchoredChild=null;
+    overlay.classList.remove('safari-document-modal','keyboard-cover-modal','keyboard-anchor-modal');
+    for(const name of ['--sl-modal-left','--sl-modal-top','--sl-modal-width','--sl-modal-height','--sl-modal-list-height','--sl-modal-category-height','--sl-modal-key-height','--sl-modal-note-height','--sl-keyboard-card-top','--sl-keyboard-child-top']){
       overlay.style.removeProperty(name);
     }
   };
@@ -1131,6 +1133,13 @@ if('serviceWorker' in navigator&&location.protocol==='https:')window.addEventLis
   const sync=()=>{
     const active=isPhone()&&hasPrimaryModal();
     if(active){
+      const back=overlay.querySelector(':scope > .entryback, :scope > .modalback');
+      if(anchoredBack&&anchoredBack!==back){
+        anchoredBack=null;anchoredChild=null;
+        overlay.classList.remove('keyboard-anchor-modal');
+        overlay.style.removeProperty('--sl-keyboard-card-top');
+        overlay.style.removeProperty('--sl-keyboard-child-top');
+      }
       modalActive=true;
       if(root.classList.contains('browser-tab'))overlay.classList.add('safari-document-modal');
       place();
@@ -1149,9 +1158,28 @@ if('serviceWorker' in navigator&&location.protocol==='https:')window.addEventLis
   };
 
   new MutationObserver(sync).observe(overlay,{childList:true});
+  const anchorCard=(back,card,property)=>{
+    if(!back||!card)return;
+    const padding=parseFloat(getComputedStyle(back).paddingTop)||0;
+    // Flex auto margins recenter a card whenever typing changes its height.
+    // Save its original position before the iOS keyboard changes the viewport.
+    const top=Math.max(0,card.getBoundingClientRect().top-back.getBoundingClientRect().top-padding);
+    overlay.style.setProperty(property,top+'px');
+  };
   document.addEventListener('focusin',e=>{
     if(!isPhone()||!overlay.contains(e.target)||!keyboardField(e.target))return;
     if(!modalActive)sync();
+    if(!overlay.classList.contains('keyboard-anchor-modal')){
+      const back=overlay.querySelector(':scope > .entryback, :scope > .modalback');
+      anchorCard(back,back?.querySelector(':scope > .entry, :scope > .modal'),'--sl-keyboard-card-top');
+      anchoredBack=back;
+      overlay.classList.add('keyboard-anchor-modal');
+    }
+    const child=overlay.querySelector('#accountOverlay > .entry-choice-back');
+    if(child&&anchoredChild!==child){
+      anchorCard(child,child.querySelector(':scope > .entry-choice-card'),'--sl-keyboard-child-top');
+      anchoredChild=child;
+    }
     keyboardCover=true;
     overlay.classList.add('keyboard-cover-modal');
     place();

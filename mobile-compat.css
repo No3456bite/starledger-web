@@ -129,6 +129,31 @@
     height:min(var(--sl-modal-category-height,42vh),420px)!important;
   }
 
+  /* Keep every secondary card at its pre-keyboard top edge. In particular,
+     growing note text and changing suggestions must not recenter the editor. */
+  #overlay.keyboard-anchor-modal>:is(.entryback,.modalback),
+  #overlay.keyboard-anchor-modal #accountOverlay>.entry-choice-back{
+    align-items:flex-start!important;
+    justify-content:flex-start!important;
+  }
+  html.browser-tab #overlay.safari-document-modal.keyboard-anchor-modal>:is(.entryback,.modalback)>:is(.entry,.modal),
+  html.standalone-webapp #overlay.keyboard-anchor-modal>:is(.entryback,.modalback)>:is(.entry,.modal){
+    margin-block-start:var(--sl-keyboard-card-top,0px)!important;
+    margin-block-end:0!important;
+    margin-inline:auto!important;
+  }
+  #overlay.keyboard-anchor-modal #accountOverlay>.entry-choice-back>.entry-choice-card{
+    margin-block-start:var(--sl-keyboard-child-top,0px)!important;
+    margin-block-end:0!important;
+    margin-inline:auto!important;
+  }
+  #overlay.keyboard-anchor-modal .entryback .entry-note-card{
+    min-height:var(--sl-modal-note-height,54px)!important;
+  }
+  #overlay.keyboard-anchor-modal .entryback .entry .keypad button{
+    height:var(--sl-modal-key-height,44px)!important;
+  }
+
   /* Search filters must not leave a fixed blurred compositor at the Safari
      viewport edge. Pin them in document coordinates and use a plain dimmer. */
   html.browser-tab #overlay.safari-document-modal:has(>.search-modalback){

@@ -1,4 +1,4 @@
-const CACHE='starledger-web-v098-secondary-layout-keypad';
+const CACHE='starledger-web-v099-keyboard-anchor';
 const ASSETS=[
   './',
   './index.html',
@@ -6,11 +6,11 @@ const ASSETS=[
   './history-predictor.js?v=hist1',
   './recognizer.js?v=ocr3',
   './app.js?v=entry-keypad-state1',
-  './ui-runtime.js?v=entry-keypad-state1',
+  './ui-runtime.js?v=keyboard-anchor1',
   './backup-zip.js?v=zip1',
   './books-stats.js?v=midterm2',
   './ui-foundation.css?v=secondary-layout1',
-  './mobile-compat.css?v=secondary-layout1',
+  './mobile-compat.css?v=keyboard-anchor1',
   './assets/account-icons/abc.png',
   './assets/account-icons/alipay.svg',
   './assets/account-icons/apple.svg',
