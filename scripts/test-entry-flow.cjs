@@ -12,8 +12,9 @@ function functionBlock(source, start, end) {
 const ui = fs.readFileSync('ui-runtime.js', 'utf8');
 const app = fs.readFileSync('app.js', 'utf8');
 
-test('browser-tab and standalone cards keep height and top position while the keyboard covers them', () => {
+test('browser-tab and standalone cards keep their frame when the keyboard moves the visual viewport', () => {
  for (const mode of ['browser-tab', 'standalone-webapp']) {
+  for (const initiallyFocused of [false, true]) {
   const documentEvents = new Map(), viewportEvents = new Map(), windowEvents = new Map(), vars = new Map(), classes = new Set();
   const field = {matches: selector => selector.includes('textarea')};
   const viewport = {width: 390, height: 780, offsetLeft: 0, offsetTop: 0, addEventListener: (name, fn) => viewportEvents.set(name, fn)};
@@ -27,7 +28,7 @@ test('browser-tab and standalone cards keep height and top position while the ke
   };
   const document = {
     documentElement: {classList: {contains: name => name === mode}, clientWidth: 390, scrollTop: 0, scrollLeft: 0},
-    getElementById: () => overlay, addEventListener: (name, fn) => documentEvents.set(name, fn), activeElement: null
+    getElementById: () => overlay, addEventListener: (name, fn) => documentEvents.set(name, fn), activeElement: initiallyFocused ? field : null
   };
   const context = {
     document, window: {visualViewport: viewport, innerWidth: 390, innerHeight: 780, scrollX: 0, scrollY: 0, addEventListener: (name, fn) => windowEvents.set(name, fn)},
@@ -37,17 +38,23 @@ test('browser-tab and standalone cards keep height and top position while the ke
   vm.runInContext(functionBlock(ui, '/* web-v051-safari-document-modal-controller */', '/* web-v044-browser-tab-interactions */'), context);
   assert.equal(vars.get('--sl-modal-height'), '780px');
   assert.equal(classes.has('safari-document-modal'), mode === 'browser-tab');
+  viewport.offsetTop = 16; // Safari's address bar may already offset the viewport.
+  viewportEvents.get('scroll')();
+  assert.equal(vars.get('--sl-modal-top'), '16px');
   document.activeElement = field;
   documentEvents.get('focusin')({target: field});
   viewport.height = 430;
   viewport.offsetTop = 12;
   viewportEvents.get('resize')();
   assert.equal(vars.get('--sl-modal-height'), '780px');
-  assert.equal(vars.get('--sl-modal-top'), '12px');
+  assert.equal(vars.get('--sl-modal-top'), '16px'); // Keyboard-only viewport offset must not move the sheet.
+  viewport.offsetTop = 200;
+  viewportEvents.get('scroll')();
+  assert.equal(vars.get('--sl-modal-top'), '16px');
   windowEvents.get('scroll')(); // Safari may move window.scrollY without a visualViewport event.
   context.window.scrollY = 180;
   windowEvents.get('scroll')();
-  assert.equal(vars.get('--sl-modal-top'), '192px');
+  assert.equal(vars.get('--sl-modal-top'), '196px');
   assert.equal(vars.get('--sl-modal-height'), '780px');
   assert.ok(classes.has('keyboard-cover-modal'));
   assert.ok(classes.has('keyboard-anchor-modal'));
@@ -60,6 +67,12 @@ test('browser-tab and standalone cards keep height and top position while the ke
   viewportEvents.get('resize')();
   assert.ok(!classes.has('keyboard-cover-modal'));
   assert.ok(classes.has('keyboard-anchor-modal')); // Blur must not recenter a growing card.
+  viewport.offsetTop = 16;
+  context.window.scrollY = 0;
+  viewportEvents.get('scroll')();
+  windowEvents.get('scroll')();
+  assert.equal(vars.get('--sl-modal-top'), '16px');
+  }
  }
 });
 

@@ -1095,6 +1095,7 @@ if('serviceWorker' in navigator&&location.protocol==='https:')window.addEventLis
   if(!overlay)return;
 
   let modalActive=false, keyboardCover=false, baseHeight=0, baseWidth=0, anchoredBack=null, anchoredChild=null;
+  let frameOffsetX=0, frameOffsetY=0;
   const isPhone=()=>matchMedia('(max-width:760px)').matches;
   const hasPrimaryModal=()=>!!overlay.querySelector(':scope > .entryback, :scope > .account-dialog-back, :scope > .search-modalback, :scope > .modalback');
   const keyboardField=el=>!!el?.matches?.('textarea,[contenteditable="true"],input:not([readonly]):not([type="checkbox"]):not([type="radio"]):not([type="date"]):not([type="datetime-local"]):not([type="time"]):not([type="file"])');
@@ -1104,13 +1105,18 @@ if('serviceWorker' in navigator&&location.protocol==='https:')window.addEventLis
     const vv=window.visualViewport;
     const scrollX=window.scrollX||document.documentElement.scrollLeft||0;
     const scrollY=window.scrollY||document.documentElement.scrollTop||0;
-    const left=scrollX+(vv?.offsetLeft||0);
-    const top=scrollY+(vv?.offsetTop||0);
+    const anchored=overlay.classList.contains('keyboard-anchor-modal');
+    // Safari moves visualViewport.offsetTop to reveal the text cursor. That is
+    // not a new modal origin: following it moves the whole editor downward.
+    // Track document scrolling, but keep the pre-keyboard viewport offset.
+    if(!anchored){frameOffsetX=vv?.offsetLeft||0;frameOffsetY=vv?.offsetTop||0}
+    const left=scrollX+frameOffsetX;
+    const top=scrollY+frameOffsetY;
     const liveWidth=vv?.width||document.documentElement.clientWidth||window.innerWidth;
     const liveHeight=vv?.height||window.innerHeight;
-    if(!keyboardCover&&!keyboardField(document.activeElement)){baseWidth=liveWidth;baseHeight=liveHeight}
-    const width=keyboardCover&&baseWidth?baseWidth:liveWidth;
-    const height=keyboardCover&&baseHeight?baseHeight:liveHeight;
+    if(!anchored&&!keyboardCover&&(!keyboardField(document.activeElement)||!baseHeight)){baseWidth=liveWidth;baseHeight=liveHeight}
+    const width=anchored&&baseWidth?baseWidth:liveWidth;
+    const height=anchored&&baseHeight?baseHeight:liveHeight;
     overlay.style.setProperty('--sl-modal-left',left+'px');
     overlay.style.setProperty('--sl-modal-top',top+'px');
     overlay.style.setProperty('--sl-modal-width',width+'px');
@@ -1124,6 +1130,7 @@ if('serviceWorker' in navigator&&location.protocol==='https:')window.addEventLis
   const clear=()=>{
     modalActive=false;
     keyboardCover=false;baseHeight=0;baseWidth=0;anchoredBack=null;anchoredChild=null;
+    frameOffsetX=0;frameOffsetY=0;
     overlay.classList.remove('safari-document-modal','keyboard-cover-modal','keyboard-anchor-modal');
     for(const name of ['--sl-modal-left','--sl-modal-top','--sl-modal-width','--sl-modal-height','--sl-modal-list-height','--sl-modal-category-height','--sl-modal-key-height','--sl-modal-note-height','--sl-keyboard-card-top','--sl-keyboard-child-top']){
       overlay.style.removeProperty(name);
@@ -1136,7 +1143,8 @@ if('serviceWorker' in navigator&&location.protocol==='https:')window.addEventLis
       const back=overlay.querySelector(':scope > .entryback, :scope > .modalback');
       if(anchoredBack&&anchoredBack!==back){
         anchoredBack=null;anchoredChild=null;
-        overlay.classList.remove('keyboard-anchor-modal');
+        keyboardCover=false;baseHeight=0;baseWidth=0;
+        overlay.classList.remove('keyboard-cover-modal','keyboard-anchor-modal');
         overlay.style.removeProperty('--sl-keyboard-card-top');
         overlay.style.removeProperty('--sl-keyboard-child-top');
       }
@@ -1188,7 +1196,7 @@ if('serviceWorker' in navigator&&location.protocol==='https:')window.addEventLis
     if(keyboardCover&&overlay.contains(e.target))requestAnimationFrame(releaseKeyboardCover);
   },true);
   // iOS may scroll the document to expose a focused field without firing a
-  // visualViewport event. Reposition the document-anchored sheet in that case.
+  // visualViewport event. Follow document scroll, never the keyboard offset.
   window.addEventListener('scroll',place,{passive:true});
   window.addEventListener('resize',place,{passive:true});
   window.addEventListener('orientationchange',place,{passive:true});

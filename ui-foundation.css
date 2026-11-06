@@ -1581,6 +1581,16 @@ main {
 .entry-history-suggestions small { color: var(--muted); font-size: 10px; }
 
 @media (max-width: 760px) {
+  /* The old 34px modal slide can be mistaken for a keyboard layout jump, and
+     focusing during that slide captures a transient card position. Fade only. */
+  @keyframes rc23FloatIn {
+    from { opacity: 0; transform: none; }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes rc23FloatOut {
+    from { opacity: 1; transform: none; }
+    to { opacity: 0; transform: none; }
+  }
   .mobilebar {
     transform: translateY(0);
     transition: opacity .25s ease, transform .25s cubic-bezier(.22,.61,.36,1);
