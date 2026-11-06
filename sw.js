@@ -1,4 +1,4 @@
-const CACHE='starledger-web-v099-keyboard-anchor';
+const CACHE='starledger-web-v100-keyboard-scroll';
 const ASSETS=[
   './',
   './index.html',
@@ -6,7 +6,7 @@ const ASSETS=[
   './history-predictor.js?v=hist1',
   './recognizer.js?v=ocr3',
   './app.js?v=entry-keypad-state1',
-  './ui-runtime.js?v=keyboard-anchor1',
+  './ui-runtime.js?v=keyboard-scroll1',
   './backup-zip.js?v=zip1',
   './books-stats.js?v=midterm2',
   './ui-foundation.css?v=secondary-layout1',

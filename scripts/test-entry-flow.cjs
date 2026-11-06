@@ -44,6 +44,11 @@ test('browser-tab and standalone cards keep height and top position while the ke
   viewportEvents.get('resize')();
   assert.equal(vars.get('--sl-modal-height'), '780px');
   assert.equal(vars.get('--sl-modal-top'), '12px');
+  windowEvents.get('scroll')(); // Safari may move window.scrollY without a visualViewport event.
+  context.window.scrollY = 180;
+  windowEvents.get('scroll')();
+  assert.equal(vars.get('--sl-modal-top'), '192px');
+  assert.equal(vars.get('--sl-modal-height'), '780px');
   assert.ok(classes.has('keyboard-cover-modal'));
   assert.ok(classes.has('keyboard-anchor-modal'));
   assert.equal(vars.get('--sl-keyboard-card-top'), '212px');

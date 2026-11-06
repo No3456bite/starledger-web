@@ -1187,6 +1187,9 @@ if('serviceWorker' in navigator&&location.protocol==='https:')window.addEventLis
   document.addEventListener('focusout',e=>{
     if(keyboardCover&&overlay.contains(e.target))requestAnimationFrame(releaseKeyboardCover);
   },true);
+  // iOS may scroll the document to expose a focused field without firing a
+  // visualViewport event. Reposition the document-anchored sheet in that case.
+  window.addEventListener('scroll',place,{passive:true});
   window.addEventListener('resize',place,{passive:true});
   window.addEventListener('orientationchange',place,{passive:true});
   window.visualViewport?.addEventListener('resize',()=>{releaseKeyboardCover();place()},{passive:true});
