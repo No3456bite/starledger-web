@@ -1,5 +1,5 @@
 // The build fills a content-addressed cache name and shell asset list.
-const CACHE='starledger-production-6d7c27ec79fd4f0c';
+const CACHE='starledger-production-8594a9a267e4e727';
 const SHELL=["./index.html","./manifest.webmanifest","./paper/app.js","./paper/assets/ledger-icon.svg","./paper/connections.js","./paper/domain/amount.js","./paper/domain/backup.js","./paper/domain/csv.js","./paper/domain/fixture.js","./paper/domain/history-predictor.js","./paper/domain/ledger.js","./paper/domain/migrate.js","./paper/domain/recognizer.js","./paper/domain/relations.js","./paper/domain/store.js","./paper/domain/workspace.js","./paper/domain/zip.js","./paper/features.js","./paper/font-compat.css","./paper/icons.js","./paper/motion.js","./paper/style.css","./paper/workflows.css","./paper/assets/serif.woff","./paper/assets/fonts/fonts.css"];
 self.addEventListener('install',event=>event.waitUntil((async()=>{const cache=await caches.open(CACHE);await cache.addAll(SHELL);await self.skipWaiting()})()));
 self.addEventListener('activate',event=>event.waitUntil((async()=>{for(const key of await caches.keys())if((key.startsWith('starledger-production-')||key.startsWith('star-ledger-')||key.startsWith('starledger-atelier-'))&&key!==CACHE)await caches.delete(key);await self.clients.claim()})()));
