@@ -52,12 +52,14 @@ jobs:
       - name: Check production migration in Chromium
         run: |
           npm install --no-save playwright
-          npx playwright install --with-deps chromium
+          npx playwright install --with-deps chromium webkit
           python3 -m http.server 4176 --directory dist > /tmp/starledger-http.log 2>&1 &
           export PLAYWRIGHT_MODULE=playwright
           export CHROMIUM_PATH=$(node -e "console.log(require('playwright').chromium.executablePath())")
           node paper-tests/migration-browser.cjs
           node paper-tests/complete-browser.cjs
+          TEST_URL=http://127.0.0.1:4176 node paper-tests/motion-browser.cjs
+          TEST_ENGINE=webkit TEST_URL=http://127.0.0.1:4176 node paper-tests/motion-browser.cjs
 
       - name: Check complete backup ZIP codec
         run: node scripts/test-backup-zip.cjs

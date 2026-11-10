@@ -7,7 +7,7 @@ import {createConnections} from './connections.js';
 export function createFeatures(ctx){
  const {esc,icon,commit,toast,error,closeDialog,render,go}=ctx,$=s=>document.querySelector(s),state=ctx.getState;
  let selection=new Set(),selecting=false,pending=null,manager='',editing='',bulkOps={},groupEditing='',categoryOriginal=null;
- const open=(title,body,kind='detail')=>{ctx.setView?.({type:'feature'});ctx.showDialog(ctx.dialogHeader(title)+`<div class="dialog-content">${body}</div>`,kind)};
+ const open=(title,body,kind='detail')=>{if(ctx.openSettingsPanel?.(title,body))return;ctx.setView?.({type:'feature'});ctx.showDialog(ctx.dialogHeader(title)+`<div class="dialog-content">${body}</div>`,kind)};
  const form=(id,body)=>`<form id="${id}" class="paper-form"><div id="form-error" hidden class="form-error" role="alert" tabindex="-1"></div>${body}</form>`;
  const button=(action,label,attrs='')=>`<button type="button" class="paper-workspace-row" data-action="${action}" ${attrs}>${label}${icon('right')}</button>`;
  const options=(values,selected)=>values.map(v=>`<option value="${esc(v)}" ${selected===v?'selected':''}>${esc(v)}</option>`).join('');

@@ -31,3 +31,11 @@ select{color:var(--ink)}
 select option,select optgroup{background-color:var(--surface);color:var(--ink)}
 :root[data-theme=dark] select{color-scheme:dark}
 :root[data-theme=light] select{color-scheme:light}
+/* Selection is reserved for editable controls, including on iOS WebKit. */
+body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+input,textarea,[contenteditable=true]{-webkit-user-select:text;user-select:text;-webkit-touch-callout:default}
+.settings-section{border-bottom:1px solid var(--rule)}.settings-disclosure{display:flex;justify-content:space-between;align-items:center;width:100%;padding:20px 0;text-align:left;font-family:var(--song);font-size:17px;min-height:60px}.settings-disclosure>span:last-child{font-family:var(--sans);font-size:19px;color:var(--muted);transition:transform 260ms cubic-bezier(.22,.8,.28,1)}.settings-disclosure[aria-expanded=true]>span:last-child{transform:rotate(45deg)}.settings-panel-content{padding:0 1px 24px}.settings-back{display:inline-flex;gap:6px;align-items:center;font-size:11px;color:var(--muted);padding:10px 0}.settings-back svg{width:13px;height:13px}.settings-inline-title{font-size:18px;margin:8px 0 20px}.settings-panel .dialog-actions{margin-top:20px}.settings-panel .paper-form{padding-top:4px}.settings-panel .settings-row{font-size:13px}.transaction:active{background:var(--active)}
+@media(prefers-reduced-motion:reduce){.settings-disclosure>span:last-child{transition:none}}
+@supports(view-transition-name:none){:root{view-transition-name:none}#main{view-transition-name:ledger-page}::view-transition-old(ledger-page){animation:page-leave 160ms ease-out both}::view-transition-new(ledger-page){animation:page-arrive 280ms cubic-bezier(.22,.8,.28,1) both}}
+@keyframes page-leave{to{opacity:0;transform:translateX(-8px)}}@keyframes page-arrive{from{opacity:0;transform:translateX(14px)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){::view-transition-old(ledger-page),::view-transition-new(ledger-page){animation:none}}

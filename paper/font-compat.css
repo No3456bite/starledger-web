@@ -1,0 +1,4 @@
+/* Interface face uses broadly supported WOFF/CFF, without unicode-range parsing.
+   The complete Ming library remains next in the stack for user-entered text. */
+@font-face{font-family:LedgerMingInterface;src:url('assets/fonts/ming-interface-400.woff') format('woff');font-style:normal;font-weight:400;font-display:swap}
+@font-face{font-family:LedgerMingInterface;src:url('assets/fonts/ming-interface-600.woff') format('woff');font-style:normal;font-weight:600;font-display:swap}
