@@ -1,10 +1,1 @@
-{
-  "name": "StarLedger",
-  "short_name": "StarLedger",
-  "start_url": "./",
-  "scope": "./",
-  "display": "standalone",
-  "background_color": "#f7f7f5",
-  "theme_color": "#f7f7f5",
-  "description": "StarLedger local-first Web App"
-}
+{"name":"星账本 · 私人账簿","short_name":"星账本","start_url":"./","scope":"./","display":"standalone","background_color":"#111214","theme_color":"#111214","lang":"zh-CN","icons":[{"src":"paper/assets/ledger-icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]}

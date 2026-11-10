@@ -1,25 +1,7 @@
-import { cpSync, mkdirSync, rmSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-import { dirname, join, resolve } from 'node:path';
-
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const output = join(root, 'dist');
-const publicFiles = [
-  'index.html',
-  'app.js',
-  'ui-runtime.js',
-  'books-stats.js',
-  'recognizer.js',
-  'history-predictor.js',
-  'backup-zip.js',
-  'ui-foundation.css',
-  'mobile-compat.css',
-  'manifest.webmanifest',
-  'sw.js'
-];
-
-rmSync(output, { recursive: true, force: true });
-mkdirSync(output);
-for (const file of publicFiles) cpSync(join(root, file), join(output, file));
-cpSync(join(root, 'assets/account-icons'), join(output, 'assets/account-icons'), { recursive: true });
-console.log(`Built ${publicFiles.length} public files in dist/`);
+import {cpSync,rmSync,mkdirSync,readFileSync,readdirSync,writeFileSync} from 'node:fs';
+import {resolve,relative} from 'node:path';import {createHash} from 'node:crypto';
+const root=resolve(import.meta.dirname,'..'),paper=resolve(root,'paper'),dist=resolve(root,'dist');
+const files=readdirSync(paper,{recursive:true,withFileTypes:true}).filter(f=>f.isFile()).map(f=>resolve(f.parentPath||f.path,f.name)).filter(f=>!f.endsWith('sw-template.txt')).sort(),hash=createHash('sha256');hash.update(readFileSync(resolve(root,'index.html')));for(const f of files)hash.update(relative(root,f)).update(readFileSync(f));const version=hash.digest('hex').slice(0,16),shell=['./index.html','./manifest.webmanifest',...files.map(f=>'./'+relative(root,f)).filter(p=>!p.includes('/assets/fonts/')&&!p.endsWith('.txt')&&!p.endsWith('.md')&&!p.endsWith('.woff')&&!p.endsWith('.json')),'./paper/assets/serif.woff','./paper/assets/fonts/fonts.css'];
+writeFileSync(resolve(root,'sw.js'),readFileSync(resolve(paper,'sw-template.txt'),'utf8').replace('__CACHE__','starledger-production-'+version).replace('__ASSETS__',JSON.stringify(shell)).replace("key.startsWith('starledger-paper-')","key.startsWith('starledger-production-')||key.startsWith('star-ledger-')"));
+rmSync(dist,{recursive:true,force:true});mkdirSync(dist);for(const p of ['index.html','manifest.webmanifest','sw.js','legacy-ui.html','app.js','ui-runtime.js','books-stats.js','recognizer.js','history-predictor.js','backup-zip.js','ui-foundation.css','mobile-compat.css','assets','paper'])cpSync(resolve(root,p),resolve(dist,p),{recursive:true});
+console.log('Built production paper ledger '+version);

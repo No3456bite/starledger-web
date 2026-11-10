@@ -1,59 +1,10 @@
-const CACHE='starledger-web-v101-keyboard-frame';
-const ASSETS=[
-  './',
-  './index.html',
-  './manifest.webmanifest',
-  './history-predictor.js?v=hist1',
-  './recognizer.js?v=ocr3',
-  './app.js?v=entry-keypad-state1',
-  './ui-runtime.js?v=keyboard-frame1',
-  './backup-zip.js?v=zip1',
-  './books-stats.js?v=midterm2',
-  './ui-foundation.css?v=keyboard-frame1',
-  './mobile-compat.css?v=keyboard-anchor1',
-  './assets/account-icons/abc.png',
-  './assets/account-icons/alipay.svg',
-  './assets/account-icons/apple.svg',
-  './assets/account-icons/applepay.svg',
-  './assets/account-icons/bjb.png',
-  './assets/account-icons/boc.png',
-  './assets/account-icons/bocom.png',
-  './assets/account-icons/ccb.png',
-  './assets/account-icons/ceb.png',
-  './assets/account-icons/cgb.png',
-  './assets/account-icons/douyin.svg',
-  './assets/account-icons/cib.png',
-  './assets/account-icons/citic.png',
-  './assets/account-icons/cmb.png',
-  './assets/account-icons/cmbc.png',
-  './assets/account-icons/dewu.svg',
-  './assets/account-icons/digitalcny.svg',
-  './assets/account-icons/hxb.png',
-  './assets/account-icons/icbc.png',
-  './assets/account-icons/jd.svg',
-  './assets/account-icons/jsb.png',
-  './assets/account-icons/meituan.svg',
-  './assets/account-icons/nbb.png',
-  './assets/account-icons/njb.png',
-  './assets/account-icons/pab.png',
-  './assets/account-icons/paypal.svg',
-  './assets/account-icons/pinduoduo.svg',
-  './assets/account-icons/psbc.png',
-  './assets/account-icons/shb.png',
-  './assets/account-icons/spdb.png',
-  './assets/account-icons/unionpay.svg',
-  './assets/account-icons/webank.png',
-  './assets/account-icons/wechat.svg'
-];
-self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting())));
-self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
-self.addEventListener('fetch',e=>{
-  if(e.request.method!=='GET')return;
-  // Never cache cross-origin Worker status or backup ZIP responses.
-  if(new URL(e.request.url).origin!==self.location.origin)return;
-  e.respondWith(fetch(e.request).then(r=>{
-    const copy=r.clone();
-    caches.open(CACHE).then(c=>c.put(e.request,copy));
-    return r;
-  }).catch(()=>caches.match(e.request).then(r=>r||caches.match('./index.html'))));
+// The build fills a content-addressed cache name and shell asset list.
+const CACHE='starledger-production-73e9d2010069231e';
+const SHELL=["./index.html","./manifest.webmanifest","./paper/app.js","./paper/assets/ledger-icon.svg","./paper/connections.js","./paper/domain/amount.js","./paper/domain/backup.js","./paper/domain/csv.js","./paper/domain/fixture.js","./paper/domain/history-predictor.js","./paper/domain/ledger.js","./paper/domain/migrate.js","./paper/domain/recognizer.js","./paper/domain/relations.js","./paper/domain/store.js","./paper/domain/workspace.js","./paper/domain/zip.js","./paper/features.js","./paper/icons.js","./paper/style.css","./paper/workflows.css","./paper/assets/serif.woff","./paper/assets/fonts/fonts.css"];
+self.addEventListener('install',event=>event.waitUntil((async()=>{const cache=await caches.open(CACHE);await cache.addAll(SHELL);await self.skipWaiting()})()));
+self.addEventListener('activate',event=>event.waitUntil((async()=>{for(const key of await caches.keys())if((key.startsWith('starledger-production-')||key.startsWith('star-ledger-')||key.startsWith('starledger-atelier-'))&&key!==CACHE)await caches.delete(key);await self.clients.claim()})()));
+self.addEventListener('fetch',event=>{const request=event.request,url=new URL(request.url);if(request.method!=='GET'||url.origin!==self.location.origin)return;const path=url.pathname;
+ if(request.mode==='navigate'){event.respondWith((async()=>{try{return await fetch(request)}catch{return(await caches.open(CACHE)).match('./index.html')}})());return}
+ if(!/\.(?:js|css|woff2?|svg|webmanifest)$/.test(path))return;
+ event.respondWith((async()=>{const cache=await caches.open(CACHE),cached=await cache.match(request,{ignoreSearch:true});if(cached)return cached;const response=await fetch(request);if(response.ok&&response.type!=='opaque')await cache.put(request,response.clone());return response})());
 });

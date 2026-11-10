@@ -26,6 +26,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
 
       - name: Check JavaScript syntax
         run: |
@@ -42,6 +45,19 @@ jobs:
 
       - name: Check Cloudflare Pages static bundle
         run: node scripts/build-site.mjs
+
+      - name: Check active paper ledger and migration
+        run: npm test
+
+      - name: Check production migration in Chromium
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+          python3 -m http.server 4176 --directory dist > /tmp/starledger-http.log 2>&1 &
+          export PLAYWRIGHT_MODULE=playwright
+          export CHROMIUM_PATH=$(node -e "console.log(require('playwright').chromium.executablePath())")
+          node paper-tests/migration-browser.cjs
+          node paper-tests/complete-browser.cjs
 
       - name: Check complete backup ZIP codec
         run: node scripts/test-backup-zip.cjs
@@ -82,6 +98,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
@@ -89,7 +108,7 @@ jobs:
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v4
         with:
-          path: "."
+          path: "dist"
 
       - name: Deploy to GitHub Pages
         id: deployment
@@ -102,6 +121,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
       - name: Check Cloudflare Pages serves this app version
         run: |
           expected=$(grep -oE 'app\.js\?v=[A-Za-z0-9-]+' index.html | head -1)

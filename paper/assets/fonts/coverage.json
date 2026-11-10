@@ -1,0 +1,55 @@
+{
+  "source_repository": "https://github.com/ButTaiwan/genwan-font",
+  "source_commit": "25e718615173a3b51099ecc9a6bf4fa558c03fbc",
+  "source_version": "2.100",
+  "license": "SIL OFL 1.1",
+  "conversion": "fontTools 4.61.1; WOFF2 compression only; no subsetting or glyph modifications",
+  "fonts": [
+    {
+      "file": "genwan-ming-tc-r.woff2",
+      "weight": 400,
+      "unicode_mappings": 35349,
+      "glyph_count": 37684,
+      "original_bytes": 22778196,
+      "original_sha256": "028e19001e7d580f44e145eda751674528b8bb5e421887804469ae3c74fa66a6",
+      "gb2312_coverage": {
+        "characters": 7445,
+        "missing": ""
+      },
+      "big5_coverage": {
+        "characters": 13706,
+        "missing": "ˍ‾∼"
+      },
+      "project_han_coverage": {
+        "characters": 657,
+        "missing": ""
+      },
+      "extra_sample_missing": "𪚥",
+      "woff2_bytes": 14919436,
+      "woff2_sha256": "46089e93178c5d45b10fe70c0338ea451889e4bb80d36e69b3d9d6435f19bc4d",
+      "woff2_preserves_cmap": true,
+      "woff2_preserves_glyph_count": true
+    },
+    {
+      "file": "genwan-ming-tc-sb.woff2",
+      "weight": 600,
+      "unicode_mappings": 35349,
+      "glyph_count": 37684,
+      "original_bytes": 22619792,
+      "original_sha256": "517a99369ab49170616eb2fdad7dd5959bf74b4c356ab7a97ec808e086479108",
+      "gb2312_coverage": {
+        "characters": 7445,
+        "missing": ""
+      },
+      "big5_coverage": {
+        "characters": 13706,
+        "missing": "ˍ‾∼"
+      },
+      "project_han_coverage": {
+        "characters": 657,
+        "missing": ""
+      },
+      "extra_sample_missing": "𪚥"
+    }
+  ]
+}

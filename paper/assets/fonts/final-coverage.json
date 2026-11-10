@@ -1,0 +1,18 @@
+[
+  {
+    "weight": 400,
+    "characters": 35349,
+    "source_equal": true,
+    "overlap": 0,
+    "current_ui_han": 654,
+    "missing_ui_han": ""
+  },
+  {
+    "weight": 600,
+    "characters": 35349,
+    "source_equal": true,
+    "overlap": 0,
+    "current_ui_han": 654,
+    "missing_ui_han": ""
+  }
+]

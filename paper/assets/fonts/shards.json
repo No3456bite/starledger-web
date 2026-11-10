@@ -1,0 +1,245 @@
+{
+  "source": "GenWanMin2 TC 2.100",
+  "all_unicode_characters": 35349,
+  "core_unicode_characters": 4528,
+  "shards": [
+    {
+      "file": "genwan-tc-400-00.woff2",
+      "weight": 400,
+      "characters": 4528,
+      "bytes": 1521288,
+      "core": true
+    },
+    {
+      "file": "genwan-tc-400-01.woff2",
+      "weight": 400,
+      "characters": 2048,
+      "bytes": 495472,
+      "core": false
+    },
+    {
+      "file": "genwan-tc-400-02.woff2",
+      "weight": 400,
+      "characters": 2048,
+      "bytes": 920868,
+      "core": false
+    },
+    {
+      "file": "genwan-tc-400-03.woff2",
+      "weight": 400,
+      "characters": 2048,
+      "bytes": 948588,
+      "core": false
+    },
+    {
+      "file": "genwan-tc-400-04.woff2",
+      "weight": 400,
+      "characters": 2048,
+      "bytes": 1065880,
+      "core": false
+    },
+    {
+      "file": "genwan-tc-400-05.woff2",
+      "weight": 400,
+      "characters": 2048,
+      "bytes": 816520,
+      "core": false
+    },
+    {
+      "file": "genwan-tc-400-06.woff2",
+      "weight": 400,
+      "characters": 2048,
+      "bytes": 880688,
+      "core": false
+    },
+    {
+      "file": "genwan-tc-400-07.woff2",
+      "weight": 400,
+      "characters": 2048,
+      "bytes": 922728,
+      "core": false
+    },
+    {
+      "file": "genwan-tc-400-08.woff2",
+      "weight": 400,
+      "characters": 2048,
+      "bytes": 970744,
+      "core": false
+    },
+    {
+      "file": "genwan-tc-400-09.woff2",
+      "weight": 400,
+      "characters": 2048,
+      "bytes": 987016,
+      "core": false
+    },
+    {
+      "file": "genwan-tc-400-10.woff2",
+      "weight": 400,
+      "characters": 2048,
+      "bytes": 959332,
+      "core": false
+    },
+    {
+      "file": "genwan-tc-400-11.woff2",
+      "weight": 400,
+      "characters": 2048,
+      "bytes": 965096,
+      "core": false
+    },
+    {
+      "file": "genwan-tc-400-12.woff2",
+      "weight": 400,
+      "characters": 2048,
+      "bytes": 1088212,
+      "core": false
+    },
+    {
+      "file": "genwan-tc-400-13.woff2",
+      "weight": 400,
+      "characters": 2048,
+      "bytes": 749228,
+      "core": false
+    },
+    {
+      "file": "genwan-tc-400-14.woff2",
+      "weight": 400,
+      "characters": 2048,
+      "bytes": 591264,
+      "core": false
+    },
+    {
+      "file": "genwan-tc-400-15.woff2",
+      "weight": 400,
+      "characters": 2048,
+      "bytes": 1053144,
+      "core": false
+    },
+    {
+      "file": "genwan-tc-400-16.woff2",
+      "weight": 400,
+      "characters": 101,
+      "bytes": 56132,
+      "core": false
+    },
+    {
+      "file": "genwan-tc-600-00.woff2",
+      "weight": 600,
+      "characters": 4528,
+      "bytes": 1554616,
+      "core": true
+    },
+    {
+      "file": "genwan-tc-600-01.woff2",
+      "weight": 600,
+      "characters": 2048,
+      "bytes": 498520,
+      "core": false
+    },
+    {
+      "file": "genwan-tc-600-02.woff2",
+      "weight": 600,
+      "characters": 2048,
+      "bytes": 939724,
+      "core": false
+    },
+    {
+      "file": "genwan-tc-600-03.woff2",
+      "weight": 600,
+      "characters": 2048,
+      "bytes": 965508,
+      "core": false
+    },
+    {
+      "file": "genwan-tc-600-04.woff2",
+      "weight": 600,
+      "characters": 2048,
+      "bytes": 1085772,
+      "core": false
+    },
+    {
+      "file": "genwan-tc-600-05.woff2",
+      "weight": 600,
+      "characters": 2048,
+      "bytes": 833144,
+      "core": false
+    },
+    {
+      "file": "genwan-tc-600-06.woff2",
+      "weight": 600,
+      "characters": 2048,
+      "bytes": 895184,
+      "core": false
+    },
+    {
+      "file": "genwan-tc-600-07.woff2",
+      "weight": 600,
+      "characters": 2048,
+      "bytes": 938704,
+      "core": false
+    },
+    {
+      "file": "genwan-tc-600-08.woff2",
+      "weight": 600,
+      "characters": 2048,
+      "bytes": 987376,
+      "core": false
+    },
+    {
+      "file": "genwan-tc-600-09.woff2",
+      "weight": 600,
+      "characters": 2048,
+      "bytes": 1002928,
+      "core": false
+    },
+    {
+      "file": "genwan-tc-600-10.woff2",
+      "weight": 600,
+      "characters": 2048,
+      "bytes": 978464,
+      "core": false
+    },
+    {
+      "file": "genwan-tc-600-11.woff2",
+      "weight": 600,
+      "characters": 2048,
+      "bytes": 985540,
+      "core": false
+    },
+    {
+      "file": "genwan-tc-600-12.woff2",
+      "weight": 600,
+      "characters": 2048,
+      "bytes": 1111288,
+      "core": false
+    },
+    {
+      "file": "genwan-tc-600-13.woff2",
+      "weight": 600,
+      "characters": 2048,
+      "bytes": 756336,
+      "core": false
+    },
+    {
+      "file": "genwan-tc-600-14.woff2",
+      "weight": 600,
+      "characters": 2048,
+      "bytes": 591964,
+      "core": false
+    },
+    {
+      "file": "genwan-tc-600-15.woff2",
+      "weight": 600,
+      "characters": 2048,
+      "bytes": 1069400,
+      "core": false
+    },
+    {
+      "file": "genwan-tc-600-16.woff2",
+      "weight": 600,
+      "characters": 101,
+      "bytes": 55832,
+      "core": false
+    }
+  ]
+}
