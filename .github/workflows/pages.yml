@@ -102,6 +102,9 @@ jobs:
         with:
           node-version: 24
 
+      - name: Build production bundle
+        run: node scripts/build-site.mjs
+
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
