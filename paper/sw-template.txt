@@ -6,5 +6,5 @@ self.addEventListener('activate',event=>event.waitUntil((async()=>{for(const key
 self.addEventListener('fetch',event=>{const request=event.request,url=new URL(request.url);if(request.method!=='GET'||url.origin!==self.location.origin)return;const path=url.pathname;
  if(request.mode==='navigate'){event.respondWith((async()=>{try{return await fetch(request)}catch{return(await caches.open(CACHE)).match('./index.html')}})());return}
  if(!/\.(?:js|css|woff2?|svg|webmanifest)$/.test(path))return;
- event.respondWith((async()=>{const cache=await caches.open(CACHE),cached=await cache.match(request,{ignoreSearch:true});if(cached)return cached;const response=await fetch(request);if(response.ok&&response.type!=='opaque')await cache.put(request,response.clone());return response})());
+ event.respondWith((async()=>{const cache=await caches.open(CACHE),cached=await cache.match(request);if(cached)return cached;const response=await fetch(request);if(response.ok&&response.type!=='opaque')await cache.put(request,response.clone());return response})());
 });

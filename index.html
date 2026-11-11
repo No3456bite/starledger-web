@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="zh-CN" data-theme="dark">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#08090a"><title>星账本 · 私人账簿</title><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Ctext y='32' font-size='34' fill='%23a6737e'%3E✦%3C/text%3E%3C/svg%3E"><link rel="manifest" href="manifest.webmanifest"><link rel="stylesheet" href="paper/assets/fonts/fonts.css"><link rel="preload" href="paper/assets/fonts/ming-interface-400.woff" as="font" type="font/woff" crossorigin><link rel="stylesheet" href="paper/font-compat.css"><link rel="stylesheet" href="paper/style.css"><link rel="stylesheet" href="paper/workflows.css"><script src="paper/domain/history-predictor.js" defer></script><script src="paper/domain/recognizer.js" defer></script><script type="module" src="paper/app.js?v=flat-settings1"></script></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#08090a"><title>星账本 · 私人账簿</title><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Ctext y='32' font-size='34' fill='%23a6737e'%3E✦%3C/text%3E%3C/svg%3E"><link rel="manifest" href="manifest.webmanifest"><link rel="stylesheet" href="paper/assets/fonts/fonts.css"><link rel="preload" href="paper/assets/fonts/ming-interface-400.woff" as="font" type="font/woff" crossorigin><link rel="stylesheet" href="paper/font-compat.css"><link rel="stylesheet" href="paper/style.css?v=nav-shield2"><link rel="stylesheet" href="paper/workflows.css?v=nav-shield2"><script src="paper/domain/history-predictor.js" defer></script><script src="paper/domain/recognizer.js" defer></script><script type="module" src="paper/app.js?v=nav-shield2"></script></head>
 <body>
 <a class="skip" href="#main">跳到内容</a>
 <div class="app-shell">
@@ -8,7 +8,7 @@
 <div class="workspace"><header class="toolbar"><div class="mobile-brand"><span class="star">✦</span> 星账本</div><button class="book-switch" data-action="workspace"><i data-icon="book"></i><span>日常主账本</span><i data-icon="chevron"></i></button><div class="toolbar-actions"><button class="primary top-add" data-action="entry"><i data-icon="plus"></i>记一笔</button><button class="ocr" data-action="ocr"><i data-icon="scan"></i><span>OCR 文本导入</span></button><button class="icon-button" data-action="search" aria-label="查找账单"><i data-icon="search"></i></button><button class="icon-button theme-toggle" data-action="theme" aria-label="切换亮色模式"><i data-icon="sun"></i></button></div></header>
 <main id="main" tabindex="-1"></main>
 <footer class="page-footer"><span>星账本 <span class="footer-dot">·</span> 日常有序，心中有数。</span><span>纸页账簿 <span class="footer-dot">/</span> 数据保存在此浏览器</span></footer></div></div>
-<nav id="mobile-navigation" aria-label="移动导航"></nav>
+<div id="mobile-navigation-shield" aria-hidden="true"></div><nav id="mobile-navigation" aria-label="移动导航"></nav>
 <dialog id="dialog"><div id="dialog-body"></div></dialog>
 <div id="toast" role="status" aria-live="polite"></div>
 <input type="file" id="snapshot-file" accept=".zip,.csv,.json" hidden><input type="file" id="folder-files" webkitdirectory multiple hidden>

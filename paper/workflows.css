@@ -42,3 +42,8 @@ input,textarea,[contenteditable=true]{-webkit-user-select:text;user-select:text;
 .settings-tool-trigger{font-size:14px;padding:15px 0;min-height:50px;justify-content:space-between}.settings-root .settings-tool-trigger.text-link:after{content:none}.settings-tool-panel{padding-left:12px;border-left:1px solid var(--rule)}.settings-tool-panel .settings-panel-content{padding-bottom:16px}.settings-root .settings-tool-trigger i{display:none}.settings-root .settings-back,.settings-root .settings-inline-title{display:none}
 .settings-root .manage-row{flex-wrap:wrap}.settings-root .manage-row>.settings-panel{flex:0 0 100%;width:100%}.settings-root .manage-row>.settings-tool-trigger{width:auto;min-height:0;gap:8px;padding:5px;font-size:12px;flex-shrink:0}
 .workspace{overflow-x:clip}
+/* Separate fixed backing plane prevents Safari from compositing ledger rows
+   into the tab bar during scroll, toolbar resizing and page transitions. */
+#mobile-navigation-shield{display:none}
+@media(max-width:760px){#mobile-navigation-shield{display:block;position:fixed;inset:auto 0 0;height:var(--mobile-nav-height,calc(63px + env(safe-area-inset-bottom)));background:var(--surface);z-index:49;pointer-events:none;contain:strict;transform:translate3d(0,0,0)}#mobile-navigation{background-color:var(--surface);opacity:1;contain:layout paint;transform:translate3d(0,0,0)}body.dialog-open #mobile-navigation-shield{visibility:hidden}}
+#app-update{position:fixed;z-index:60;left:50%;bottom:calc(var(--mobile-nav-height,63px) + 14px);transform:translateX(-50%);background:var(--surface);border:1px solid var(--rule);border-radius:5px;padding:10px 18px;box-shadow:0 4px 20px #0003;font-size:12px;white-space:nowrap;color:var(--ink)}
