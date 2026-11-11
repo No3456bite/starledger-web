@@ -60,6 +60,8 @@ jobs:
           node paper-tests/complete-browser.cjs
           TEST_URL=http://127.0.0.1:4176 node paper-tests/motion-browser.cjs
           TEST_ENGINE=webkit TEST_URL=http://127.0.0.1:4176 node paper-tests/motion-browser.cjs
+          TEST_URL=http://127.0.0.1:4176 node paper-tests/flat-browser.cjs
+          TEST_ENGINE=webkit TEST_URL=http://127.0.0.1:4176 node paper-tests/flat-browser.cjs
 
       - name: Check complete backup ZIP codec
         run: node scripts/test-backup-zip.cjs
