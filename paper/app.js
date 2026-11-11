@@ -8,7 +8,7 @@ migrateDeviceSettings();
 import * as storage from './domain/store.js';
 import * as R from './domain/relations.js';
 import * as W from './domain/workspace.js';
-import {createFeatures} from './features.js';
+import {createFeatures} from './features.js?v=cloud-review1';
 const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const moneyFormat=new Intl.NumberFormat('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});const money=n=>moneyFormat.format(Number(n||0));
 const symbol=c=>({CNY:'¥',USD:'$',EUR:'€',JPY:'¥',GBP:'£',HKD:'HK$'}[L.code(c)]||L.code(c)+' ');
