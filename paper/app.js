@@ -199,6 +199,13 @@ try{state=await storage.read();if(!state){const fresh=await initialState();try{a
 if('serviceWorker' in navigator){const hadController=!!navigator.serviceWorker.controller;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!hadController||$('#app-update'))return;const update=document.createElement('button');update.id='app-update';update.textContent='新版已就绪 · 点击刷新';update.addEventListener('click',()=>{if(draft||$('#dialog').open){toast('请先完成当前操作，再刷新');return}location.reload()});document.body.append(update)});navigator.serviceWorker.register('./sw.js').then(registration=>{let checked=Date.now();document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&Date.now()-checked>60000){checked=Date.now();registration.update().catch(()=>{})}})}).catch(()=>{})}
 
 bindLongPress({root:document,onHold:showRecordActions});
+// A long press opens before pointerup. Native auto-popover light dismissal would
+// close it on release; manual mode keeps it open, and these shared listeners
+// dismiss only subsequent outside interactions. Hold's suppressed click runs first.
+document.addEventListener('click',e=>{if($('#record-actions')?.matches(':popover-open')&&!e.target.closest('#record-actions')){hideRecordActions();e.preventDefault();e.stopImmediatePropagation()}},true);
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('#record-actions')?.matches(':popover-open')){hideRecordActions();e.preventDefault()}});
+document.addEventListener('scroll',()=>{if($('#record-actions')?.matches(':popover-open'))hideRecordActions()},{capture:true,passive:true});
+
 
 matchMedia('(max-width:760px)').addEventListener('change',()=>{if(state)render()});
 
