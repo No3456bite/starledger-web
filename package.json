@@ -1,7 +1,7 @@
 {
   "private": true,
   "scripts": {
-    "test": "node --test paper-tests/domain.test.mjs paper-tests/complete.test.mjs paper-tests/migrate.test.mjs",
+    "test": "node --test paper-tests/domain.test.mjs paper-tests/complete.test.mjs paper-tests/migrate.test.mjs paper-tests/ocr-handoff.test.mjs",
     "build": "node scripts/build-site.mjs"
   }
 }
