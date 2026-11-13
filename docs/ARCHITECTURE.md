@@ -2,6 +2,14 @@
 
 This document is the maintenance boundary for the current single-page Web build. The goal is not to rewrite working behavior; it is to keep future changes local and reversible.
 
+## Active paper renderer
+
+The production shell currently loads `paper/app.js`. The root-level application/runtime layers described below are retained for legacy recovery and tests; do not load their viewport controller into the paper renderer.
+
+- `paper/dialog-viewport.js` owns keyboard geometry for the single native `#dialog`, including entry, child pickers and secondary settings/forms. `paper/app.js` calls its open/render/close lifecycle; `paper/workflows.css` consumes its frame and scroll-inset tokens.
+- Keep the unoccluded dialog frame stable during keyboard resize/pan. Reveal the focused control by scrolling its internal scrollport, never by shrinking or moving the whole sheet. Keyboard focus must not change the user's calculator visibility preference. Compact layout is derived from the unoccluded screen height.
+- `paper-tests/keyboard-browser.cjs` guards these contracts in Chromium and WebKit with simulated viewport/keyboard events, including orientation, document pan, scroll restoration and standalone mode. Real iPhone Safari keyboard behavior still requires device acceptance.
+
 ## Runtime layers
 
 1. **index.html — shell and visual compatibility**

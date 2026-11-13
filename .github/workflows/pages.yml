@@ -70,6 +70,8 @@ jobs:
           TEST_ENGINE=webkit TEST_URL=http://127.0.0.1:4176 node paper-tests/ocr-handoff-browser.cjs
           TEST_URL=http://127.0.0.1:4176 node paper-tests/cloud-review-browser.cjs
           TEST_ENGINE=webkit TEST_URL=http://127.0.0.1:4176 node paper-tests/cloud-review-browser.cjs
+          TEST_URL=http://127.0.0.1:4176 node paper-tests/keyboard-browser.cjs
+          TEST_ENGINE=webkit TEST_URL=http://127.0.0.1:4176 node paper-tests/keyboard-browser.cjs
 
       - name: Check complete backup ZIP codec
         run: node scripts/test-backup-zip.cjs
