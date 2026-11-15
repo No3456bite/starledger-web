@@ -1,7 +1,8 @@
 import {readFileSync,existsSync,readdirSync} from 'node:fs';import {execFileSync} from 'node:child_process';
 const read=p=>readFileSync(p,'utf8'),html=read('index.html'),app=read('paper/app.js');
 for(const path of ['paper/app.js','paper/style.css','paper/workflows.css','paper/domain/migrate.js','paper/assets/fonts/fonts.css','legacy-ui.html'])if(!existsSync(path))throw Error('Missing '+path);
-if(!html.includes('paper/app.js?v=keyboard-cover8')||html.includes('src="./app.js?'))throw Error('Incorrect active renderer');
+if(!html.includes('paper/app.js?v=ios-focus9')||html.includes('src="./app.js?'))throw Error('Incorrect active renderer');
+if(!app.includes('./dialog-viewport.js?v=ios-focus9')||!read('scripts/build-site.mjs').includes('./paper/dialog-viewport.js?v=ios-focus9'))throw Error('Keyboard controller must bypass the previous offline cache and be precached');
 if(app.includes('const fresh=fixture()')||!app.includes('await initialState()'))throw Error('Production must migrate legacy data or start empty');
 if(!read('paper/domain/migrate.js').includes("transaction('state','readonly')"))throw Error('Legacy migration must be read only');
 if(!read('paper/domain/store.js').includes('starledger-paper-production-v1'))throw Error('Missing isolated production store');

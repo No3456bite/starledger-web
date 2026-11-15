@@ -1,4 +1,4 @@
-import {manageDialogViewport} from './dialog-viewport.js';
+import {manageDialogViewport} from './dialog-viewport.js?v=ios-focus9';
 import {createOCRInbox,isOCRHash,decodeOCRHash,decodeOCRClipboard,ocrValue} from './ocr-handoff.js?v=2';
 import {navigatePage,disclose,panelContent,fadePanel,bindLongPress} from './motion.js';
 import {icon,icons} from './icons.js';
