@@ -181,3 +181,7 @@ node scripts/test-auto-backup.cjs
 - `archive/web-v0.3-before-workspace-folder`：工作区文件夹改造前的 Web v0.3。
 - `archive/scriptable-bridge-v0.1`：Safari + Scriptable Bridge 快照。
 - `legacy/scriptable/`：旧 Core、Recognizer 和 SafariBridge 源码。
+
+## iPhone 主屏幕小组件
+
+在 **设置 → 数据与备份 → iPhone 桌面小组件** 中预览小号 / 中号、生成只读连接配置并获取 Scriptable 脚本。金额以最近一次成功云备份为准；点“立即备份并更新”可更新旧 ZIP 的摘要。需要分别部署新版网页与 Worker，无需额外数据库。安装步骤、更新规则和排错见 [iOS 小组件说明](docs/IOS-WIDGET.md)。

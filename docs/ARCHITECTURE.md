@@ -91,3 +91,10 @@ The GitHub workflow catches structural and JavaScript failures. The iPhone pass 
 - `app.js` owns keypad visibility. `beginEntryKeypad({source, page, keypadOpen})` initializes a task; `setEntryKeypadOpen` handles explicit user toggles. The task controller initializes once, while form/card rerenders reuse the current visibility.
 - Home new entries and OCR start open. Browsing/editing entries remember the explicit toggle in local browser storage; Home/OCR never overwrite that browsing preference. A caller can override initial visibility with `keypadOpen`.
 - Device regression: collapse in Search, close/reopen another bill, switch related bills and change category/type; then open Home new entry and OCR, and return to Search. Check secondary cards with short screens, Safari chrome expanded/collapsed, and standalone mode, including text keyboard focus and dismissal.
+
+## iPhone widgets
+
+- `paper/domain/widget.js` derives a compact snapshot using the existing ledger selectors, budget and asset rules. `paper/domain/backup.js` embeds it in `StarLedgerBackup.json` from the same state and timestamp as the ZIP. Generated summaries remain outside the canonical content hash, like other manifest metadata.
+- `paper/widget-settings.js` owns installation help, pairing and cloud summary inspection; `paper/connections.js` supplies the authenticated requests and conflict-safe explicit backup. `refreshWidget` forces an upload only after equal remote content has been verified; it never bypasses remote conflict review. Recurring backup scheduling is unchanged.
+- `cloudflare/widget.mjs` derives a domain-separated read-only capability from SYNC_TOKEN and reads bounded, validated backups. `/widget` returns only snapshot data. `/widget-config` requires the full sync credential. The feature needs a Wrangler module deployment, not a single-file copy.
+- `paper/scriptable/StarLedgerWidget.js` owns the small/medium iOS layouts, Keychain pairing and connection-specific offline cache. Scriptable never calculates financial totals or reads full ZIPs.

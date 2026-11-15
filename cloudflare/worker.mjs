@@ -1,3 +1,4 @@
+import {widgetToken, readWidgetBackup} from './widget.mjs';
 // StarLedger manual backup relay. Configure credentials as Worker secrets.
 const primaryOrigin = 'https://no3456bite.github.io';
 const publicPagesOrigin = 'https://starledger-web-dhp.pages.dev';
@@ -26,8 +27,11 @@ export default {
     } });
     if (request.method === 'OPTIONS') return reply(null, 204);
     if (!env.SYNC_TOKEN) return reply('Worker secrets are incomplete', 503);
-    if (request.headers.get('Authorization') !== `Bearer ${env.SYNC_TOKEN}`) return reply('Unauthorized', 401);
-    if (!['/health', '/status', '/backup'].includes(url.pathname) || url.search) return reply('Not found', 404);
+    const isWidget = url.pathname === '/widget';
+    const admin = request.headers.get('Authorization') === `Bearer ${env.SYNC_TOKEN}`;
+    if (!admin && !(isWidget && request.headers.get('Authorization') === `Bearer ${await widgetToken(env.SYNC_TOKEN)}`)) return reply('Unauthorized', 401);
+    if (isWidget && request.method !== 'GET') return reply('Method not allowed', 405);
+    if (!['/health', '/status', '/backup', '/widget', '/widget-config'].includes(url.pathname) || url.search) return reply('Not found', 404);
     if (!env.DAV_FILE_URL || !env.DAV_USERNAME || !env.DAV_PASSWORD) return reply('Worker secrets are incomplete', 503);
     // A separate health check tells the browser whether the Worker itself is reachable.
     if (url.pathname === '/health') return request.method === 'GET' ? reply(JSON.stringify({ ok: true }), 200, { 'Content-Type': 'application/json' }) : reply('Method not allowed', 405);
@@ -38,6 +42,7 @@ export default {
     } catch { return reply('Invalid DAV_FILE_URL', 503); }
     const basic = btoa(String.fromCharCode(...new TextEncoder().encode(`${env.DAV_USERNAME}:${env.DAV_PASSWORD}`)));
     const headers = { Authorization: `Basic ${basic}` };
+    if (url.pathname === '/widget-config') return request.method === 'GET' ? reply(JSON.stringify({endpoint: url.origin + '/widget', token: await widgetToken(env.SYNC_TOKEN)}), 200, {'Content-Type': 'application/json'}) : reply('Method not allowed', 405);
     const method = url.pathname === '/status' ? 'HEAD' : request.method;
     if (!['GET', 'HEAD', 'PUT'].includes(method)) return reply('Method not allowed', 405);
     if (method === 'PUT') {
@@ -48,11 +53,16 @@ export default {
     }
     let upstream;
     const controller = new AbortController();
-    const timeout = method === 'HEAD' ? setTimeout(() => controller.abort(), 12000) : null;
+    const timeout = (method === 'HEAD' || isWidget) ? setTimeout(() => controller.abort(), 12000) : null;
     try {
       upstream = await fetch(target, { method, headers, body: method === 'PUT' ? request.body : undefined, duplex: method === 'PUT' ? 'half' : undefined, redirect: 'manual', signal: controller.signal });
     } catch { return reply(controller.signal.aborted ? 'WebDAV timed out' : 'WebDAV connection failed', controller.signal.aborted ? 504 : 502); }
     finally { if (timeout) clearTimeout(timeout); }
+    if (isWidget) {
+      if (!upstream.ok) return reply(upstream.status === 404 ? '尚无云备份，请先在网页备份' : '坚果云读取失败', upstream.status === 404 ? 404 : 502);
+      try { return reply(JSON.stringify(await readWidgetBackup(upstream)), 200, {'Content-Type': 'application/json'}); }
+      catch (error) { return reply(error.message, 409); }
+    }
     if (upstream.status === 404 && method === 'HEAD') return reply(JSON.stringify({ exists: false }), 200, { 'Content-Type': 'application/json' });
     if (!upstream.ok) return reply(`WebDAV returned ${upstream.status}`, 502);
     if (method === 'HEAD' || method === 'PUT') {

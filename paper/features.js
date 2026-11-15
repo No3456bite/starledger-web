@@ -1,9 +1,9 @@
 import * as L from './domain/ledger.js';
 import * as R from './domain/relations.js';
 import * as W from './domain/workspace.js';
-import * as B from './domain/backup.js';
+import * as B from './domain/backup.js?v=widget1';
 import {csvParse,validateImportCsv,mergeSourceRows,duplicateIdGroups,resolveDuplicateIds} from './domain/csv.js';
-import {createConnections} from './connections.js?v=cloud-review1';
+import {createConnections} from './connections.js?v=widget1';
 export function createFeatures(ctx){
  const {esc,icon,commit,toast,error,closeDialog,render,go}=ctx,$=s=>actionScope?.querySelector(s)||document.querySelector(s),state=ctx.getState;
  let actionScope=null;
