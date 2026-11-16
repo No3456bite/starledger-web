@@ -15,7 +15,7 @@ function palette(c,dark){dark=c.appearance==='dark'||c.appearance==='system'&&da
 function value(l,item){if(item.key==='account'){const a=l.accounts?.find(a=>a.name===item.account);return{value:a?.value??null,currency:a?.currency||'CNY'}}return{value:l[item.key]??null,currency:'CNY'}}
 function format(l,item,c,mask=false){const {value:v,currency}=value(l,item);if(mask&&!['date','month','updated'].includes(item.key))return '••••';if(v===null)return item.key==='budget'||item.key==='budgetLeft'||item.key==='budgetRatio'?'未设置':'待核实';if(typeof v==='string')return item.key==='updated'?v.slice(5,16)+' UTC':v;if(!Number.isFinite(v))return '待核实';if(item.key==='budgetRatio')return v.toFixed(c.decimals?1:0)+'%';const sign=c.showCurrency?(currency==='CNY'?'¥':currency+' '):'';return sign+v.toLocaleString('en-US',{useGrouping:c.grouping,minimumFractionDigits:c.decimals?2:0,maximumFractionDigits:c.decimals?2:0})}
 function label(i){return i.label||fields[i.key]||'金额'}
-function display(l,i,c,width,size,mask=false){let str=format(l,i,c,mask);const measure=s=>[...s].reduce((n,ch)=>n+size*(/\d/.test(ch)?.61:/[,.]/.test(ch)?.27:.63),0);if(measure(str)>width&&i.key==='updated')str=String(l.updated||'').slice(11,16);if(measure(str)>width&&i.key==='date')str=String(l.date||'').slice(5);if(measure(str)>width){const {value:v,currency}=value(l,i);if(typeof v==='number'&&Math.abs(v)>=10000&&i.key!=='budgetRatio'){const unit=Math.abs(v)>=1e8?'亿':'万';str=(c.showCurrency?(currency==='CNY'?'¥':currency+' '):'')+(v/(unit==='亿'?1e8:1e4)).toFixed(1)+unit;}}return measure(str)>width?'数额过长':str}
+function display(l,i,c,width,size,mask=false){let str=format(l,i,c,mask);const measure=s=>[...s].reduce((n,ch)=>n+size*(/\d/.test(ch)?.61:/[,.]/.test(ch)?.27:/[\u2e80-\uffff]/.test(ch)?1:.63),0);if(measure(str)>width&&i.key==='updated')str=String(l.updated||'').slice(11,16);if(measure(str)>width&&i.key==='date')str=String(l.date||'').slice(5);if(measure(str)>width){const {value:v,currency}=value(l,i);if(typeof v==='number'&&Math.abs(v)>=10000&&i.key!=='budgetRatio'){const unit=Math.abs(v)>=1e8?'亿':'万';str=(c.showCurrency?(currency==='CNY'?'¥':currency+' '):'')+(v/(unit==='亿'?1e8:1e4)).toFixed(1)+unit;}}return measure(str)>width?'数额过长':str}
 function numberSize(i,c,main){return ['date','month','updated'].includes(i.key)?(main?14:11):main?c.fontSize:14}
 function spacing(c){return c.density==='compact'?{pad:12,gap:4}:c.density==='loose'?{pad:18,gap:8}:{pad:16,gap:6}}
 g.StarLedgerWidgetModel={fields,templates,normalize,palette,format,display,label,numberSize,spacing};
@@ -91,14 +91,14 @@ function siteLink(action='home'){return settings.siteUrl.split('#')[0]+'#'+actio
 // Give only numeric glyphs equal-width cells, retaining proportional system punctuation.
 function figures(parent,value,size,color,width,align,weight){
   const line=parent.addStack();line.size=new Size(width,size*1.25);
-  let str=String(value);const estimate=s=>[...s].reduce((n,ch)=>n+size*(/\d/.test(ch)?.61:/[,.]/.test(ch)?.27:.63),0);
+  let str=String(value);const estimate=s=>[...s].reduce((n,ch)=>n+size*(/\d/.test(ch)?.61:/[,.]/.test(ch)?.27:/[\u2e80-\uffff]/.test(ch)?1:.63),0);
   if(estimate(str)>width&&/\d/.test(str)){
     const raw=Number(str.replace(/[^0-9.\-]/g,''));
     if(Number.isFinite(raw)&&Math.abs(raw)>=10000){const suffix=Math.abs(raw)>=1e8?'亿':'万';str=str.replace(/-?[\d,]+(?:\.\d+)?/, (raw/(suffix==='亿'?1e8:1e4)).toFixed(1)+suffix)}
   }
   if(estimate(str)>width){text(line,'数额过长',12,color,'regular',align);return}
   if(align==='right'||align==='center')line.addSpacer();
-  for(const ch of str){const cell=line.addStack();cell.size=new Size(size*(/\d/.test(ch)?.61:/[,.]/.test(ch)?.27:.63),size*1.25);const t=text(cell,ch,size,color,weight);t.centerAlignText()}
+  for(const ch of str){const cell=line.addStack();cell.size=new Size(size*(/\d/.test(ch)?.61:/[,.]/.test(ch)?.27:/[\u2e80-\uffff]/.test(ch)?1:.63),size*1.25);const t=text(cell,ch,size,color,weight);t.centerAlignText()}
   if(align!=='right')line.addSpacer();
 }
 function makeWidget(data,cached,family){
