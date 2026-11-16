@@ -3,6 +3,7 @@ import {widgetSnapshot} from './domain/widget.js?v=widget3';
 export function createWidgetSettings({open, esc, request, quickBackup, state, cloudDialog, toast, commit}) {
   const scriptUrl = new URL('./scriptable/StarLedgerWidget.js?v=3', import.meta.url).href;
   let draft, size='small', masked=false, codePromise;
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{const root=document.querySelector('.widget-settings');if(root&&draft)preview(root)});
   function generated(){return (codePromise ||= fetch(scriptUrl).then(r=>{if(!r.ok)throw Error('脚本下载失败');return r.text()})).then(code=>code.replace('const LOCAL_WIDGET_CONFIG = null;', 'const LOCAL_WIDGET_CONFIG = '+JSON.stringify(M.normalize(draft))+';'));}
   function sample(){return widgetSnapshot({[state().prefs.mainName]:state()},state().prefs.mainName).ledgers[0]}
   function preview(root){const c=draft[size],l=sample(),p=M.palette(c,matchMedia('(prefers-color-scheme: dark)').matches),spacing=M.spacing(c),node=root.querySelector('[data-editor-preview]');

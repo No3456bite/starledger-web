@@ -108,7 +108,7 @@ function makeWidget(data,cached,family){
   const fallback=M.normalize(LOCAL_WIDGET_CONFIG||{});
   if(!l.config&&!LOCAL_WIDGET_CONFIG&&settings.metric==='assets')for(const k of ['small','medium'])fallback[k].items[0].key='assets';
   const c=M.normalize(l.config||LOCAL_WIDGET_CONFIG||fallback)[small?'small':'medium'],p=M.palette(c,Device.isUsingDarkAppearance()),sp=M.spacing(c);
-  const color=k=>new Color(p[k]);w.backgroundColor=color('background');if(c.showUpdated){sp.pad=Math.min(sp.pad,12);sp.gap=4}w.setPadding(sp.pad,sp.pad,sp.pad,sp.pad);w.url=siteLink();
+  const color=k=>c.appearance==='system'?Color.dynamic(new Color(M.palette(c,false)[k]),new Color(M.palette(c,true)[k])):new Color(p[k]);w.backgroundColor=color('background');if(c.showUpdated){sp.pad=Math.min(sp.pad,12);sp.gap=4}w.setPadding(sp.pad,sp.pad,sp.pad,sp.pad);w.url=siteLink();
   const available=(small?155:329)-2*sp.pad, mainWidth=small?available:Math.floor(available*.48),auxWidth=small?(available-sp.gap)/2:available-mainWidth-14;
   const header=w.addStack();if(c.showTitle)text(header,c.title,12,color('text'),'semibold');header.addSpacer();
   const old=today()>=l.period.end||today()<l.period.start;
