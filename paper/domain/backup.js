@@ -1,4 +1,4 @@
-import {widgetSnapshot} from './widget.js';
+import {widgetSnapshot} from './widget.js?v=widget3';
 import {COLS,extras} from './ledger.js';
 import {csvParse,csvWrite,validateImportCsv,mergeSourceRows} from './csv.js';
 import * as W from './workspace.js';

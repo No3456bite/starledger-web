@@ -100,3 +100,7 @@ The GitHub workflow catches structural and JavaScript failures. The iPhone pass 
 - `paper/scriptable/StarLedgerWidget.js` owns the small/medium iOS layouts, Keychain pairing and connection-specific offline cache. Scriptable never calculates financial totals or reads full ZIPs.
 
 - Widget `#entry` links are consumed after storage initialization and on hash changes. They reuse `startEntry`, clear the action hash to prevent reload duplicates, and never replace a live draft or pending OCR task. Small widgets link to home; medium stacks link to home / entry separately. Card layout shares the paper renderer palette and serif type treatment, with no backup timestamp.
+
+### Widget editor v3
+
+`paper/widget-model.js` is the shared normalization, metric metadata, formatting and palette model. The generator embeds it in the standalone Scriptable file on build, so the browser and widget use one format contract. `prefs.widgetConfig` is ledger-owned, hashed canonical configuration; the manifest snapshot carries its sanitized copy. Existing v1 snapshot fields and Keychain namespace remain compatible. New metrics call existing ledger/account selectors; no duplicate balance calculation or extra cloud storage is introduced. The UI drafts small/medium independently, persists only on Save, and explicitly requests existing conflict-safe backup to publish configuration.
