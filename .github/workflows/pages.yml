@@ -51,6 +51,7 @@ jobs:
 
       - name: Check production migration in Chromium
         run: |
+          trap 'echo "::error::Browser validation failed: $BASH_COMMAND"' ERR
           npm install --no-save playwright
           npx playwright install --with-deps chromium webkit
           python3 -m http.server 4176 --directory dist > /tmp/starledger-http.log 2>&1 &
