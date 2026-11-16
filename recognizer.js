@@ -17,7 +17,12 @@ const IGNORE_NUMBER_HINT=/余额|剩余|积分|额度|订单号|订单编号|交
 function clamp01(n){return Math.max(0,Math.min(1,Number(n)||0))}
 function round2(n){let x=Math.round((Number(n)+Math.sign(Number(n)||1)*Number.EPSILON)*100)/100;return Object.is(x,-0)?0:x}
 function cleanText(source){return String(source||'').slice(0,MAX_TEXT).replace(/\u00a0/g,' ').replace(/[｜]/g,'|').replace(/[：]/g,':')}
-function linesOf(source){return cleanText(source).split(/[\r\n]+/).map(x=>x.replace(/\s+/g,' ').trim()).filter(Boolean)}
+function linesOf(source){return cleanText(source).split(/[\r\n]+/).map(x=>{
+ let line=x.replace(/\s+/g,' ').trim();
+ // iOS Vision may split the decimal or substitute a full-width dash in the
+ // large signed amount. Normalize only standalone money, never IDs or dates.
+ return line.replace(/^([+\-−—–－])\s*([¥￥]?)\s*(\d{1,9})\s*[.．]\s*(\d{2})\s*(元)?$/,(_,sign,currency,whole,cents,unit)=>(sign==='+'?'+':'-')+currency+whole+'.'+cents+(unit||''))
+}).filter(Boolean)}
 function compact(s){return String(s||'').toLowerCase().replace(/[\s:_：·•|｜()（）\[\]【】]/g,'')}
 function field(value,confidence,source,evidence=[]){return {value:value??'',confidence:clamp01(confidence),source:source||'',evidence:[...evidence]}}
 function uniquePush(list,value){if(value&&!list.includes(value))list.push(value)}
@@ -171,6 +176,8 @@ function detectDate(lines,context,evidence){
 function cleanMerchant(v){
  let s=String(v||'').replace(/^[：:\-—\s]+/,'').replace(/[>›]+$/,'').trim();
  if(!s||s.length>70||/^[-+¥￥\d.,\s]+$/.test(s))return '';
+ // Payment identifiers and service chrome are not merchant names.
+ if(/^(?:(?:商户单号|交易单号|订单号|订单编号)\s*[:：]?\s*)?[A-Za-z0-9-]*\d{12,}[A-Za-z0-9-]*$/.test(s)||/^(?:喜欢|小程序|服务|会员|交易服务|发起群收款|对订单有疑惑|拼着买才便宜)$/.test(s)||/^等?[\d.]+万人喜欢$/.test(s))return '';
  // OCR often returns the next *label* from a two-column detail page as if it
  // were the value. Never accept known UI/field labels as merchant names.
  if(/^(?:微信支付|支付宝|云闪付|中国银联|账单|账单详情|交易详情|支付成功|付款成功|收款成功|当前状态|支付时间|交易时间|商品|商品说明|商户全称|商户名称|商家名称|收单机构|支付方式|付款方式|交易单号|商户单号|订单号|账单服务|联系商家|商家电话)$/.test(s))return '';
@@ -217,6 +224,16 @@ function detectMerchant(lines,platform,evidence,context={}){
  for(let i=0;i<lines.length;i++){
   let m=lines[i].match(/(?:向|给)\s*([^\s]{2,30})\s*(?:付款|支付|转账)/);
   if(m){let value=cleanMerchant(m[1]);if(value)candidates.push({value,confidence:.78,line:i,text:lines[i]})}
+ }
+ // WeChat embeds a payment detail card below a merchant profile. Its product
+ // row may contain only a merchant order ID, while the actual merchant is
+ // directly beneath the prominent signed amount (the Pinduoduo receipt case).
+ if(platform==='微信'&&/交易详情|支付成功|付款成功/.test(lines.join(' '))){
+  for(let i=0;i<lines.length-1;i++){
+   if(!/^[+−-]\s*(?:[¥￥]\s*)?\d{1,9}(?:,\d{3})*\.\d{1,2}\s*(?:元)?$/.test(lines[i]))continue;
+   let value=cleanMerchant(lines[i+1]);
+   if(value&&!/^(?:当前状态|支付时间|交易时间|商品|收单机构|支付方式|付款方式|商户单号|交易单号)/.test(value)&&!/(?:财付通|支付科技有限公司)/.test(value))candidates.push({value,confidence:.86,line:i+1,text:lines[i]+' → '+value})
+  }
  }
  candidates.sort((a,b)=>b.confidence-a.confidence||a.line-b.line);
 
