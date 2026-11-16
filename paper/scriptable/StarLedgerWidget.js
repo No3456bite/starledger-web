@@ -1,14 +1,15 @@
 // Variables used by Scriptable.
-// icon-color: green; icon-glyph: chart-pie;
-// StarLedger Widget v1 — small / medium. No account credentials in this file.
+// icon-color: deep-purple; icon-glyph: chart-pie;
+// StarLedger Widget v2 — small / medium. No account credentials in this file.
 // Layout reference: https://developer.apple.com/design/human-interface-guidelines/widgets
 // Run in Scriptable once to paste the pairing JSON generated in StarLedger Settings.
 
 const KEY = 'starledger.widget.v1.' + Script.name();
 const fm = FileManager.local();
-const ink = Color.dynamic(new Color('#171719'), new Color('#F5F5F7'));
-const muted = Color.dynamic(new Color('#6C6C70'), new Color('#B0B0B7'));
-const accent = Color.dynamic(new Color('#526958'), new Color('#A6C3AD'));
+const ink = Color.dynamic(new Color('#25211E'), new Color('#EAE6DF'));
+const muted = Color.dynamic(new Color('#716B65'), new Color('#A6A3A0'));
+const accent = Color.dynamic(new Color('#793B48'), new Color('#B5828E'));
+const rule = Color.dynamic(new Color('#D6D0C7'), new Color('#333436'));
 const red = Color.dynamic(new Color('#B43D3D'), new Color('#FF9999'));
 let settings = Keychain.contains(KEY) ? JSON.parse(Keychain.get(KEY)) : null;
 
@@ -64,7 +65,7 @@ async function loadSummary() {
   }
 }
 function text(parent, value, size = 12, color = ink, weight = 'regular') {
-  const t = parent.addText(String(value)); t.font = weight === 'bold' ? Font.boldSystemFont(size) : weight === 'medium' ? Font.mediumSystemFont(size) : Font.systemFont(size);
+  const t = parent.addText(String(value)); t.font = new Font(weight === 'amount' ? 'Georgia' : 'SongtiSC-Regular', size);
   t.textColor = color; t.lineLimit = 1; t.minimumScaleFactor = 0.65; return t;
 }
 function money(n, compact = false) {
@@ -73,39 +74,48 @@ function money(n, compact = false) {
   return '¥' + n.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 2});
 }
 function row(parent, label, value, color = ink, size = 12) {
-  const r = parent.addStack(); r.centerAlignContent(); text(r, label, size, muted); r.addSpacer(6); const t = text(r, value, size, color, 'medium'); t.rightAlignText();
+  const r = parent.addStack(); r.centerAlignContent(); text(r, label, size, muted); r.addSpacer(6); const t = text(r, value, size, color, 'amount'); t.rightAlignText();
 }
-function stamp(iso) { const f = new DateFormatter(); f.dateFormat = 'MM/dd HH:mm'; return f.string(new Date(iso)); }
 function today() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
-function base() { const w = new ListWidget(); w.setPadding(14, 14, 14, 14); w.backgroundColor = Color.dynamic(new Color('#F4F4F7'), new Color('#242426')); w.refreshAfterDate = new Date(Date.now() + 60 * 60 * 1000); if (settings) w.url = settings.siteUrl; return w; }
+function base() { const w = new ListWidget(); w.setPadding(16, 16, 16, 16); w.backgroundColor = Color.dynamic(new Color('#FAF8F3'), new Color('#111214')); w.refreshAfterDate = new Date(Date.now() + 60 * 60 * 1000); if (settings) w.url = settings.siteUrl; return w; }
+function siteLink(action = 'home') { return settings.siteUrl.split('#')[0] + '#' + action; }
+function divider(parent, vertical = false) {
+  const line = parent.addStack(); line.backgroundColor = rule;
+  line.size = new Size(vertical ? 1 : 0, vertical ? 90 : 1);
+}
+function smallMetric(parent, label, value) {
+  const col = parent.addStack(); col.layoutVertically();
+  text(col, label, 10, muted); col.addSpacer(4); text(col, value, 16, ink, 'amount');
+}
 function makeWidget(data, cached, family) {
-  const w = base(), small = family !== 'medium';
+  const w = base(), small = family !== 'medium'; w.url = siteLink();
   const l = data.ledgers.find(l => l.name === settings.ledger);
   if (!l) throw Error('备份中没有此账本，请重新运行脚本选择');
   const old = today() >= l.period.end || today() < l.period.start;
   const label = settings.metric === 'assets' ? '总资产' : '净资产';
-  const title = w.addStack(); text(title, l.name, 11, accent, 'medium'); title.addSpacer(5); text(title, (old ? '旧 ' : '') + l.period.label.slice(5) + '月', 10, old ? red : muted);
-  w.addSpacer(small ? 6 : 10);
-  const area = small ? w : w.addStack();
-  const left = small ? area : area.addStack(); if (!small) left.layoutVertically();
-  text(left, label, 11, muted); text(left, money(l[settings.metric || 'net'], small), small ? 26 : 30, ink, 'bold');
-  let right = left;
-  if (!small) { area.addSpacer(20); right = area.addStack(); right.layoutVertically(); right.addSpacer(1); }
-  else w.addSpacer(5);
-  row(right, '预算', l.budget === null ? '未设置' : money(l.budget, small), ink, small ? 11 : 12); right.addSpacer(3);
-  row(right, '支出', l.expenseUnknown ? '待换算' : money(l.expense, small), ink, small ? 11 : 12);
-  if (!small) {
-    right.addSpacer(3); row(right, '剩余', l.budget === null ? '未设置' : l.budgetUnknown ? '待换算' : money(l.budgetLeft), l.budgetLeft < 0 ? red : accent);
-    if (l.budget > 0 && !l.budgetUnknown) {
-      right.addSpacer(8); const progress = right.addStack(); progress.size = new Size(122, 4); progress.backgroundColor = Color.dynamic(new Color('#DDDDE2'), new Color('#48484D')); progress.cornerRadius = 2;
-      const width = Math.max(0, Math.min(1, l.budgetSpent / l.budget)) * 122;
-      if (width > 0) { const fill = progress.addStack(); fill.size = new Size(width, 4); fill.backgroundColor = l.budgetLeft < 0 ? red : accent; fill.cornerRadius = 2; }
-      progress.addSpacer();
-    }
+  const title = w.addStack(); text(title, '✦ 星账本', 12, accent); title.addSpacer();
+  text(title, (cached ? '离线 · ' : '') + l.period.label.slice(5).replace(/^0/, '') + '月' + (old ? ' · 旧' : ''), 10, old ? red : muted);
+  w.addSpacer(small ? 7 : 12);
+  const content = small ? w : w.addStack();
+  const left = small ? content : content.addStack();
+  if (!small) { left.layoutVertically(); left.size = new Size(128, 90); left.url = siteLink(); }
+  text(left, label, 11, muted); left.addSpacer(3);
+  text(left, money(l[settings.metric || 'net'], small), small ? 29 : 34, ink, 'amount');
+  if (small) {
+    w.addSpacer(7); divider(w); w.addSpacer(7);
+    const bottom = w.addStack();
+    smallMetric(bottom, '预算', l.budget === null ? '未设置' : money(l.budget, true));
+    bottom.addSpacer();
+    smallMetric(bottom, '支出', l.expenseUnknown ? '待换算' : money(l.expense, true));
+  } else {
+    left.addSpacer(); text(left, '打开账本 ↗', 10, muted);
+    content.addSpacer(16); divider(content, true); content.addSpacer(16);
+    const right = content.addStack(); right.layoutVertically(); right.size = new Size(0, 90); right.url = siteLink('entry');
+    row(right, '预算', l.budget === null ? '未设置' : money(l.budget), ink, 12); right.addSpacer(6);
+    row(right, '支出', l.expenseUnknown ? '待换算' : money(l.expense), ink, 12); right.addSpacer(6);
+    row(right, '剩余', l.budget === null ? '未设置' : l.budgetUnknown ? '待换算' : money(l.budgetLeft), l.budgetLeft < 0 ? red : accent, 12);
+    right.addSpacer(); text(right, '＋ 记一笔 ↗', 11, accent);
   }
-  w.addSpacer();
-  text(w, (cached ? '缓存 · ' : '备份 ') + stamp(data.backedUpAt), 9, muted);
-  if (old && !small) text(w, '旧账期 ' + l.period.label + ' · 请在网页备份', 10, red);
   return w;
 }
 function errorWidget(message) { const w = base(); text(w, '星账本', 13, accent, 'medium'); w.addSpacer(); const t = text(w, message, 13); t.lineLimit = 4; w.addSpacer(); text(w, '在 Scriptable 运行脚本设置', 10, muted); return w; }

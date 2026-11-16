@@ -1,12 +1,12 @@
 export function createWidgetSettings({open, esc, request, quickBackup, state, cloudDialog, toast}) {
-  const scriptUrl = new URL('./scriptable/StarLedgerWidget.js', import.meta.url).href;
+  const scriptUrl = new URL('./scriptable/StarLedgerWidget.js?v=2', import.meta.url).href;
   function panel() {
     open('iPhone 桌面小组件', `<div class="widget-settings">
       <p class="intro">在主屏幕直接看净资产、预算与花销。数值来自最近一次成功上传的完整备份。</p>
       <div class="widget-examples" aria-label="小号与中号布局示意，使用示例金额">
-        <figure><div class="widget-sample widget-small"><header>星账本 <span>11月</span></header><small>净资产</small><strong>¥28,650</strong><div class="widget-sample-row"><span>预算</span><b>¥5,000</b></div><div class="widget-sample-row"><span>支出</span><b>¥3,280</b></div><footer>备份 11/15 10:30</footer></div><figcaption>小号 · 三个金额，推荐</figcaption></figure>
-        <figure><div class="widget-sample widget-medium"><header>星账本 <span>11月账期</span></header><div class="widget-medium-grid"><div><small>净资产</small><strong>¥28,650</strong><footer>备份 11/15 10:30</footer></div><div><div class="widget-sample-row"><span>预算</span><b>¥5,000</b></div><div class="widget-sample-row"><span>支出</span><b>¥3,280</b></div><div class="widget-sample-row"><span>剩余</span><b>¥1,720</b></div><div class="widget-meter"><i></i></div></div></div></div><figcaption>中号 · 增加预算剩余与进度</figcaption></figure>
-      </div><p class="subtle">以上为示例金额与布局示意；真实效果可在 Scriptable 中预览。主金额可选净资产或总资产。</p>
+        <figure><div class="widget-sample widget-small"><header><span class="widget-brand">✦ 星账本</span><span>11月</span></header><small>净资产</small><strong>¥28,650</strong><div class="widget-small-bottom"><div><small>预算</small><b>¥5,000</b></div><div><small>支出</small><b>¥3,280</b></div></div></div><figcaption>小号 · 点击整张卡片打开账本</figcaption></figure>
+        <figure><div class="widget-sample widget-medium"><header><span class="widget-brand">✦ 星账本</span><span>11月</span></header><div class="widget-medium-grid"><div><small>净资产</small><strong>¥28,650</strong><footer>打开账本 ↗</footer></div><div><div class="widget-sample-row"><span>预算</span><b>¥5,000</b></div><div class="widget-sample-row"><span>支出</span><b>¥3,280</b></div><div class="widget-sample-row widget-remaining"><span>剩余</span><b>¥1,720</b></div><footer class="widget-entry-link">＋ 记一笔 ↗</footer></div></div></div><figcaption>中号 · 左侧打开账本，右侧直接记一笔</figcaption></figure>
+      </div><p class="subtle">示例金额。配色沿用网页的纸白 / 深墨与玫瑰色，字形使用衬线数字与宋体。主金额可选净资产或总资产；卡片不显示备份时间。</p>
       <div class="dialog-actions"><button type="button" class="primary" data-action="widget-pair">生成连接配置</button><button type="button" class="secondary" data-action="widget-check">检查云端金额</button></div>
       <div class="widget-pairing" hidden><label>小组件连接配置<textarea id="widget-pairing-text" rows="4" readonly spellcheck="false" aria-label="小组件连接配置"></textarea></label><button type="button" class="text-link" data-action="widget-copy">复制连接配置</button><p class="subtle">只用于你自己的 Scriptable，含只读令牌。更新 Worker 的 SYNC_TOKEN 可使旧配置失效。</p></div>
       <p class="connection-status" data-widget-status role="status" aria-live="polite">尚未检查云端金额</p>
@@ -17,9 +17,9 @@ export function createWidgetSettings({open, esc, request, quickBackup, state, cl
         <li><b>保存一次云备份。</b>点“立即备份并更新”，按提示核对云端差异。旧备份没有摘要时，此按钮会更新备份格式。</li>
         <li><b>安装 Scriptable 并添加脚本。</b>在 App Store 安装 Scriptable；<a href="${esc(scriptUrl)}" download="StarLedgerWidget.js">下载小组件脚本</a>，或<button type="button" class="text-link" data-action="widget-script">复制脚本代码</button>。打开 Scriptable → ＋ → 粘贴代码 → 命名“星账本小组件” → 运行。</li>
         <li><b>连接星账本。</b>在本页生成并复制连接配置，在脚本首次运行的输入框中粘贴。接着选择账本和主金额。凭据保存在 Scriptable 钥匙串里。</li>
-        <li><b>添加到主屏幕。</b>长按桌面空白 → 编辑 / 添加小组件 → Scriptable → 选择小号或中号 → 添加。长按组件 → 编辑小组件 → Script 选“星账本小组件”。两种尺寸使用同一脚本，可以同时添加比较。</li>
+        <li><b>添加到主屏幕。</b>长按桌面空白 → 编辑 / 添加小组件 → Scriptable → 选择小号或中号 → 添加。长按组件 → 编辑小组件 → Script 选“星账本小组件”。两种尺寸使用同一脚本，可以同时添加比较。小号整张点击打开网页；中号左侧打开网页，右侧打开“记一笔”。iOS 小号组件不支持分区点击。</li>
       </ol></details>
-      <details class="backup-advanced"><summary>何时更新？数字如何计算？</summary><p class="notice">自动备份仅在网页可见且没有正在编辑的弹窗时运行；修改稳定至少一分钟，上传间隔至少一小时。小组件在 iOS 下次允许刷新时读取这份备份，不能保证即时刷新。关闭网页后仍可查看已备份数据。</p><p class="notice">净资产 / 总资产沿用账户校准、隐藏账户和汇率规则；支出与预算分别沿用首页口径，不计预算的支出仍计入花销。自定义账期也会保留。缺汇率时显示“待换算”，账户待校准时显示“待核实”。跨账期未备份会明确显示旧账期。</p><p class="notice">断网时使用上次缓存并标“缓存”；时间始终是备份生成时间，不是刚刚请求接口的时间。重新运行脚本可手动刷新、切换账本或预览大小。当前支持 20 MiB 以内的完整备份。</p></details>
+      <details class="backup-advanced"><summary>何时更新？数字如何计算？</summary><p class="notice">自动备份仅在网页可见且没有正在编辑的弹窗时运行；修改稳定至少一分钟，上传间隔至少一小时。小组件在 iOS 下次允许刷新时读取这份备份，不能保证即时刷新。关闭网页后仍可查看已备份数据。</p><p class="notice">净资产 / 总资产沿用账户校准、隐藏账户和汇率规则；支出与预算分别沿用首页口径，不计预算的支出仍计入花销。自定义账期也会保留。缺汇率时显示“待换算”，账户待校准时显示“待核实”。跨账期未备份会明确显示旧账期。</p><p class="notice">断网时使用上次缓存并标“离线”；卡片不显示备份时间；可用本页“检查云端金额”查看数据来源。重新运行脚本可手动刷新、切换账本或预览大小。当前支持 20 MiB 以内的完整备份。</p></details>
       <p class="subtle"><a href="https://github.com/No3456bite/starledger-web/blob/main/docs/IOS-WIDGET.md" target="_blank" rel="noopener">完整配置与排错说明</a> · 布局参考 <a href="https://developer.apple.com/design/human-interface-guidelines/widgets" target="_blank" rel="noopener">Apple 小组件设计指南</a></p>
     </div>`);
   }

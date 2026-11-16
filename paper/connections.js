@@ -1,4 +1,4 @@
-import {createWidgetSettings} from './widget-settings.js';
+import {createWidgetSettings} from './widget-settings.js?v=widget2';
 import * as B from './domain/backup.js?v=widget1';
 import {workspaceHash,compareWorkspaces} from './domain/backup-review.js';
 import * as W from './domain/workspace.js';
