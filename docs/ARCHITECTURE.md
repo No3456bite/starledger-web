@@ -104,3 +104,7 @@ The GitHub workflow catches structural and JavaScript failures. The iPhone pass 
 ### Widget editor v3
 
 `paper/widget-model.js` is the shared normalization, metric metadata, formatting and palette model. The generator embeds it in the standalone Scriptable file on build, so the browser and widget use one format contract. `prefs.widgetConfig` is ledger-owned, hashed canonical configuration; the manifest snapshot carries its sanitized copy. Existing v1 snapshot fields and Keychain namespace remain compatible. New metrics call existing ledger/account selectors; no duplicate balance calculation or extra cloud storage is introduced. The UI drafts small/medium independently, persists only on Save, and explicitly requests existing conflict-safe backup to publish configuration.
+
+## Homepage financial motion
+
+`paper/motion.js` owns digit rolling. `paper/app.js` marks homepage summary and account values with stable `data-metric` keys, captures their displayed targets before render and animates changes after render. The scope includes the main ledger, selected period and month/year mode; navigation and period changes establish a fresh baseline. No ledger values or storage semantics are changed. During motion, assistive technology gets the final formatted value once, and rapid rerenders capture that target instead of duplicate animation layers. Reduced motion updates immediately. The production build hashes the runtime and precaches the versioned motion import.

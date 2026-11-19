@@ -5,6 +5,41 @@
 const reduced=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
 let navigationAnimation,disclosureAnimations=new WeakMap(),contentAnimations=new WeakMap();
 export const MOTION={page:260,disclosure:380,easing:'cubic-bezier(.22,.8,.28,1)',spring:'cubic-bezier(.22,1.18,.36,1)'};
+// Snapshot the displayed values before render replaces the DOM. Scope changes
+// (ledger/period/navigation) must never look like a new financial transaction.
+export function captureMetrics(root,scope){
+ const values=new Map();
+ if(scope&&root.dataset.metricScope===scope)for(const node of root.querySelectorAll('[data-metric]'))values.set(node.dataset.metric,node.dataset.metricValue??node.textContent);
+ return values;
+}
+export function flipMetrics(root,previous,scope){
+ root.dataset.metricScope=scope;
+ if(!scope||reduced())return;
+ for(const node of root.querySelectorAll('[data-metric]')){
+  const value=node.textContent,old=previous.get(node.dataset.metric);
+  if(old===undefined||old===value||!/[0-9]/.test(old)||!/[0-9]/.test(value))continue;
+  // Keep the final value accessible throughout; intermediate glyphs are visual
+  // only. Store the target so rapid consecutive saves never snapshot both layers.
+  node.dataset.metricValue=value;
+  const readable=document.createElement('span');readable.className='metric-readable';readable.textContent=value;
+  const visual=document.createElement('span');visual.setAttribute('aria-hidden','true');
+  node.replaceChildren(readable,visual);
+  const animations=[],oldDigits=old.replace(/[^0-9]/g,''),digitCount=value.replace(/[^0-9]/g,'').length;
+  let digitIndex=0;
+  for(const char of value){
+   if(!/[0-9]/.test(char)){visual.append(document.createTextNode(char));continue}
+   const before=oldDigits[oldDigits.length-digitCount+digitIndex++];
+   if(before===char){visual.append(document.createTextNode(char));continue}
+   const cell=document.createElement('span');cell.className='metric-digit';
+   const incoming=document.createElement('span');incoming.textContent=char;cell.append(incoming);
+   const outgoing=document.createElement('span');outgoing.textContent=before??'';cell.append(outgoing);visual.append(cell);
+   const options={duration:620,delay:Math.min((digitCount-digitIndex)*35,180),easing:MOTION.easing,fill:'both'};
+   animations.push(incoming.animate([{transform:'translateY(100%) rotateX(-70deg)',opacity:0},{transform:'translateY(0) rotateX(0)',opacity:1}],options));
+   animations.push(outgoing.animate([{transform:'translateY(0) rotateX(0)',opacity:1},{transform:'translateY(-100%) rotateX(70deg)',opacity:0}],options));
+  }
+  Promise.all(animations.map(animation=>animation.finished.catch(()=>{}))).then(()=>{node.textContent=value;delete node.dataset.metricValue});
+ }
+}
 // Full-page view-transition snapshots can paint over fixed iOS navigation.
 // Keep the live DOM's stacking order and animate only compositor properties.
 export function navigatePage(element,update,direction){navigationAnimation?.cancel();update();enterPage(element,direction)}
