@@ -65,6 +65,8 @@ jobs:
           TEST_ENGINE=webkit TEST_URL=http://127.0.0.1:4176 node paper-tests/widget-entry-browser.cjs
           TEST_URL=http://127.0.0.1:4176 node paper-tests/metric-motion-browser.cjs
           TEST_ENGINE=webkit TEST_URL=http://127.0.0.1:4176 node paper-tests/metric-motion-browser.cjs
+          TEST_VIEWPORT=desktop TEST_URL=http://127.0.0.1:4176 node paper-tests/metric-motion-browser.cjs
+          TEST_VIEWPORT=desktop TEST_ENGINE=webkit TEST_URL=http://127.0.0.1:4176 node paper-tests/metric-motion-browser.cjs
           TEST_URL=http://127.0.0.1:4176 node paper-tests/motion-browser.cjs
           TEST_ENGINE=webkit TEST_URL=http://127.0.0.1:4176 node paper-tests/motion-browser.cjs
           TEST_URL=http://127.0.0.1:4176 node paper-tests/flat-browser.cjs

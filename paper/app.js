@@ -1,6 +1,6 @@
 import {manageDialogViewport} from './dialog-viewport.js?v=ios-focus9';
 import {createOCRInbox,isOCRHash,decodeOCRHash,decodeOCRClipboard,ocrValue} from './ocr-handoff.js?v=2';
-import {navigatePage,disclose,panelContent,fadePanel,bindLongPress,captureMetrics,flipMetrics} from './motion.js?v=home-metrics1';
+import {navigatePage,disclose,panelContent,fadePanel,bindLongPress,captureMetrics,flipMetrics} from './motion.js?v=home-metrics2';
 import {icon,icons} from './icons.js';
 import * as L from './domain/ledger.js';
 import {normalizeAmountExpression,evaluateAmountExpression,amountSaveValue} from './domain/amount.js';

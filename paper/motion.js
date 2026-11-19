@@ -17,7 +17,9 @@ export function flipMetrics(root,previous,scope){
  if(!scope||reduced())return;
  for(const node of root.querySelectorAll('[data-metric]')){
   const value=node.textContent,old=previous.get(node.dataset.metric);
-  if(old===undefined||old===value||!/[0-9]/.test(old)||!/[0-9]/.test(value))continue;
+  // Hidden responsive summaries have no visible transition; in WebKit their
+  // animation timelines can also remain suspended indefinitely.
+  if(old===undefined||old===value||!/[0-9]/.test(old)||!/[0-9]/.test(value)||!node.getClientRects().length)continue;
   // Keep the final value accessible throughout; intermediate glyphs are visual
   // only. Store the target so rapid consecutive saves never snapshot both layers.
   node.dataset.metricValue=value;
